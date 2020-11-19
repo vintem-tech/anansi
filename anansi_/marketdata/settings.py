@@ -11,7 +11,7 @@ class Exchange:
     klines_endpoint: str = str()
     request_weight_per_minute: int = None
     records_per_request: int = None
-    possible_candle_periods: list = [
+    possible_time_frames: list = [
         "1m",
         "3m",
         "5m",
