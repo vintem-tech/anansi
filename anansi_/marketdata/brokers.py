@@ -10,7 +10,7 @@ settings = get_settings()
 doc_inherit = DocInherit
 
 
-def instantiate_broker(broker_name: str) -> Exchange:
+def get_broker(broker_name: str) -> Exchange:
     return getattr(thismodule, broker_name.capitalize())()
 
 
