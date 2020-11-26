@@ -10,8 +10,8 @@ from ..share.storage import StorageKlines
 pd.options.mode.chained_assignment = None
 
 
-def klines_getter(market: Market):
-    return FromBroker(market)
+def klines_getter(market: Market, time_frame:str=""):
+    return FromBroker(market, time_frame)
 
 
 @pd.api.extensions.register_dataframe_accessor("KlinesDateTime")
@@ -80,11 +80,11 @@ class FromBroker:
         "_until",
     ]
 
-    def __init__(self, market):
+    def __init__(self, market:Market, time_frame:str):
         self.broker_name = market.broker_name
         self.ticker_symbol = market.ticker_symbol.upper()
         self._broker = get_broker(self.broker_name)
-        self._validate_tf(market.time_frame)
+        self._validate_tf(time_frame)
         self._since = 1
         self._until = 2
 
@@ -96,7 +96,7 @@ class FromBroker:
             else:
                 raise ValueError("Time frame must be in {}".format(tf_list))
         else:
-            self._time_frame = min(tf_list)
+            self._time_frame = tf_list[0]
 
     @property
     def time_frame(self):
@@ -192,7 +192,6 @@ class FromBroker:
         return _klines[_klines.Open_time <= self._until]
 
     def _raw_extensive_back_testing_data_minimal_timeframe(self):
-        self._time_frame = min(self._broker.possible_time_frames)
         self._since = self._oldest_open_time()
         self._until = self._now()
         self._get_raw_(appending_raw_to_db=True)
@@ -238,3 +237,6 @@ class FromBroker:
 
     def newest(self, number_of_candles=1) -> pd.core.frame.DataFrame:
         return self.get(number_of_candles=number_of_candles, until=self._now())
+
+def create_backtesting_data(market:Market)-> None:
+    pass
