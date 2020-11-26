@@ -15,4 +15,3 @@ class Market(BaseModel):
 
     broker_name: str
     ticker_symbol: str
-    time_frame: str
