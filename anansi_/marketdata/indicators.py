@@ -38,7 +38,9 @@ class Trend:
         ).mean(axis=1)
 
     def simple_moving_average(self, setup):
-        self._klines.apply_indicator.trend.price_from_kline(price_metrics=setup.price_metrics)
+        self._klines.apply_indicator.trend.price_from_kline(
+            price_metrics=setup.price_metrics
+        )
         indicator_column = "SMA_{}".format(setup.number_samples)
         self._klines.loc[:, indicator_column] = self._klines.Price.rolling(
             window=setup.number_samples
@@ -53,16 +55,18 @@ class Momentum:
 class Volatility:
     def __init__(self, klines):
         self._klines = klines
-    
+
     def bollinger_bands(self, setup):
-        self._klines.apply_indicator.trend.price_from_kline(price_metrics=setup.price_metrics)
+        self._klines.apply_indicator.trend.price_from_kline(
+            price_metrics=setup.price_metrics
+        )
         n = setup.number_samples
         k = setup.number_STDs
 
         sma = self._klines.Price.rolling(window=n).mean()
         deviation = self._klines.Price.rolling(window=n).std()
-        upper_band = sma + k*deviation
-        lower_band = sma - k*deviation
+        upper_band = sma + k * deviation
+        lower_band = sma - k * deviation
 
         self._klines.loc[:, "Bollinger_SMA"] = sma
         self._klines.loc[:, "BB_upper"] = upper_band
