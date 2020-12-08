@@ -9,10 +9,6 @@ services:
       - '$POSTGRES_PORT:5432'
     volumes:
       - postgres:/var/lib/postgresql/data
-    networks:
-      backend_dev:
-        aliases:
-          - postgres
 
   pgadmin:
     image: dpage/pgadmin4    
@@ -24,14 +20,45 @@ services:
       - pgadmin:/var/lib/pgadmin
     depends_on:
       - postgres
-    networks:
-      backend_dev:
-        aliases:
-          - pgadmin
 
-networks:
-  backend_dev:
-    driver: bridge
+  influxdb:
+    image: influxdb:latest #quay.io/influxdb/influxdb:v2.0.2
+    #command: influxdb --reporting-disabled
+    env_file:
+      - '.env'
+    volumes:
+      # Mount for influxdb data directory
+      - influxdb-data:/var/lib/influxdb
+      # Mount for influxdb configuration
+      - influxdb-config:/etc/influxdb/
+    ports:
+      # The API for InfluxDB is served on port 8086
+      - "8086:8086"
+      #- "8082:8082"
+
+  chronograf:
+    image: chronograf:latest
+    ports:
+      - "8888:8888"
+    volumes:
+      - chronograf-storage:/var/lib/chronograf
+    depends_on:
+      - influxdb
+    env_file:
+      - '.env'
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    env_file:
+      - '.env'
+    user: "0"
+    links:
+      - influxdb
+    volumes:
+      - grafana-data:/var/lib/grafana
   
 volumes:
   postgres:
@@ -41,3 +68,19 @@ volumes:
   pgadmin:
     driver: local
     name: pgadmin
+
+  influxdb-data:
+    driver: local
+    name: influxdb-data
+  
+  influxdb-config:
+    driver: local
+    name: influxdb-config
+  
+  chronograf-storage:
+    driver: local
+    name: chronograf-storage
+
+  grafana-data:
+    driver: local
+    name: grafana-data
