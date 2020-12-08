@@ -10,7 +10,7 @@ from ..share.storage import StorageKlines
 pd.options.mode.chained_assignment = None
 
 
-def klines_getter(market: Market, time_frame:str=""):
+def klines_getter(market: Market, time_frame: str = ""):
     return FromBroker(market, time_frame)
 
 
@@ -80,7 +80,7 @@ class FromBroker:
         "_until",
     ]
 
-    def __init__(self, market:Market, time_frame:str):
+    def __init__(self, market: Market, time_frame: str):
         self.broker_name = market.broker_name
         self.ticker_symbol = market.ticker_symbol.upper()
         self._broker = get_broker(self.broker_name)
@@ -127,10 +127,11 @@ class FromBroker:
         return self._broker.records_per_request * self.seconds_timeframe()
 
     def _get_raw_(self, appending_raw_to_db=False) -> pd.core.frame.DataFrame:
-        table_name = "{}_{}_{}_raw".format(
+        table = "{}_{}_{}".format(
             self.broker_name, self.ticker_symbol.lower(), self._time_frame
         )
-        storage, klines = StorageKlines(table_name), pd.DataFrame()
+        klines = pd.DataFrame()
+        storage = StorageKlines(table=table, database="raw_klines")
 
         for timestamp in range(
             self._since,
@@ -142,8 +143,6 @@ class FromBroker:
                     raw_klines = self._broker.get_klines(
                         self.ticker_symbol, self._time_frame, since=timestamp
                     )
-                    if appending_raw_to_db:
-                        storage.append(raw_klines)
                     klines = klines.append(raw_klines, ignore_index=True)
                     break
 
@@ -151,6 +150,9 @@ class FromBroker:
                     # TODO: To logger instead print
                     print("Fail, due the error: ", e)
                     time.sleep(5)  # 60 sec cooldown time.
+            
+            if appending_raw_to_db:
+                storage.append(raw_klines)
 
             if self._broker.was_request_limit_reached():
                 time.sleep(10)  # 10 sec cooldown time.
@@ -194,7 +196,8 @@ class FromBroker:
     def _raw_extensive_back_testing_data_minimal_timeframe(self):
         self._since = self._oldest_open_time()
         self._until = self._now()
-        self._get_raw_(appending_raw_to_db=True)
+        raw_klines = self._get_raw_(appending_raw_to_db=True)
+        return raw_klines
 
     def _sanitize_input_dt(self, datetime) -> int:
         try:
@@ -238,5 +241,6 @@ class FromBroker:
     def newest(self, number_of_candles=1) -> pd.core.frame.DataFrame:
         return self.get(number_of_candles=number_of_candles, until=self._now())
 
-def create_backtesting_data(market:Market)-> None:
+
+def create_backtesting_data(market: Market) -> None:
     pass
