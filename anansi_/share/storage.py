@@ -1,52 +1,120 @@
+"""Este módulo tem por objetivo lidar com o salvamento de coleções. Inicialmente
+pensado para cobrir a tarefa de salvar klines, deve ser capaz de ler/escrever
+coleções de/em arquivos e/ou banco de dados, servindo como uma camada de
+implementação e provendo uma interface para este fim"""
+
 import pandas as pd
+from environs import Env
+
+
+# Influxdb v1.8
+
+from influxdb import DataFrameClient
+
+env = Env()
+
+influxdb_params = dict(
+    host=env.str("INFLUXDB_HOST", default="localhost"),
+    port=env.int("INFLUXDB_PORT", 8086),
+    username=env.str("INFLUXDB_USER", default="Anansi"),
+    password=env.str("INFLUXDB_USER_PASSWORD", default="anansi2020"),
+    gzip=env.bool("INFLUXDB_GZIP", default=True),
+)
+
+
+class InfluxDb:
+    """For influxdb information:
+    https://influxdb-python.readthedocs.io/en/latest/api-documentation.html#dataframeclient
+
+    For retention policy:
+
+    client.create_retention_policy(name="long_duration", replication=1, duration='INF')
+    client.alter_retention_policy(name="short_duration", replication=1, duration='10d')"""
+
+    def __init__(self, database: str, measurement: str):
+        self.database = database
+        self.measurement = measurement
+
+    def append(self, dataframe: pd.core.frame.DataFrame) -> None:
+        """Saves a timeseries pandas dataframe on influxdb.
+
+        Args:
+            dataframe (pd.core.frame.DataFrame): Timeseries dataframe
+        """
+        client = DataFrameClient(**influxdb_params)
+        client.create_database(self.database)
+
+        client.write_points(
+            dataframe=dataframe,
+            measurement=self.measurement,
+            tags=None,
+            tag_columns=None,
+            field_columns=list(dataframe.columns),
+            time_precision=None,
+            database=self.database,
+            # retention_policy=None,
+            batch_size=None,
+            protocol="line",
+            numeric_precision=None,
+        )
+        client.close()
+
 
 class StorageKlines:
-    def __init__(self, table_name:str):
-        self.table_name = table_name
-    
-    def append(self, dataframe:pd.core.frame.DataFrame):
-        self._save_in_slices(dataframe)
+    def __init__(self, table: str, database: str):
+        self.agent = InfluxDb(database=database, measurement=table)
 
-    def _save_in_slices(self, dataframe_in, step=500):
-        _end = len(dataframe_in)
+    def append(self, klines: pd.core.frame.DataFrame):
+        work_klines = klines.copy()
 
-        for i in range(0, _end, step):
-            _from, _until = i, i + step
+        work_klines.Open_time = pd.to_datetime(work_klines.Open_time, unit="s")
+        work_klines.set_index("Open_time", inplace=True)
+        self.agent.append(work_klines)
 
-            if _until > _end:
-                _until = _end
-            self._append_dataframe(dataframe_in[_from:_until])
 
-    def _append_dataframe(self, dataframe_to_append):
+"""(influxdb:v2.0.2)
 
-        try:
-            with sqlite3.connect(self._db_name) as conn:
-                dataframe_to_append.to_sql(
-                    name=self._table_name,
-                    con=conn,
-                    if_exists="append",
-                    index=False,
-                    index_label=self._primary_key,
-                    method="multi")
+## Image for docker-compose:
 
-        except (Exception, sqlite3.OperationalError) as e:
-            print(e)
+  influxdb:
+    image: quay.io/influxdb/influxdb:v2.0.2
 
-        finally:
-            conn.close()
 
-    def _proceed_search(self, query="") -> list:
-        _query = "SELECT * FROM {} {};".format(self._table_name, query)
-        search_result = []
-        try:
-            with sqlite3.connect(self._db_name) as conn:
-                c = conn.cursor()
-                c.execute(_query)
-                search_result = c.fetchall()
+## References:
 
-        except (Exception, sqlite3.OperationalError) as e:
-            print(e)
+https://github.com/influxdata/influxdb-client-python
+https://docs.influxdata.com/influxdb/v2.0/tools/client-libraries/python/
 
-        finally:
-            c.close()
-            conn.close()
+
+## Basic script to append dataframes to buckets
+
+import influxdb_client
+from influxdb_client.client.write_api import SYNCHRONOUS
+import pandas as pd
+
+bucket = "<bucket>"
+org = "<organization>"
+token = "<token>"
+url="http://localhost:8086"
+
+client = influxdb_client.InfluxDBClient(
+  url=url,
+  token=token,
+  org=org,
+  enable_gzip=True
+)
+
+write_api = client.write_api(write_options=SYNCHRONOUS)
+
+work_klines = my_klines.copy()
+
+work_klines.KlinesDateTime.from_human_readable_to_timestamp()
+
+work_klines.Open_time = pd.to_datetime(work_klines.Open_time, unit="s")
+work_klines.set_index("<date_time-timestamp>", inplace=True)
+
+write_api .write(bucket=bucket,
+                 org=org,
+                 record=work_klines,
+                 data_frame_measurement_name='<measurement_name>')
+"""
