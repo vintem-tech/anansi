@@ -4,12 +4,9 @@ coleções de/em arquivos e/ou banco de dados, servindo como uma camada de
 implementação e provendo uma interface para este fim"""
 
 import pandas as pd
+import numpy as np
 from environs import Env
-
-
-# Influxdb v1.8
-
-from influxdb import DataFrameClient
+import collections
 
 env = Env()
 
@@ -22,7 +19,13 @@ influxdb_params = dict(
 )
 
 
+# Influxdb v1.8
+
+from influxdb import DataFrameClient
+
+
 class InfluxDb:
+
     """For influxdb information:
     https://influxdb-python.readthedocs.io/en/latest/api-documentation.html#dataframeclient
 
@@ -30,6 +33,11 @@ class InfluxDb:
 
     client.create_retention_policy(name="long_duration", replication=1, duration='INF')
     client.alter_retention_policy(name="short_duration", replication=1, duration='10d')"""
+
+    __slots__ = [
+        "database",
+        "measurement",
+    ]
 
     def __init__(self, database: str, measurement: str):
         self.database = database
@@ -59,10 +67,46 @@ class InfluxDb:
         )
         client.close()
 
+    def proceed(self, query_to_proceed) -> collections.defaultdict:
+        client = DataFrameClient(**influxdb_params)
+        query_result = client.query(query_to_proceed)
+        client.close()
+        return query_result
+
 
 class StorageKlines:
+    __slots__ = [
+        "table",
+        "database",
+        "agent",
+    ]
+
     def __init__(self, table: str, database: str):
+        self.table = table
+        self.database = database
         self.agent = InfluxDb(database=database, measurement=table)
+
+    def _seconds_timestamp_of_oldest_record(self) -> int:
+        oldest_query = """
+            SELECT * FROM "{}"."autogen"."{}" GROUP BY * ORDER BY ASC LIMIT 1
+            """.format(
+            self.database,
+            "Binance_btcusdt_1m",
+            # self.table,
+        )
+        oldest = (self.agent.proceed(oldest_query))["Binance_btcusdt_1m"]
+        return int(pd.Timestamp(oldest.index[0]).timestamp())
+
+    def _seconds_timestamp_of_newest_record(self) -> int:
+        newest_query = """
+            SELECT * FROM "{}"."autogen"."{}" GROUP BY * ORDER BY DESC LIMIT 1
+            """.format(
+            self.database,
+            "Binance_btcusdt_1m",
+            # self.table,
+        )
+        newest = (self.agent.proceed(newest_query))["Binance_btcusdt_1m"]
+        return int(pd.Timestamp(newest.index[0]).timestamp())
 
     def append(self, klines: pd.core.frame.DataFrame):
         work_klines = klines.copy()
@@ -70,6 +114,32 @@ class StorageKlines:
         work_klines.Open_time = pd.to_datetime(work_klines.Open_time, unit="s")
         work_klines.set_index("Open_time", inplace=True)
         self.agent.append(work_klines)
+
+    def get_klines(
+        self, start_time: int, end_time: int, time_frame: str
+    ) -> pd.core.frame.DataFrame:
+        const = 10 ** 9  # Coversion sec <--> nanosec
+
+        klines_query = """
+        SELECT first("Open") AS "Open", max("High") AS "High", min("Low") AS 
+        "Low", last("Close") AS "Close", sum("Volume") AS "Volume" FROM 
+        "{}"."autogen"."{}" WHERE time >= {} AND 
+        time <= {} GROUP BY time({}) FILL(linear)
+        """.format(
+            self.database,
+            "Binance_btcusdt_1m",
+            # self.table,
+            str(const * start_time),
+            str(const * end_time),
+            time_frame,
+        )
+        _klines = self.agent.proceed(klines_query)
+        # klines = _klines[self.table]
+        klines = _klines["Binance_btcusdt_1m"]
+        klines.reset_index(inplace=True)
+        klines = klines.rename(columns={"index": "Open_time"})
+        klines.Open_time = klines.Open_time.values.astype(np.int64) // const
+        return klines
 
 
 """(influxdb:v2.0.2)
