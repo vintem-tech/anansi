@@ -28,11 +28,7 @@ class InfluxDb:
 
     """For influxdb information:
     https://influxdb-python.readthedocs.io/en/latest/api-documentation.html#dataframeclient
-
-    For retention policy:
-
-    client.create_retention_policy(name="long_duration", replication=1, duration='INF')
-    client.alter_retention_policy(name="short_duration", replication=1, duration='10d')"""
+    """
 
     __slots__ = [
         "database",
@@ -48,6 +44,15 @@ class InfluxDb:
 
         Args:
             dataframe (pd.core.frame.DataFrame): Timeseries dataframe
+        
+        For retention policy, follow below example, and declare the 
+        'retention_policy=name' at 'client.write_points':
+
+        client.create_retention_policy(name="long_duration", 
+        replication=1, duration='INF') or
+        
+        client.alter_retention_policy(name="short_duration", 
+        replication=1, duration='10d')
         """
         client = DataFrameClient(**influxdb_params)
         client.create_database(self.database)
@@ -91,10 +96,9 @@ class StorageKlines:
             SELECT * FROM "{}"."autogen"."{}" GROUP BY * ORDER BY ASC LIMIT 1
             """.format(
             self.database,
-            "Binance_btcusdt_1m",
-            # self.table,
+            self.table,
         )
-        oldest = (self.agent.proceed(oldest_query))["Binance_btcusdt_1m"]
+        oldest = (self.agent.proceed(oldest_query))[self.table]
         return int(pd.Timestamp(oldest.index[0]).timestamp())
 
     def _seconds_timestamp_of_newest_record(self) -> int:
@@ -102,10 +106,9 @@ class StorageKlines:
             SELECT * FROM "{}"."autogen"."{}" GROUP BY * ORDER BY DESC LIMIT 1
             """.format(
             self.database,
-            "Binance_btcusdt_1m",
-            # self.table,
+            self.table,
         )
-        newest = (self.agent.proceed(newest_query))["Binance_btcusdt_1m"]
+        newest = (self.agent.proceed(newest_query))[self.table]
         return int(pd.Timestamp(newest.index[0]).timestamp())
 
     def append(self, klines: pd.core.frame.DataFrame):
@@ -127,15 +130,14 @@ class StorageKlines:
         time <= {} GROUP BY time({}) FILL(linear)
         """.format(
             self.database,
-            "Binance_btcusdt_1m",
-            # self.table,
+            self.table,
             str(const * start_time),
             str(const * end_time),
             time_frame,
         )
         _klines = self.agent.proceed(klines_query)
-        # klines = _klines[self.table]
-        klines = _klines["Binance_btcusdt_1m"]
+        klines = _klines[self.table]
+
         klines.reset_index(inplace=True)
         klines = klines.rename(columns={"index": "Open_time"})
         klines.Open_time = klines.Open_time.values.astype(np.int64) // const
