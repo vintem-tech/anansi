@@ -33,7 +33,7 @@ class Trend:
         self._klines = klines
 
     def price_from_kline(self, price_metrics="ohlc4"):
-        self._klines.loc[:, "Price"] = (
+        self._klines.loc[:, "Price_{}".format(price_metrics)] = (
             self._klines[_columns[price_metrics]]
         ).mean(axis=1)
 
