@@ -264,6 +264,11 @@ class FromBroker(KlinesFrom):
                 table = "{}_{}".format(
                     self.broker_name,
                     self.ticker_symbol.lower(),
+                    # self._time_frame # Não faz sentido o nome da tabela
+                                       # conter o timeframe, já que o storage
+                                       # deve resolver a agregação, a despeito
+                                       # de qual seja o mínimo timeframe 
+                                       # armazenado 
                 )
                 storage = StorageKlines(
                     table=table, database=self._storage_name
@@ -322,15 +327,11 @@ class ToStorage:
         "klines_getter",
     ]
 
-    def __init__(self, market: Market):#, storage_name: str):
-        table = "{}_{}".format(
-            market.broker_name, market.ticker_symbol.lower()
-        )
-        #self.storage = StorageKlines(table=table, database=storage_name)
+    def __init__(self, market: Market):
         self.klines_getter = FromBroker(market)
         self.klines_getter._append_to_storage = True
 
-    def create_largest_mass_of_most_refined_klines(self):
+    def create_largest_refined_backtesting(self):
         self.klines_getter._storage_name = "backtesting_klines"
         
         start_time = self.klines_getter.oldest_open_time()
