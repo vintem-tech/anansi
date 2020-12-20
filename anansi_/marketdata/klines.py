@@ -11,8 +11,10 @@ from ..share.storage import StorageKlines
 pd.options.mode.chained_assignment = None
 
 
-# def klines_getter(market: Market, time_frame: str = ""):
-#    return FromBroker(market, time_frame)
+def klines_getter(market: Market, time_frame: str = "", backtesting=False):
+    if backtesting:
+        return FromStorage(market, time_frame, storage_name="backtesting_klines")
+    return FromBroker(market, time_frame)
 
 
 @pd.api.extensions.register_dataframe_accessor("KlinesDateTime")
