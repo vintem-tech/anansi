@@ -4,7 +4,7 @@ import pandas as pd
 import pendulum
 from . import indicators
 from .brokers import get_broker
-from .models import Market
+from .schemas import Market
 from ..share.tools import ParseDateTime, seconds_in
 from ..share.storage import StorageKlines
 
@@ -13,7 +13,9 @@ pd.options.mode.chained_assignment = None
 
 def klines_getter(market: Market, time_frame: str = "", backtesting=False):
     if backtesting:
-        return FromStorage(market, time_frame, storage_name="backtesting_klines")
+        return FromStorage(
+            market, time_frame, storage_name="backtesting_klines"
+        )
     return FromBroker(market, time_frame)
 
 
@@ -229,12 +231,13 @@ class FromBroker(KlinesFrom):
         self._time_frame = tf
 
     def oldest_open_time(self) -> int:
-        return self._broker.get_klines(
+        oldest_candle = self._broker.get_klines(
             ticker_symbol=self.ticker_symbol,
             time_frame=self._time_frame,
             since=1,
             number_of_candles=1,
-        ).Open_time.item()
+        )
+        return oldest_candle.Open_time.item()
 
     def newest_open_time(self) -> int:
         return (pendulum.now(tz="UTC")).int_timestamp
@@ -267,10 +270,10 @@ class FromBroker(KlinesFrom):
                     self.broker_name,
                     self.ticker_symbol.lower(),
                     # self._time_frame # Não faz sentido o nome da tabela
-                                       # conter o timeframe, já que o storage
-                                       # deve resolver a agregação, a despeito
-                                       # de qual seja o mínimo timeframe 
-                                       # armazenado 
+                    # conter o timeframe, já que o storage
+                    # deve resolver a agregação, a despeito
+                    # de qual seja o mínimo timeframe
+                    # armazenado
                 )
                 storage = StorageKlines(
                     table=table, database=self._storage_name
@@ -335,7 +338,7 @@ class ToStorage:
 
     def create_largest_refined_backtesting(self):
         self.klines_getter._storage_name = "backtesting_klines"
-        
+
         start_time = self.klines_getter.oldest_open_time()
         end_time = self.klines_getter.newest_open_time()
 
