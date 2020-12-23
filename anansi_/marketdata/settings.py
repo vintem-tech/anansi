@@ -28,7 +28,6 @@ class Exchange:
         "1w",
         "1M",
     ]
-    fee_rate_decimal = 0.001
     kline_information = [
         "Open_time",
         "Open",
