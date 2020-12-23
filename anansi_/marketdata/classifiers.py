@@ -1,22 +1,10 @@
 import sys
-from .models import BaseModel, Market, SmaTripleCross
+from .schemas import BaseModel, DidiIndexDefault, Market, SmaTripleCross
 from .klines import klines_getter
 import pandas as pd
 from typing import Union
 
-# thismodule = sys.modules[__name__]
-
-# def classifier(
-#    market: Market,
-#    setup: Union[
-#        FollowBullsSetup,
-#    ],
-#    time_frame: str,
-# ):
-#    classifier_name = (setup.__class__.__name__).split("Setup")[0]
-#    return getattr(thismodule, classifier_name)(
-#        market, setup, time_frame
-#    )
+thismodule = sys.modules[__name__]
 
 
 def cross_triple_sma(
@@ -30,8 +18,13 @@ def cross_triple_sma(
         data.apply_indicator.trend.simple_moving_average(_setup)
 
 
-class DidiIndexAlpha:
-    def __init__(self, market: Market, setup: BaseModel, time_frame: str):
+class DidiIndex:
+    def __init__(
+        self,
+        market: Market,
+        time_frame: str,
+        setup: DidiIndexDefault = DidiIndexDefault(),
+    ):
         self.backtesting = False
         self.result = pd.DataFrame()
         self.market = market
@@ -131,3 +124,9 @@ class DidiIndexAlpha:
         self._analysis_of_indicators()
 
         return self.result
+
+
+def classifier(
+    classifier_name, market: Market, time_frame: str, **setup: BaseModel
+) -> Union[DidiIndex,]:
+    return getattr(thismodule, classifier_name)(market, time_frame, **setup)
