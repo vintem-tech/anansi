@@ -274,6 +274,17 @@ optional = false
 python-versions = "*"
 
 [[package]]
+name = "hashids"
+version = "1.3.1"
+description = "Implements the hashids algorithm in python. For more information, visit http://hashids.org/"
+category = "main"
+optional = false
+python-versions = ">=2.7"
+
+[package.extras]
+test = ["pytest (>=2.1.0)"]
+
+[[package]]
 name = "idna"
 version = "2.10"
 description = "Internationalized Domain Names in Applications (IDNA)"
@@ -1290,7 +1301,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "25f92102fb689aff8a68017da09ff873539529d550f8a0db19212cb5816e5c4b"
+content-hash = "d23ab2369e9e804a8ddaee93590712a6fffb61558fd23439a2f1bb7a524c5a58"
 
 [metadata.files]
 appdirs = [
@@ -1451,6 +1462,10 @@ fastapi = [
 h11 = [
     {file = "h11-0.11.0-py2.py3-none-any.whl", hash = "sha256:ab6c335e1b6ef34b205d5ca3e228c9299cc7218b049819ec84a388c2525e5d87"},
     {file = "h11-0.11.0.tar.gz", hash = "sha256:3c6c61d69c6f13d41f1b80ab0322f1872702a3ba26e12aa864c928f6a43fbaab"},
+]
+hashids = [
+    {file = "hashids-1.3.1-py2.py3-none-any.whl", hash = "sha256:8bddd1acba501bfc9306e7e5a99a1667f4f2cacdc20cbd70bcc5ddfa5147c94c"},
+    {file = "hashids-1.3.1.tar.gz", hash = "sha256:6c3dc775e65efc2ce2c157a65acb776d634cb814598f406469abef00ae3f635c"},
 ]
 idna = [
     {file = "idna-2.10-py2.py3-none-any.whl", hash = "sha256:b97d804b1e9b523befed77c48dacec60e6dcb0b5391d57af6a65a312a90648c0"},
