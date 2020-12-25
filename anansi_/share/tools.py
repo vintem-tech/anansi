@@ -1,10 +1,20 @@
+# pylint: disable=no-name-in-module
+
 import json
 from collections import namedtuple
-from functools import wraps, partial
+from functools import partial, wraps
 from time import time
-import pendulum
 import pandas as pd
+import pendulum
+from hashids import Hashids
+from pydantic import BaseModel
 from tabulate import tabulate
+
+
+def short_hash_from_obj(op:BaseModel) -> str:
+    _alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    hashids = Hashids(alphabet=_alphabet, salt=str(op))    
+    return hashids.encode(abs(hash(str(op))))
 
 
 class ParseDateTime:
