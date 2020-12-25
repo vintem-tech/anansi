@@ -4,7 +4,7 @@ import pandas as pd
 import pendulum
 from . import indicators
 from .brokers import get_broker
-from .schemas import Market
+from ..share.schemas import Market
 from ..share.tools import ParseDateTime, seconds_in
 from ..share.storage import StorageKlines
 
