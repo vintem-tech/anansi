@@ -1,6 +1,7 @@
 import sys
-from .schemas import BaseModel, Market, SmaTripleCross, DidiIndex as DidiSetup
+from .schemas import BaseModel, Market, SmaTripleCross, DidiIndexSetup, TimeFormat
 from ..marketdata.klines import klines_getter
+from ..share.tools import seconds_in
 import pandas as pd
 from typing import Union
 
@@ -17,20 +18,49 @@ def cross_triple_sma(
         _setup.number_samples = n
         data.apply_indicator.trend.simple_moving_average(_setup)
 
-
-class DidiIndex:
+class KlinesBasedClassifier:
     def __init__(
         self,
         market: Market,
         time_frame: str,
-        setup: DidiSetup = DidiSetup(),
+        setup: BaseModel,
+        backtesting: bool
+    ):
+        self.market = market
+        self.time_frame = time_frame
+        self.time_frame_total_seconds = seconds_in(time_frame)
+        self.setup = setup
+        self.backtesting = backtesting
+        self.klines_getter = klines_getter(market, time_frame, backtesting)
+        self.number_samples:int = None
+        self.data = pd.DataFrame()
+        self.result = pd.DataFrame()
+
+    def get_data_until(self, desired_datetime: TimeFormat) -> None:
+        self.data = self.klines_getter.get(
+            until=desired_datetime, number_of_candles=self.number_samples
+        )
+
+    def initial_backtesting_now(self) -> int:
+        oldest_open_time = self.klines_getter.oldest_open_time()
+        step = self.number_samples * self.time_frame_total_seconds
+        return oldest_open_time + step
+
+    def final_backtesting_now(self) -> int:
+        return self.klines_getter.newest_open_time()
+
+    def restult_at(self, **kwargs):
+        raise NotImplementedError
+
+class DidiIndex(KlinesBasedClassifier):
+    def __init__(
+        self,
+        market: Market,
+        time_frame: str,
+        setup: DidiIndexSetup = DidiIndexSetup(),
         backtesting: bool = False
     ):
-        self.backtesting = backtesting
-        self.result = pd.DataFrame()
-        self.market = market
-        self.setup = setup
-        self.time_frame = time_frame
+        super(DidiIndex, self).__init__(market, time_frame, setup, backtesting)
         self.number_samples = max(setup.sma_triple_cross.number_samples)
 
     def _trend_analysis(self):
@@ -55,7 +85,8 @@ class DidiIndex:
         )
         self.result["Trend_result"] = didi_result
         self.result["Didi_fast"] = didi_fast_sma
-        self.result["Did_slow"] = didi_slow_sma
+        self.result["Didi_slow"] = didi_slow_sma
+        self.result["Didi_middle"] = 0.0
 
     def _volatility_analysis(self):
         previous_BB_upper = self.data[-2:-1].BB_upper.item()
@@ -68,22 +99,18 @@ class DidiIndex:
             (current_BB_upper > previous_BB_upper)
             and (current_BB_lower < previous_BB_lower)
         )
-        partial_opened_bands = bool(
-            (
-                (current_BB_upper > previous_BB_upper)
-                and (current_BB_lower >= previous_BB_lower)
-            )
-            or (
-                (current_BB_upper <= previous_BB_upper)
-                and (current_BB_lower < previous_BB_lower)
-            )
+        
+        total_closed_bands = bool(
+            (current_BB_upper <= previous_BB_upper)
+            and (current_BB_lower >= previous_BB_lower)
         )
+
         bollinger_result = (
-            1 if total_opened_bands else 0.5 if partial_opened_bands else 0
+            1.0 if total_opened_bands else 0.0 if total_closed_bands else 0.5
         )
         self.result["Bollinger_result"] = bollinger_result
 
-    def _indicators_pipeline(self):
+    def _apply_indicators_pipeline(self):
         cross_triple_sma(
             setup=self.setup.sma_triple_cross,
             data=self.data,
@@ -92,7 +119,7 @@ class DidiIndex:
             setup=self.setup.bollinger_bands
         )
 
-    def _analysis_of_indicators(self):
+    def _evaluate_indicators_values(self):
         self.result = pd.DataFrame()
         self.result = self.result.append(self.data[-1:], ignore_index=True)
 
@@ -103,26 +130,23 @@ class DidiIndex:
             self.result.Trend_result.item()
             * self.result.Bollinger_result.item()
         )
-        suggest_side = (
+        side = (
             "Long"
             if leverage > 0.3
             else "Short"
             if leverage < -0.3
             else "Zeroed"
         )
-        self.result["Suggest_side"] = suggest_side
+        self.result["Side"] = side
         self.result["Leverage"] = leverage
 
     def restult_at(
-        self, desired_datetime: Union[str, int]
+        self, desired_datetime: TimeFormat
     ) -> pd.core.frame.DataFrame:
-        klines = klines_getter(self.market, self.time_frame, self.backtesting)
 
-        self.data = klines.get(
-            until=desired_datetime, number_of_candles=self.number_samples
-        )
-        self._indicators_pipeline()
-        self._analysis_of_indicators()
+        self.get_data_until(desired_datetime)
+        self._apply_indicators_pipeline()
+        self._evaluate_indicators_values()
 
         return self.result
 
