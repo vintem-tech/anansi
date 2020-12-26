@@ -1,121 +1,65 @@
-from typing import Union
 import pandas as pd
-from .schemas import Operation as OpSetup
+import pendulum
+from .schemas import OpSetup
 from .classifiers import classifier
-from .order_handler import OrderHandler
-from ..share.tools import short_hash_from_obj
+from .order_handler import order_handler
+from ..share.tools import short_hash_from
+from ..share.storage import StorageResults
 
 
 class Operation:
-    def __init__(self, setup:OpSetup):
+    def __init__(self, setup: OpSetup):
         self.setup = setup
-        self.id = short_hash_from_obj(setup)
-        self.current_result = self.get_last_result()
+        self.id = short_hash_from(setup)
+        self.current_result = pd.DataFrame()
+        self.storage = StorageResults(table=self.id, database="results")
 
-    def _reset_portfolio(self):
-        quote = 0.0
-        base = self.setup.initial_base_amount
-
-        self.update_portfolio(quote, base)
-
-    def _fetch_to_broker_portfolio(self):
-        raise NotImplementedError
-
-    def update_portfolio(self, quote: float, base: float) -> None:
-        _quote = self.setup.market.quote_symbol
-        _base = self.setup.market.base_symbol
-
-        self.current_result[_quote] = quote
-        self.current_result[_base] = base
-
-    def classifier_result(self, result: pd.core.frame.DataFrame) -> None:
+    def update(self, result: pd.core.frame.DataFrame) -> None:
         self.current_result[list(result.columns)] = result
 
     def stoploss_result(self):
         raise NotImplementedError
 
     def save_current_result(self) -> bool:
-        
-        print(self.current_result)
-        #pass
+        self.storage.append(self.current_result)
 
     def get_last_result(self) -> pd.core.frame.DataFrame:
-        return pd.DataFrame()
+        raise NotImplementedError
 
 
 class DefaultTrader:
-    def __init__(self, operation:Operation):
+    def __init__(self, operation: Operation):
         self.operation = operation
         self.classifier = classifier(**operation.setup.classifier_payload)
-        self.order_handler = OrderHandler(operation)
-        self.now = ""
+        self.order_handler = order_handler(operation)
+        self.is_running: bool = False
+        self.now: int = None  # Datetime (seconds UTC timestamp)
 
     def _start(self):
-        pass
+        self.now = (
+            self.classifier.initial_backtesting_now()
+            if self.operation.setup.backtesting
+            else pendulum.now("UTC").int_timestamp
+        )
+        self.is_running = True
+
+    def _classifier_analysis(self):
+        result = self.classifier.restult_at(desired_datetime=self.now)
+        self.operation.update(result)
 
     def analysis_pipeline(self) -> None:
-        self.operation.classifier_result(
-            result=self.classifier.restult_at(desired_datetime=self.now)
-        )
-
+        self._classifier_analysis()
         self.order_handler.proceed()
-        self.operation.save_current_result()
 
     def forward_step(self):
-        pass
+        if self.operation.setup.backtesting:
+            self.now += self.classifier.time_frame_total_seconds
+
+            if self.now > self.classifier.final_backtesting_now():
+                self.is_running = False
 
     def run(self):
         self._start()
-        while True:
+        while self.is_running:
             self.analysis_pipeline()
             self.forward_step()
-
-
-"""
-MODELO
-
-A chave é a variável 'now'; em vez de criar uma lógica complexa, melhor vir
-através do input do usuário. No cliente (que vai performar, temporariamente, o
-trade BTCUSDT), basta chamar o 'oldest_open_time' e o 'newest_open_time' do
-banco
-
-
-   def _start(self):
-        self.op.if_no_assets_fill_them()
-        self._now = pendulum.now("UTC").int_timestamp
-        self.op.update(status=STAT.Running)
-
-        if self.op.mode == MODE.BackTesting:
-            self.op.reset()
-
-            # TODO: Refactoring suggestion: The initial and final
-            # values ​​of '_now' must be attributes of the operation
-            self._now = self._get_initial_backtesting_now()
-            self._final_backtesting_now = self._get_final_backtesting_now()
-
-    def _get_ready_to_repeat(self):
-        self._consolidate_log()
-
-        if self.op.mode == MODE.BackTesting:
-            self.op.print_report()
-            self._now += self._step
-
-            if self._now > self._final_backtesting_now:
-                self.op.update(status=STAT.NotRunning)
-
-        else:
-            if self.op.position.side != SIDE.Zeroed:
-                time.sleep(self._step)
-
-            else:
-                next_close_time = self.op.last_open_time + (2 * self._step)
-                _time = (
-                    next_close_time - pendulum.now("UTC").int_timestamp
-                ) + 3
-                time.sleep(_time)
-
-            self._now = pendulum.now("UTC").int_timestamp
-
-
-
-"""
