@@ -6,16 +6,14 @@ from functools import partial, wraps
 from time import time
 import pandas as pd
 import pendulum
-from hashids import Hashids
+import hashlib
 from pydantic import BaseModel
 from tabulate import tabulate
+from ..share.schemas import TimeFormat
 
 
-def short_hash_from_obj(op:BaseModel) -> str:
-    _alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789'
-    hashids = Hashids(alphabet=_alphabet, salt=str(op))    
-    return hashids.encode(abs(hash(str(op))))
-
+def short_hash_from(obj:BaseModel, length:int=8) -> str:
+    return hashlib.sha256(str(obj).encode('utf-8')).hexdigest()[:length]
 
 class ParseDateTime:
     """ Only work from/to 'YYYY-MM-DD HH:mm:ss' format """
@@ -31,6 +29,17 @@ class ParseDateTime:
 
     def from_timestamp_to_human_readable(self):
         return pendulum.from_timestamp(self.date_time_in).to_datetime_string()
+
+def sanitize_input_datetime(datetime: TimeFormat) -> int:
+    try:
+        return int(datetime)  # Already int or str timestamp (SECONDS)
+    except:  # Human readable datetime ("YYYY-MM-DD HH:mm:ss")
+        try:
+            return ParseDateTime(
+                datetime
+            ).from_human_readable_to_timestamp()
+        except:
+            return 0  # indicative of error
 
 
 def seconds_in(time_frame: str) -> int:
