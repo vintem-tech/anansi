@@ -16,7 +16,7 @@ price metrics:
 
 from typing import Sequence, Optional
 from pydantic import BaseModel, validator
-from ..share.schemas import Market, TimeRange
+from ..share.schemas import Market, TimeFormat
 
 possible_price_metrics = ["o", "h", "l", "c", "oh2", "olc3", "ohlc4"]
 
@@ -93,7 +93,7 @@ class BollingerBands(BaseModel):
     number_STDs: int = 2
 
 
-class DidiIndex(BaseModel):
+class DidiIndexSetup(BaseModel):
     """'Didi Index' ('agulhadas do Didi') setup schema, with default values."""
 
     allow_naked_sells: bool = False
@@ -101,17 +101,16 @@ class DidiIndex(BaseModel):
     bollinger_bands: BollingerBands = BollingerBands()
 
 
-class Operation(BaseModel):
+class OpSetup(BaseModel):
     """Operational schema, with default values."""
 
     classifier_name: str = "DidiIndex"
-    classifier_setup: BaseModel = DidiIndex()
+    classifier_setup: BaseModel = DidiIndexSetup()
     market: Market = Market(
         broker_name="Binance", quote_symbol="BTC", base_symbol="USDT"
     )
-    time_frame: str = "2h"
+    time_frame: str = "6h"
     backtesting: bool = True
-    backtesting_range: Optional[TimeRange]
     initial_base_amount: float = 1000.00
 
     @property
