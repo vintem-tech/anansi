@@ -1,11 +1,10 @@
 import time
-from typing import Union
 import pandas as pd
 import pendulum
 from . import indicators
 from .brokers import get_broker
-from ..share.schemas import Market
-from ..share.tools import ParseDateTime, seconds_in
+from ..share.schemas import Market, TimeFormat
+from ..share.tools import ParseDateTime, sanitize_input_datetime, seconds_in
 from ..share.storage import StorageKlines
 
 pd.options.mode.chained_assignment = None
@@ -143,26 +142,15 @@ class KlinesFrom:
         _klines = self._get_core(start_time=since, end_time=until)
         return _klines[_klines.Open_time <= until]
 
-    def _sanitize_input_dt(self, datetime: Union[str, int]) -> int:
-        try:
-            return int(datetime)  # Already int or str timestamp (SECONDS)
-        except:  # Human readable datetime ("YYYY-MM-DD HH:mm:ss")
-            try:
-                return ParseDateTime(
-                    datetime
-                ).from_human_readable_to_timestamp()
-            except:
-                return 0  # indicative of error
-
     def get(self, **kwargs) -> pd.core.frame.DataFrame:
         since = kwargs.get("since")
         until = kwargs.get("until")
         number_of_candles: int = kwargs.get("number_of_candles")
 
         if since:
-            since = self._sanitize_input_dt(since)
+            since = sanitize_input_datetime(since)
         if until:
-            until = self._sanitize_input_dt(until)
+            until = sanitize_input_datetime(until)
 
         klines = (
             self._get_given_since_and_until(since, until)
@@ -344,3 +332,21 @@ class ToStorage:
 
         raw_klines = self.klines_getter.get(since=start_time, until=end_time)
         return raw_klines
+
+
+class PriceFromStorage:
+    def __init__(self, market: Market, price_metrics="ohlc4"):
+        self.klines_getter = FromStorage(
+            market, time_frame="1m", storage_name="backtesting_klines"
+        )
+        self.price_metrics=price_metrics
+
+    def get_price_at(self, desired_datetime: TimeFormat) -> float:
+        desired_datetime = sanitize_input_datetime(desired_datetime)
+        
+        klines = self.klines_getter.get(
+            since=desired_datetime - 60000, until=desired_datetime + 60000
+        )
+        klines.apply_indicator.trend.price_from_kline(self.price_metrics)
+        price_column = getattr(klines, "Price_{}".format(self.price_metrics))
+        return price_column.iloc[1001].item()
