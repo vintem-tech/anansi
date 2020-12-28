@@ -1,25 +1,6 @@
 version: '3.8'
+
 services:
-
-  postgres:
-    image: 'postgres'
-    env_file:
-      - '.env'
-    ports:
-      - '$POSTGRES_PORT:5432'
-    volumes:
-      - postgres:/var/lib/postgresql/data
-
-  pgadmin:
-    image: dpage/pgadmin4    
-    env_file:
-      - '.env'
-    ports:
-      - '$PGADMIN_PORT:80'
-    volumes:
-      - pgadmin:/var/lib/pgadmin
-    depends_on:
-      - postgres
 
   influxdb:
     image: influxdb:latest #quay.io/influxdb/influxdb:v2.0.2
@@ -59,16 +40,18 @@ services:
       - influxdb
     volumes:
       - grafana-data:/var/lib/grafana
-  
-volumes:
-  postgres:
-    driver: local
-    name: postgres
-  
-  pgadmin:
-    driver: local
-    name: pgadmin
 
+  anansi:
+    build: .
+    
+    env_file:
+      - '.env'
+    
+    depends_on:
+      - influxdb
+
+
+volumes:
   influxdb-data:
     driver: local
     name: influxdb-data
