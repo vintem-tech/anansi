@@ -34,10 +34,3 @@ class Market(BaseModel):
             str: quote_symbol + base_symbol
         """
         return self.quote_symbol + self.base_symbol
-
-
-class TimeRange(BaseModel):
-    """collect the start and end of a time range"""
-
-    start_time: TimeFormat
-    end_time: TimeFormat
