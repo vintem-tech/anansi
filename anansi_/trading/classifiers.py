@@ -1,7 +1,13 @@
 import sys
-from .schemas import BaseModel, Market, SmaTripleCross, DidiIndexSetup, TimeFormat
+from .schemas import (
+    BaseModel,
+    Market,
+    SmaTripleCross,
+    DidiIndexSetup,
+    TimeFormat,
+)
 from ..marketdata.klines import klines_getter
-from ..share.tools import seconds_in
+from ..share.tools import next_closed_candle, seconds_in
 import pandas as pd
 from typing import Union
 
@@ -18,13 +24,14 @@ def cross_triple_sma(
         _setup.number_samples = n
         data.apply_indicator.trend.simple_moving_average(_setup)
 
+
 class KlinesBasedClassifier:
     def __init__(
         self,
         market: Market,
         time_frame: str,
         setup: BaseModel,
-        backtesting: bool
+        backtesting: bool,
     ):
         self.market = market
         self.time_frame = time_frame
@@ -32,9 +39,10 @@ class KlinesBasedClassifier:
         self.setup = setup
         self.backtesting = backtesting
         self.klines_getter = klines_getter(market, time_frame, backtesting)
-        self.number_samples:int = None
+        self.number_samples: int = None
         self.data = pd.DataFrame()
         self.result = pd.DataFrame()
+        self.time_until_next_closed_candle: int = None
 
     def get_data_until(self, desired_datetime: TimeFormat) -> None:
         self.data = self.klines_getter.get(
@@ -52,13 +60,14 @@ class KlinesBasedClassifier:
     def restult_at(self, **kwargs):
         raise NotImplementedError
 
+
 class DidiIndex(KlinesBasedClassifier):
     def __init__(
         self,
         market: Market,
         time_frame: str,
         setup: DidiIndexSetup = DidiIndexSetup(),
-        backtesting: bool = False
+        backtesting: bool = False,
     ):
         super(DidiIndex, self).__init__(market, time_frame, setup, backtesting)
         self.number_samples = max(setup.sma_triple_cross.number_samples)
@@ -99,7 +108,7 @@ class DidiIndex(KlinesBasedClassifier):
             (current_BB_upper > previous_BB_upper)
             and (current_BB_lower < previous_BB_lower)
         )
-        
+
         total_closed_bands = bool(
             (current_BB_upper <= previous_BB_upper)
             and (current_BB_lower >= previous_BB_lower)
@@ -147,6 +156,12 @@ class DidiIndex(KlinesBasedClassifier):
         self.get_data_until(desired_datetime)
         self._apply_indicators_pipeline()
         self._evaluate_indicators_values()
+
+        current_opentime = self.result.Open_time.tail(1).item()
+
+        self.time_until_next_closed_candle = next_closed_candle(
+            self.time_frame, current_opentime
+        )
 
         return self.result
 
