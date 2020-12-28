@@ -49,7 +49,7 @@ def seconds_in(time_frame: str) -> int:
 
     return time_amount * conversor_for[time_unit]
 
-def next_closed_candle(time_frame, current_open_time):
+def next_closed_candle(time_frame:str, current_open_time:str)->int:
     step = seconds_in(time_frame)
     timestamp_open_time = ParseDateTime(current_open_time).from_human_readable_to_timestamp()
     next_close_time = timestamp_open_time + (2 * step)
