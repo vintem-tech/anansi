@@ -14,11 +14,16 @@ price metrics:
 "ohlc4" = ("Open" + "High" + "Low" + "Close")/4
 """
 
-from typing import Sequence, Optional
+from typing import Sequence, Optional, List
 from pydantic import BaseModel, validator
 from ..share.schemas import Market, TimeFormat
 
 possible_price_metrics = ["o", "h", "l", "c", "oh2", "olc3", "ohlc4"]
+
+
+class Portfolio(BaseModel):
+    quote: float = None
+    base: float = None
 
 
 class SmaTripleCross(BaseModel):
@@ -104,6 +109,8 @@ class DidiIndexSetup(BaseModel):
 class OpSetup(BaseModel):
     """Operational schema, with default values."""
 
+    debbug: bool = True
+    broadcasters: List[str] = ["PrintNotifier"]
     classifier_name: str = "DidiIndex"
     classifier_setup: BaseModel = DidiIndexSetup()
     market: Market = Market(
@@ -112,6 +119,8 @@ class OpSetup(BaseModel):
     time_frame: str = "6h"
     backtesting: bool = True
     initial_base_amount: float = 1000.00
+    test_order: bool = False
+    order_type: str = "market"
 
     @property
     def classifier_payload(self) -> dict:
@@ -127,3 +136,39 @@ class OpSetup(BaseModel):
             setup=self.classifier_setup,
             backtesting=self.backtesting,
         )
+
+
+DefaultBackTestingOperation = OpSetup()
+DefaultTestTradingOperation = OpSetup(
+    debbug=True,
+    broadcasters = ["PrintNotifier", "TelegramNotifier"],
+    market=Market(
+        broker_name="Binance", quote_symbol="BTC", base_symbol="EUR"
+    ),
+    time_frame = "6h",
+    backtesting=False,
+    test_order=True,
+)
+
+DefaultRealTradingOperation = OpSetup(
+    debbug=True,
+    broadcasters = ["TelegramNotifier"],
+    market=Market(
+        broker_name="Binance", quote_symbol="BTC", base_symbol="EUR"
+    ),
+    time_frame = "6h",
+    backtesting=False,
+    test_order=False,
+)
+
+
+class Order(BaseModel):
+    """Order parameters collection"""
+
+    test_order: bool
+    ticker_symbol: str
+    side: str
+    order_type: str
+    quantity: float
+    price: Optional[float] = None
+    # notify_order: bool = True
