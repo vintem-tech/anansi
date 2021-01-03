@@ -22,7 +22,7 @@ services:
   chronograf: # Some influxdb controllers
     image: chronograf:latest
     ports:
-      - "8888:8888"
+      - "38888:8888"
     volumes:
       - chronograf-storage:/var/lib/chronograf
     depends_on:
@@ -43,14 +43,14 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
 
-  app:
-    build: .app/
+  #app:
+  #  build: .app/
     
-    env_file:
-      - '.env'
+  #  env_file:
+  #    - '.env'
     
-    depends_on:
-      - influxdb
+  #  depends_on:
+  #    - influxdb
 
 
 volumes:

@@ -4,12 +4,25 @@
 
 """All brokers configuration must to be placed here"""
 
+from environs import Env
 from pydantic import BaseModel
+
+env = Env()
+
+influxdb_params = dict(
+    host=env.str("INFLUXDB_HOST", default="localhost"),
+    port=env.int("INFLUXDB_PORT", 8086),
+    username=env.str("INFLUXDB_USER", default="Anansi"),
+    password=env.str("INFLUXDB_USER_PASSWORD", default="anansi2020"),
+    gzip=env.bool("INFLUXDB_GZIP", default=True),
+)
 
 
 class BrokerSettings(BaseModel):
     """Broker parent class """
 
+    api_key: str = str()
+    api_secret: str = str()
     datetime_format: str = "timestamp"
     datetime_unit: str = "seconds"
     base_endpoint: str = str()
@@ -49,12 +62,17 @@ class BrokerSettings(BaseModel):
     show_only_desired_info: bool = True
 
 
+API_KEY = "f3OO0BGKIFxz1en2DM3YSMVVCjNCB0cuKCyfLTnPkWUzDXtdOCdV0vkfljoXeTTV"
+API_SECRET = "XNYKdj3Y39EgcB9JI2bwZ2BgHhZYsI4OvEH3muO1zOTbD2Q8v6Ul8dlMZbNUDdI4"
+
+
 class BinanceSettings(BrokerSettings):
     """
     https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md
     """
-
-    DateTimeUnit = "milliseconds"
+    api_key: str = env.str("BINANCE_API_KEY", default=API_KEY)
+    api_secret: str = env.str("BINANCE_API_SECRET", default=API_SECRET)
+    datetime_unit = "milliseconds"
     base_endpoint = "https://api.binance.com/api/v3/"
     ping_endpoint = base_endpoint + "ping"
     time_endpoint = base_endpoint + "time"

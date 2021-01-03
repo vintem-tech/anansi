@@ -1,29 +1,40 @@
+"""Deals specifically with klines, delivering them formatted as pandas
+dataframes, with some extra methods, such as market indicators. It is
+also responsible for serving as a queue for requesting klines from the
+brokers, in order not to exceed the limits of their APIs. Finally, it
+also deals with saving and reading klines to/from the 'storage', also
+fulfilling the function of creating "synthetic klines" (candles from
+a timeframe created by interpolation from a different timeframe)
+"""
+
 import time
+
 import pandas as pd
 import pendulum
-from . import indicators
+
 from ..brokers.brokers import get_broker
-from ..share.schemas import Market, TimeFormat
-from ..share.tools import ParseDateTime, sanitize_input_datetime, seconds_in
-from ..share.storage import StorageKlines
+from ..sql_app.schemas import DateTimeType, Market
+from ..storage.storage import StorageKlines
+from ..tools.time_handlers import (
+    ParseDateTime,
+    sanitize_input_datetime,
+    seconds_in,
+)
+from . import indicators
 
 pd.options.mode.chained_assignment = None
 
 
-def klines_getter(market: Market, time_frame: str = "", backtesting=False):
-    if backtesting:
-        return FromStorage(
-            market, time_frame, storage_name="backtesting_klines"
-        )
-    return FromBroker(market, time_frame)
-
-
 @pd.api.extensions.register_dataframe_accessor("KlinesDateTime")
 class KlinesDateTime:
+    """Converts 'Open_time' and/or 'Close_time' columns items to/from
+    timestamp/human readable."""
+
     def __init__(self, klines: pd.core.frame.DataFrame):
         self._klines = klines
 
     def from_human_readable_to_timestamp(self):
+        """If human readable str, returns associated int timestamp."""
         self._klines.loc[:, "Open_time"] = self._klines.apply(
             lambda date_time: ParseDateTime(
                 date_time["Open_time"]
@@ -40,6 +51,7 @@ class KlinesDateTime:
             )
 
     def from_timestamp_to_human_readable(self):
+        """If int timestamp, returns associated human readable str."""
         self._klines.loc[:, "Open_time"] = self._klines.apply(
             lambda date_time: ParseDateTime(
                 date_time["Open_time"]
@@ -58,6 +70,8 @@ class KlinesDateTime:
 
 @pd.api.extensions.register_dataframe_accessor("apply_indicator")
 class ApplyIndicator:
+    """Klines based market indicators, grouped by common domain."""
+
     def __init__(self, klines):
         self._klines = klines
         self.trend = indicators.Trend(self._klines)
@@ -193,14 +207,14 @@ class FromBroker(KlinesFrom):
     ]
 
     def __init__(self, market: Market, time_frame: str = str()):
-        self._broker = get_broker(market.broker_name)
-        super(FromBroker, self).__init__(market, time_frame)
+        self._broker = get_broker(market)
+        super().__init__(market, time_frame)
         self._time_frame = self._validate_tf(time_frame)
         self._append_to_storage: bool = False
         self._storage_name: str = str()
 
     def _validate_tf(self, tf: str):
-        tf_list = self._broker.possible_time_frames
+        tf_list = self._broker.settings.possible_time_frames
         if tf:
             if tf in tf_list:
                 return tf
@@ -231,7 +245,10 @@ class FromBroker(KlinesFrom):
         return (pendulum.now(tz="UTC")).int_timestamp
 
     def _request_step(self) -> int:
-        return self._broker.records_per_request * self.seconds_timeframe()
+        return (
+            self._broker.settings.records_per_request
+            * self.seconds_timeframe()
+        )
 
     def _get_core(
         self, start_time: int, end_time: int
@@ -243,7 +260,7 @@ class FromBroker(KlinesFrom):
             while True:
                 try:
                     _klines = self._broker.get_klines(
-                        self.ticker_symbol, self._time_frame, since=timestamp
+                        self._time_frame, since=timestamp
                     )
                     klines = klines.append(_klines, ignore_index=True)
                     break
@@ -339,14 +356,22 @@ class PriceFromStorage:
         self.klines_getter = FromStorage(
             market, time_frame="1m", storage_name="backtesting_klines"
         )
-        self.price_metrics=price_metrics
+        self.price_metrics = price_metrics
 
-    def get_price_at(self, desired_datetime: TimeFormat) -> float:
+    def get_price_at(self, desired_datetime: DateTimeType) -> float:
         desired_datetime = sanitize_input_datetime(desired_datetime)
-        
+
         klines = self.klines_getter.get(
             since=desired_datetime - 60000, until=desired_datetime + 60000
         )
         klines.apply_indicator.trend.price_from_kline(self.price_metrics)
         price_column = getattr(klines, "Price_{}".format(self.price_metrics))
         return price_column.iloc[1001].item()
+
+
+def klines_getter(market: Market, time_frame: str = "", backtesting=False):
+    if backtesting:
+        return FromStorage(
+            market, time_frame, storage_name="backtesting_klines"
+        )
+    return FromBroker(market, time_frame)

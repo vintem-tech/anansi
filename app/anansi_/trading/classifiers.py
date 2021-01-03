@@ -4,7 +4,7 @@ from .schemas import (
     Market,
     SmaTripleCross,
     DidiIndexSetup,
-    TimeFormat,
+    DateTimeType,
 )
 from ..marketdata.klines import klines_getter
 from ..share.tools import next_closed_candle, seconds_in
@@ -44,7 +44,7 @@ class KlinesBasedClassifier:
         self.result = pd.DataFrame()
         self.time_until_next_closed_candle: int = None
 
-    def get_data_until(self, desired_datetime: TimeFormat) -> None:
+    def get_data_until(self, desired_datetime: DateTimeType) -> None:
         self.data = self.klines_getter.get(
             until=desired_datetime, number_of_candles=self.number_samples
         )
@@ -150,7 +150,7 @@ class DidiIndex(KlinesBasedClassifier):
         self.result["Leverage"] = leverage
 
     def restult_at(
-        self, desired_datetime: TimeFormat
+        self, desired_datetime: DateTimeType
     ) -> pd.core.frame.DataFrame:
 
         self.get_data_until(desired_datetime)

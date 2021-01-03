@@ -1,5 +1,7 @@
+"""Usefull tools for time and datetime issues."""
+
 import pendulum
-from  ..schemas import TimeFormat
+from ..sql_app.schemas import DateTimeType
 
 class ParseDateTime:
     """ Only work from/to 'YYYY-MM-DD HH:mm:ss' format """
@@ -16,7 +18,7 @@ class ParseDateTime:
     def from_timestamp_to_human_readable(self):
         return pendulum.from_timestamp(self.date_time_in).to_datetime_string()
 
-def sanitize_input_datetime(datetime: TimeFormat) -> int:
+def sanitize_input_datetime(datetime: DateTimeType) -> int:
     try:
         return int(datetime)  # Already int or str timestamp (SECONDS)
     except:  # Human readable datetime ("YYYY-MM-DD HH:mm:ss")

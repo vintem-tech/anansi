@@ -3,10 +3,10 @@ pensado para cobrir a tarefa de salvar klines, deve ser capaz de ler/escrever
 coleções de/em arquivos e/ou banco de dados, servindo como uma camada de
 implementação e provendo uma interface para este fim"""
 
-import pandas as pd
-import numpy as np
-from environs import Env
 import collections
+import numpy as np
+import pandas as pd
+from environs import Env
 
 env = Env()
 
@@ -44,14 +44,14 @@ class InfluxDb:
 
         Args:
             dataframe (pd.core.frame.DataFrame): Timeseries dataframe
-        
-        For retention policy, follow below example, and declare the 
+
+        For retention policy, follow below example, and declare the
         'retention_policy=name' at 'client.write_points':
 
-        client.create_retention_policy(name="long_duration", 
+        client.create_retention_policy(name="long_duration",
         replication=1, duration='INF') or
-        
-        client.alter_retention_policy(name="short_duration", 
+
+        client.alter_retention_policy(name="short_duration",
         replication=1, duration='10d')
         """
         client = DataFrameClient(**influxdb_params)
@@ -133,13 +133,13 @@ class StorageKlines:
             time_frame,
         )
         return self.agent.proceed(klines_query)
-    
+
     def get_klines(
         self, start_time: int, end_time: int, time_frame: str
     ) -> pd.core.frame.DataFrame:
         const = 10 ** 9  # Coversion sec <--> nanosec
 
-        _klines = self.get_raw_klines(start_time, end_time, time_frame)    
+        _klines = self.get_raw_klines(start_time, end_time, time_frame)
         klines = _klines[self.table]
 
         klines.reset_index(inplace=True)
