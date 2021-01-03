@@ -1,27 +1,75 @@
 # pylint: disable=no-name-in-module
 # pylint: disable=no-self-argument
 # pylint: disable=too-few-public-methods
+# pylint: disable=E1136
 
-"""Specific trading pydantic model classes. For setups below, use the follow
-price metrics:
+"""Shared pydantic model classes."""
 
-"o"     = "Open"
-"h"     = "High"
-"l"     = "Low"
-"c"     = "Close"
-"oh2"   = ("Open" + "High")/2
-"olc3"  = ("Open" + "Low" + "Close")/3
-"ohlc4" = ("Open" + "High" + "Low" + "Close")/4
-"""
-
-from typing import Sequence, Optional, List
+from typing import Union, Sequence, Optional, List
 from pydantic import BaseModel, validator
-from ..share.schemas import Market, TimeFormat
+
+# DateTimeType below could be:
+#  - integer or string timestamp, measured in seconds or
+#  - human readable datetime, 'YYYY-MM-DD HH:mm:ss' formated;
+#    e.g. '2017-11-08 10:00:00'.
+
+# For any of above cases, the value of timestamp - whose unit of
+# measure is 'DateTimeType' - MUST be converted or originally measured
+# in UTC time zone.
+
+
+DateTimeType = Union[str, int]
+
+
+class Market(BaseModel):
+    """ Market attributes """
+
+    broker_name: str
+    quote_symbol: str
+    base_symbol: str
+
+    @property
+    def ticker_symbol(self):
+        """Returns the symbol of a market ticket
+
+        Returns:
+            str: quote_symbol + base_symbol
+        """
+        return self.quote_symbol + self.base_symbol
+
+
+# possible_price_metrics means:
+
+# "o"     = "Open"
+# "h"     = "High"
+# "l"     = "Low"
+# "c"     = "Close"
+# "oh2"   = ("Open" + "High")/2
+# "olc3"  = ("Open" + "Low" + "Close")/3
+# "ohlc4" = ("Open" + "High" + "Low" + "Close")/4
+
 
 possible_price_metrics = ["o", "h", "l", "c", "oh2", "olc3", "ohlc4"]
 
 
 class Portfolio(BaseModel):
+    """Market are formed by trading between 'quote' and 'base' assets,
+    this class shows the quantity of each asset, given a certain
+    Market; e.g., suppose, for the 'BTCUDST' binance market, that you
+    have 100 USDTs and 0.02 BTC in your portfolio, so let's do
+
+    p = portfolio (quote = 0.02, base = 100)
+
+    ... that way:
+
+    p.quote = 0.02
+    p.base = 100
+
+    Args:
+        quote (float): Quote amount found on wallet
+        base (float): Base amount found on wallet
+    """
+
     quote: float = None
     base: float = None
 
@@ -141,22 +189,22 @@ class OpSetup(BaseModel):
 DefaultBackTestingOperation = OpSetup()
 DefaultTestTradingOperation = OpSetup(
     debbug=True,
-    broadcasters = ["PrintNotifier", "TelegramNotifier"],
+    broadcasters=["PrintNotifier", "TelegramNotifier"],
     market=Market(
         broker_name="Binance", quote_symbol="BTC", base_symbol="EUR"
     ),
-    time_frame = "6h",
+    time_frame="6h",
     backtesting=False,
     test_order=True,
 )
 
 DefaultRealTradingOperation = OpSetup(
     debbug=True,
-    broadcasters = ["TelegramNotifier"],
+    broadcasters=["TelegramNotifier"],
     market=Market(
         broker_name="Binance", quote_symbol="BTC", base_symbol="EUR"
     ),
-    time_frame = "6h",
+    time_frame="6h",
     backtesting=False,
     test_order=False,
 )

@@ -2,9 +2,11 @@ version: '3.8'
 
 services:
 
-  influxdb:
-    image: influxdb:latest #quay.io/influxdb/influxdb:v2.0.2
-    #command: influxdb --reporting-disabled
+  influxdb: # An optimized Database for time series. 
+            # https://www.influxdata.com/
+    
+    image: influxdb:latest # quay.io/influxdb/influxdb:v2.0.2
+    # command: influxdb --reporting-disabled
     env_file:
       - '.env'
     volumes:
@@ -15,9 +17,9 @@ services:
     ports:
       # The API for InfluxDB is served on port 8086
       - "8086:8086"
-      #- "8082:8082"
+    # - "8082:8082"
 
-  chronograf:
+  chronograf: # Some influxdb controllers
     image: chronograf:latest
     ports:
       - "8888:8888"
@@ -41,8 +43,8 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
 
-  anansi:
-    build: .
+  app:
+    build: .app/
     
     env_file:
       - '.env'

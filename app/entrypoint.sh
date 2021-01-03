@@ -1,5 +1,6 @@
 #!/bin/sh
 
+#! TODO: Deal with 'nc' dependency
 #echo "Waiting for Influx..."
 
 #while ! nc -z $INFLUXDB_HOST $INFLUXDB_PORT; do
@@ -12,4 +13,4 @@ echo "sleeping"
 sleep 30
 echo "awaiking"
 
-exec poetry run real_trade
+exec poetry run anansi

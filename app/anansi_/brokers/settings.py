@@ -1,10 +1,17 @@
-def get_settings():
-    return DefaultSettings()
+# pylint: disable=no-name-in-module
+# pylint: disable=no-self-argument
+# pylint: disable=too-few-public-methods
+
+"""All brokers configuration must to be placed here"""
+
+from pydantic import BaseModel
 
 
-class Exchange:
-    DateTimeFmt: str = "timestamp"
-    DateTimeUnit: str = "seconds"
+class BrokerSettings(BaseModel):
+    """Broker parent class """
+
+    datetime_format: str = "timestamp"
+    datetime_unit: str = "seconds"
     base_endpoint: str = str()
     ping_endpoint: str = str()
     time_endpoint: str = str()
@@ -28,17 +35,21 @@ class Exchange:
         "1w",
         "1M",
     ]
-    kline_information = [
+    kline_information: list = [
         "Open_time",
         "Open",
         "High",
         "Low",
         "Close",
         "Volume",
+        "Close_time",
     ]
+    klines_desired_informations: list = kline_information[:-1]
+    ignore_opened_candle: bool = True
+    show_only_desired_info: bool = True
 
 
-class Binance(Exchange):
+class BinanceSettings(BrokerSettings):
     """
     https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md
     """
@@ -49,19 +60,13 @@ class Binance(Exchange):
     time_endpoint = base_endpoint + "time"
     klines_endpoint = base_endpoint + "klines?symbol={}&interval={}"
     request_weight_per_minute = 1100  # Default: 1200/min/IP
-    records_per_request = 500  # Default: 500 | Limit: 1000 samples/response
+    records_per_request = 500  # Default: 500 | Limit: 1000 samples/response))
 
     # Which information (IN ORDER!), about each candle, is returned by Binance
-    kline_information = Exchange.kline_information + [
-        "Close_time",
+    kline_information = BrokerSettings().kline_information + [
         "Quote_asset_volume",
         "Number_of_trades",
         "Taker_buy_base_asset_volume",
         "Taker_buy_quote_asset_volume",
         "Ignore",
     ]
-
-
-class DefaultSettings:
-    exchange = Binance
-    klines_desired_informations = Exchange().kline_information

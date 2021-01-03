@@ -5,7 +5,7 @@ RUN pip install poetry
 WORKDIR /app
 COPY poetry.lock pyproject.toml entrypoint.sh /app/
 RUN poetry config virtualenvs.create false
-RUN poetry install --no-interaction
+RUN poetry install --no-dev -n
 COPY . /app
 RUN chmod +x entrypoint.sh
 CMD ["sh", "entrypoint.sh"]

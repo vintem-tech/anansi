@@ -2,7 +2,7 @@ import time
 import pandas as pd
 import pendulum
 from . import indicators
-from .brokers import get_broker
+from ..brokers.brokers import get_broker
 from ..share.schemas import Market, TimeFormat
 from ..share.tools import ParseDateTime, sanitize_input_datetime, seconds_in
 from ..share.storage import StorageKlines
