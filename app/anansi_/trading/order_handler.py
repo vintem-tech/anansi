@@ -1,29 +1,49 @@
+# pylint: disable=E1136
+# pylint: disable=no-name-in-module
+
 import sys
-from typing import Union, Optional
-from .schemas import Market, OpSetup, Order, Portfolio
-from .brokers import get_broker
+from typing import Optional, Union
+
+from pydantic import BaseModel
+
+from ..brokers.brokers import get_broker
 from ..marketdata.klines import PriceFromStorage
-from ..share.notifiers import Notifier
+from ..notifiers.notifiers import get_notifier
+from ..sql_app.schemas import OpSetup, Order, Portfolio  # Market
 
 thismodule = sys.modules[__name__]
+
+
+class Parameters(BaseModel):
+    quote_symbol: Optional[str]
+    base_symbol: Optional[str]
+    initial_equivalent_quote: Optional[float]
+    min_lot_size: Optional[float]
+    order_amount_precision: Optional[int]
 
 
 class OrderHandler:
     def __init__(self, operation: OpSetup):
         self.operation = operation
-        self._quote_symbol = operation.setup.market.quote_symbol
-        self._base_symbol = operation.setup.market.base_symbol
         self.broker = get_broker(operation.setup.market)
-        self.notifier = Notifier(broadcasters=operation.setup.broadcasters)
-        self.notifier.show_header = False
+        self.notifier = get_notifier(broadcasters=operation.setup.broadcasters)
+        self.parameters = self._fill_in_parameters()
 
-        self.initial_equivalent_quote: float = None
+    def _fill_in_parameters(self):
+        parameters = Parameters()
+
+        parameters.quote_symbol = self.operation.setup.market.quote_symbol
+        parameters.base_symbol = self.operation.setup.market.base_symbol
+        parameters.initial_equivalent_quote: float = None
+        parameters.min_lot_size = self.broker.get_min_lot_size()
+        parameters.order_amount_precision = (
+            self.broker.get_order_amount_precision()
+        )
+        return parameters
 
     def current_price(self):
         raise NotImplementedError
 
-    def reset_result(self):
-        raise NotImplementedError
 
     def update_result(self, portfolio: Portfolio, price) -> None:
         backtesting = bool(self.operation.setup.backtesting)
@@ -31,13 +51,15 @@ class OrderHandler:
         result = self.operation.current_result
         equivalent_base = portfolio.quote * price + portfolio.base
 
-        result[self._quote_symbol] = portfolio.quote
-        result[self._base_symbol] = portfolio.base
+        result[self.parameters.quote_symbol] = portfolio.quote
+        result[self.parameters.base_symbol] = portfolio.base
 
-        result["Equivalent_{}".format(self._base_symbol)] = equivalent_base
+        result[
+            "Equivalent_{}".format(self.parameters.base_symbol)
+        ] = equivalent_base
         result["Price"] = price
         if backtesting:
-            result["Hold"] = self.initial_equivalent_quote * price
+            result["Hold"] = self.parameters.initial_equivalent_quote * price
 
         if debbug:
             current_opentime = result.Open_time.tail(1).item()
@@ -54,40 +76,28 @@ Side = {}
 Leverage = {}
 """.format(
                 current_opentime,
-                self._base_symbol,
+                self.parameters.base_symbol,
                 equivalent_base,
                 price,
                 portfolio.quote,
-                self._quote_symbol,
+                self.parameters.quote_symbol,
                 portfolio.base,
-                self._base_symbol,
+                self.parameters.base_symbol,
                 side,
                 leverage,
             )
             self.notifier.debbug(msg)
         self.operation.save_current_result()
 
-    def get_asset(self, asset_kind: str) -> float:
+    def get_portfolio(self) -> Portfolio:
         raise NotImplementedError
 
-    def portfolio(self) -> Portfolio:
-        raise NotImplementedError
-
-    def minimal_quote_amount(self):
-        return self.broker.minimal_base_amount/self.current_price()
-    
-    def BKP_sanitize_order_amount(self, order_amount: float) -> float:
-        factor = int(order_amount / self.minimal_quote_amount())
-        precision = self.broker.precision
-        amount = factor * self.minimal_quote_amount()
-        amount_str = "{:0.0{}f}".format(amount, precision)        
-
-        return float(amount_str)
 
     def sanitize_order_amount(self, order_amount: float) -> float:
-        factor = int(order_amount / self.broker.minimal_amount)
+        precision = self.parameters.order_amount_precision
+        amount_str = "{:0.0{}f}".format(order_amount, precision)
 
-        return factor * self.broker.minimal_amount
+        return float(amount_str)
 
     def proceed(self):
         raise NotImplementedError
@@ -103,49 +113,57 @@ class BacktestingOrderHandler(OrderHandler):
         current_time = self.operation.current_result.Open_time.tail(1).item()
         return price_getter.get_price_at(desired_datetime=current_time)
 
-    def reset_result(self):
+    def _reset_result(self):
         portfolio = Portfolio()
         initial_base_amount = self.operation.setup.initial_base_amount
         price = self.current_price()
 
-        self.initial_equivalent_quote = initial_base_amount / price
-        
-        portfolio.quote = 0.0; portfolio.base = initial_base_amount
-        
+        self.parameters.initial_equivalent_quote = initial_base_amount / price
+
+        portfolio.quote = 0.0
+        portfolio.base = initial_base_amount
+
         self.update_result(portfolio, price=price)
 
-    def get_asset(self, asset_kind: str) -> float:
-        asset_key = getattr(self, "_{}_symbol".format(asset_kind))
+    def _get_asset(self, asset_kind: str) -> float:
+        asset_key = getattr(self.parameters, "{}_symbol".format(asset_kind))
         return (self.operation.current_result[asset_key]).item()
 
-    def portfolio(self) -> Portfolio:
+    def get_portfolio(self) -> Portfolio:
         portfolio = Portfolio()
 
         portfolio_does_not_exist = not bool(
-            (self._quote_symbol and self._base_symbol)
+            (self.parameters.quote_symbol and self.parameters.base_symbol)
             in self.operation.current_result.columns
         )
         if portfolio_does_not_exist:
-            self.reset_result()
+            self._reset_result()
 
-        portfolio.quote = self.get_asset("quote")
-        portfolio.base = self.get_asset("base")
+        portfolio.quote = self._get_asset("quote")
+        portfolio.base = self._get_asset("base")
 
         return portfolio
 
     def proceed(self):
         price = self.current_price()
-        portfolio = self.portfolio()
+        portfolio = self.get_portfolio()
         side = self.operation.current_result.Side.item()
-        minimal_amount = 0.0005 #self.broker.minimal_amount #self.minimal_quote_amount()
-        fee_rate_decimal = self.broker.fee_rate_decimal
+
+        #minimal_amount = (
+        #    0.0005  # self.broker.minimal_amount #self.minimal_quote_amount()
+        #)
+
+        fee_rate_decimal = self.broker.settings.fee_rate_decimal
         leverage = self.operation.current_result.Leverage.item()
+
+        if not self.operation.setup.allow_naked_sells and side == "Short":
+            side = "Zeroed"
 
         if side == "Long":
             raw_order_amount = leverage * (portfolio.base / price)
             order_amount = self.sanitize_order_amount(raw_order_amount)
 
-            if order_amount > minimal_amount:
+            if order_amount > self.parameters.min_lot_size:
                 fee_quote = fee_rate_decimal * order_amount
                 bought_quote_amount = order_amount - fee_quote
 
@@ -156,7 +174,7 @@ class BacktestingOrderHandler(OrderHandler):
             raw_order_amount = portfolio.quote
             order_amount = self.sanitize_order_amount(raw_order_amount)
 
-            if order_amount > minimal_amount:
+            if order_amount > self.parameters.min_lot_size:
                 fee_quote = fee_rate_decimal * order_amount
                 bought_base_amount = price * (order_amount - fee_quote)
 
@@ -172,15 +190,18 @@ class RealTradingOrderHandler(OrderHandler):
         self.debbug = True
 
     def current_price(self):
-        return self.broker.price()
+        return self.broker.get_price()
 
+    def get_portfolio(self) -> Portfolio:
+        return self.broker.get_portfolio()
+    
     def proceed(self):
         price = self.current_price()
-        portfolio = self.broker.portfolio()
+        portfolio = self.get_portfolio()
         side = self.operation.current_result.Side.item()
-        minimal_amount = 0.0005 #self.broker.minimal_amount #self.minimal_quote_amount()
-        fee_rate_decimal = self.broker.fee_rate_decimal
+        fee_rate_decimal = self.broker.settings.fee_rate_decimal
         leverage = self.operation.current_result.Leverage.item()
+        
         order = Order(
             test_order=self.operation.setup.test_order,
             ticker_symbol=self.operation.setup.market.ticker_symbol,
@@ -189,12 +210,14 @@ class RealTradingOrderHandler(OrderHandler):
             quantity=0.0,
             price=price,
         )
+        if not self.operation.setup.allow_naked_sells and side == "Short":
+            side = "Zeroed"
 
         if side == "Long":
             raw_order_amount = leverage * (portfolio.base / price)
             order_amount = self.sanitize_order_amount(raw_order_amount)
 
-            if order_amount > minimal_amount:
+            if order_amount > self.parameters.min_lot_size:
                 fee_quote = fee_rate_decimal * order_amount
                 bought_quote_amount = order_amount - fee_quote
 
@@ -210,7 +233,7 @@ class RealTradingOrderHandler(OrderHandler):
             raw_order_amount = portfolio.quote
             order_amount = self.sanitize_order_amount(raw_order_amount)
 
-            if order_amount > minimal_amount:
+            if order_amount > self.parameters.min_lot_size:
                 fee_quote = fee_rate_decimal * order_amount
                 bought_base_amount = price * (order_amount - fee_quote)
 
@@ -225,7 +248,7 @@ class RealTradingOrderHandler(OrderHandler):
         self.update_result(portfolio, price)
 
 
-def order_handler(
+def get_order_handler(
     operation: OpSetup,
 ) -> Union[BacktestingOrderHandler, RealTradingOrderHandler]:
     if operation.setup.backtesting:
