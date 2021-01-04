@@ -1,15 +1,17 @@
 import sys
-from .schemas import (
+from typing import Union
+
+import pandas as pd
+
+from ..marketdata.klines import klines_getter
+from ..sql_app.schemas import (
     BaseModel,
+    DateTimeType,
+    DidiIndexSetup,
     Market,
     SmaTripleCross,
-    DidiIndexSetup,
-    DateTimeType,
 )
-from ..marketdata.klines import klines_getter
-from ..share.tools import next_closed_candle, seconds_in
-import pandas as pd
-from typing import Union
+from ..tools.time_handlers import next_closed_candle, seconds_in
 
 thismodule = sys.modules[__name__]
 
@@ -69,7 +71,7 @@ class DidiIndex(KlinesBasedClassifier):
         setup: DidiIndexSetup = DidiIndexSetup(),
         backtesting: bool = False,
     ):
-        super(DidiIndex, self).__init__(market, time_frame, setup, backtesting)
+        super().__init__(market, time_frame, setup, backtesting)
         self.number_samples = max(setup.sma_triple_cross.number_samples)
 
     def _trend_analysis(self):
@@ -83,13 +85,9 @@ class DidiIndex(KlinesBasedClassifier):
 
         didi_result = (
             1
-            if (didi_fast_sma > 0 and didi_slow_sma < 0)
+            if didi_slow_sma < 0 < didi_fast_sma
             else -1
-            if (
-                didi_fast_sma < 0
-                and didi_slow_sma > 0
-                and self.setup.allow_naked_sells
-            )
+            if didi_fast_sma < 0 < didi_slow_sma
             else 0
         )
         self.result["Trend_result"] = didi_result
@@ -115,7 +113,11 @@ class DidiIndex(KlinesBasedClassifier):
         )
 
         bollinger_result = (
-            1.0 if total_opened_bands else 0.0 if total_closed_bands else 0.5
+            1.0
+            if total_opened_bands
+            else 0.0
+            if total_closed_bands
+            else self.setup.weight_case_partial_opened
         )
         self.result["Bollinger_result"] = bollinger_result
 
@@ -166,7 +168,7 @@ class DidiIndex(KlinesBasedClassifier):
         return self.result
 
 
-def classifier(
+def get_classifier(
     classifier_name, market: Market, time_frame: str, **setup: BaseModel
 ) -> Union[DidiIndex,]:
     return getattr(thismodule, classifier_name)(market, time_frame, **setup)
