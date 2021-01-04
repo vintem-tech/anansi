@@ -60,6 +60,7 @@ class BrokerSettings(BaseModel):
     klines_desired_informations: list = kline_information[:-1]
     ignore_opened_candle: bool = True
     show_only_desired_info: bool = True
+    fee_rate_decimal:float = None
 
 
 API_KEY = "f3OO0BGKIFxz1en2DM3YSMVVCjNCB0cuKCyfLTnPkWUzDXtdOCdV0vkfljoXeTTV"
@@ -88,3 +89,4 @@ class BinanceSettings(BrokerSettings):
         "Taker_buy_quote_asset_volume",
         "Ignore",
     ]
+    fee_rate_decimal:float = 0.001
