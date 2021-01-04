@@ -107,8 +107,12 @@ class Broker:
         """The portfolio composition, given a market"""
         raise NotImplementedError
 
-    def get_minimal_amount(self) -> float:
+    def get_min_lot_size(self) -> float:
         """Minimal possible trading amount, by quote."""
+        raise NotImplementedError
+
+    def get_order_amount_precision(self) -> int:
+        """Correct number representation"""
         raise NotImplementedError
 
     def execute_order(self, order: Order):
@@ -190,8 +194,20 @@ class Binance(Broker):
         return portfolio
 
     @DocInherit
-    def get_minimal_amount(self) -> float:
-        pass
+    def get_min_lot_size(self) -> float:
+        return float(
+            self.client.get_symbol_info(symbol=self.market.ticker_symbol)[
+                "filters"
+            ][2]["minQty"]
+        )
+
+    @DocInherit
+    def get_order_amount_precision(self) -> int:
+        return int(
+            self.client.get_symbol_info(symbol=self.market.ticker_symbol)[
+                "quotePrecision"
+            ]
+        )
 
     @DocInherit
     def execute_order(self, order: Order):
@@ -207,6 +223,7 @@ class Binance(Broker):
         )
         _order = executor(**order_payload)
         return _order
+
 
 def get_broker(market: Market) -> Broker:
     """Given a market, returns an instantiated broker"""
