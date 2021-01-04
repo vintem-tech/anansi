@@ -149,9 +149,10 @@ class BollingerBands(BaseModel):
 class DidiIndexSetup(BaseModel):
     """'Didi Index' ('agulhadas do Didi') setup schema, with default values."""
 
-    allow_naked_sells: bool = False
+
     sma_triple_cross: SmaTripleCross = SmaTripleCross()
     bollinger_bands: BollingerBands = BollingerBands()
+    weight_case_partial_opened:float = 0.65 # Between 0.0 and 1.0
 
 
 class OpSetup(BaseModel):
@@ -169,6 +170,7 @@ class OpSetup(BaseModel):
     initial_base_amount: float = 1000.00
     test_order: bool = False
     order_type: str = "market"
+    allow_naked_sells: bool = False
 
     @property
     def classifier_payload(self) -> dict:
