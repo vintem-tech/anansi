@@ -96,5 +96,5 @@ class Notifier:
             broadcaster.trade(msg)
 
 
-def notifier(broadcasters: List[str]) -> Notifier:
+def get_notifier(broadcasters: List[str]) -> Notifier:
     return Notifier(broadcasters)
