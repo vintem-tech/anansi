@@ -1,5 +1,3 @@
-"""Anansi subpackages import """
-
-#from . import brokers, marketdata, settings, tools, sql_app, storage, trading
+"""Anansi, market analysis and trading."""
 
 __version__ = "0.1.0"
