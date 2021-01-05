@@ -11,7 +11,7 @@ from ..sql_app.schemas import (
     Market,
     SmaTripleCross,
 )
-from ..tools.time_handlers import next_closed_candle, seconds_in
+from ..tools.time_handlers import time_until_next_closed_candle, seconds_in
 
 thismodule = sys.modules[__name__]
 
@@ -161,10 +161,9 @@ class DidiIndex(KlinesBasedClassifier):
 
         current_opentime = self.result.Open_time.tail(1).item()
 
-        self.time_until_next_closed_candle = next_closed_candle(
+        self.time_until_next_closed_candle = time_until_next_closed_candle(
             self.time_frame, current_opentime
         )
-
         return self.result
 
 
