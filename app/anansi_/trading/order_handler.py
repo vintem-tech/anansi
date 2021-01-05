@@ -19,8 +19,6 @@ class Parameters(BaseModel):
     base_symbol: Optional[str]
     initial_equivalent_quote: Optional[float]
     min_lot_size: Optional[float]
-    order_amount_precision: Optional[int]
-
 
 class OrderHandler:
     def __init__(self, operation: OpSetup):
@@ -36,9 +34,7 @@ class OrderHandler:
         parameters.base_symbol = self.operation.setup.market.base_symbol
         parameters.initial_equivalent_quote: float = None
         parameters.min_lot_size = self.broker.get_min_lot_size()
-        parameters.order_amount_precision = (
-            self.broker.get_order_amount_precision()
-        )
+
         return parameters
 
     def current_price(self):
@@ -105,8 +101,7 @@ Leverage = {}
 
 class BacktestingOrderHandler(OrderHandler):
     def __init__(self, operation: OpSetup):
-        super(BacktestingOrderHandler, self).__init__(operation)
-        self.debbug = True
+        super().__init__(operation)
 
     def current_price(self) -> float:
         price_getter = PriceFromStorage(self.operation.setup.market, "ohlc4")
@@ -149,10 +144,6 @@ class BacktestingOrderHandler(OrderHandler):
         portfolio = self.get_portfolio()
         side = self.operation.current_result.Side.item()
 
-        #minimal_amount = (
-        #    0.0005  # self.broker.minimal_amount #self.minimal_quote_amount()
-        #)
-
         fee_rate_decimal = self.broker.settings.fee_rate_decimal
         leverage = self.operation.current_result.Leverage.item()
 
@@ -160,8 +151,7 @@ class BacktestingOrderHandler(OrderHandler):
             side = "Zeroed"
 
         if side == "Long":
-            raw_order_amount = leverage * (portfolio.base / price)
-            order_amount = self.sanitize_order_amount(raw_order_amount)
+            order_amount = leverage * (portfolio.base / price)
 
             if order_amount > self.parameters.min_lot_size:
                 fee_quote = fee_rate_decimal * order_amount
@@ -171,8 +161,7 @@ class BacktestingOrderHandler(OrderHandler):
                 portfolio.base -= order_amount * price
 
         if side == "Zeroed":
-            raw_order_amount = portfolio.quote
-            order_amount = self.sanitize_order_amount(raw_order_amount)
+            order_amount = portfolio.quote
 
             if order_amount > self.parameters.min_lot_size:
                 fee_quote = fee_rate_decimal * order_amount
@@ -186,8 +175,7 @@ class BacktestingOrderHandler(OrderHandler):
 
 class RealTradingOrderHandler(OrderHandler):
     def __init__(self, operation: OpSetup):
-        super(RealTradingOrderHandler, self).__init__(operation)
-        self.debbug = True
+        super().__init__(operation)
 
     def current_price(self):
         return self.broker.get_price()
@@ -214,34 +202,33 @@ class RealTradingOrderHandler(OrderHandler):
             side = "Zeroed"
 
         if side == "Long":
-            raw_order_amount = leverage * (portfolio.base / price)
-            order_amount = self.sanitize_order_amount(raw_order_amount)
+            order_amount = 0.998*(leverage * (portfolio.base / price))
 
             if order_amount > self.parameters.min_lot_size:
                 fee_quote = fee_rate_decimal * order_amount
                 bought_quote_amount = order_amount - fee_quote
 
-                order.side = "BUY"
+                order.side = "buy"
                 order.quantity = order_amount
-                self.broker.execute(order)
                 self.notifier.trade(order.json())
+                self.broker.execute_order(order)
+
 
                 portfolio.quote += bought_quote_amount
                 portfolio.base -= order_amount * price
 
         if side == "Zeroed":
-            raw_order_amount = portfolio.quote
-            order_amount = self.sanitize_order_amount(raw_order_amount)
+            order_amount = 0.998*(portfolio.quote)
 
             if order_amount > self.parameters.min_lot_size:
                 fee_quote = fee_rate_decimal * order_amount
                 bought_base_amount = price * (order_amount - fee_quote)
 
-                order.side = "SELL"
+                order.side = "sell"
                 order.quantity = order_amount
-                self.broker.execute(order)
                 self.notifier.trade(order.json())
-
+                self.broker.execute(order)
+                
                 portfolio.quote -= order_amount
                 portfolio.base += bought_base_amount
 
