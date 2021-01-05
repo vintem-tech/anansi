@@ -1,15 +1,18 @@
 # pylint: disable=E1136
+# pylint: disable=no-name-in-module
 
 """All the brokers low level communications goes here."""
-
 import sys
-from typing import Union
+from decimal import Decimal
+from typing import Optional, Union
 
 import pandas as pd
 import pendulum
 import requests
 from binance.client import Client as BinanceClient
+from pydantic import BaseModel
 
+from ..notifiers.notifiers import get_notifier
 from ..sql_app.schemas import BaseModel, Market, Order, Portfolio
 from ..tools import doc, formatting
 from .settings import BinanceSettings
@@ -20,7 +23,7 @@ from .settings import BinanceSettings
 thismodule = sys.modules[__name__]
 
 DocInherit = doc.DocInherit
-
+notifier = get_notifier(broadcasters=["TelegramNotifier"])
 
 def get_response(endpoint: str) -> Union[requests.models.Response, None]:
     """A try/cath to handler with request/response."""
@@ -51,6 +54,14 @@ def remove_last_candle_if_unclosed(klines: pd.DataFrame) -> pd.DataFrame:
     if unclosed:
         return klines[:-1]
     return klines
+
+
+class Quant:
+    """Auxiliary class to store the amount quantity information, useful
+    for the trade order flow"""
+
+    is_enough: Optional[bool]
+    value: Optional[str]
 
 
 class Broker:
@@ -111,12 +122,16 @@ class Broker:
         """Minimal possible trading amount, by quote."""
         raise NotImplementedError
 
-    def get_order_amount_precision(self) -> int:
-        """Correct number representation"""
-        raise NotImplementedError
+    #    def get_order_amount_precision(self) -> int:
+    #        """Correct number representation"""
+    #        raise NotImplementedError
 
     def execute_order(self, order: Order):
         """Proceed trade orders """
+        raise NotImplementedError
+
+    def test_order(self, order: Order):
+        """Proceed test orders """
         raise NotImplementedError
 
 
@@ -195,35 +210,75 @@ class Binance(Broker):
 
     @DocInherit
     def get_min_lot_size(self) -> float:
-        return float(
+        min_notional = float(
             self.client.get_symbol_info(symbol=self.market.ticker_symbol)[
                 "filters"
-            ][2]["minQty"]
+            ][3]["minNotional"]
+        )  # Measured by base asset
+
+        return 1.03*min_notional/self.get_price()
+
+    def _sanitize_quantity(self, quantity: float) -> Quant:
+        quant = Quant()
+        quant.is_enough = False
+
+        info = self.client.get_symbol_info(symbol=self.market.ticker_symbol)
+        minimum = float(info["filters"][2]["minQty"])
+        quant_ = Decimal.from_float(quantity).quantize(Decimal(str(minimum)))
+
+        if float(quant_) > self.get_min_lot_size():
+            quant.is_enough = True
+            quant.value = str(quant_)
+
+        return quant
+
+    def _sanitize_price(self, price: float) -> str:
+        info = self.client.get_symbol_info(symbol=self.market.ticker_symbol)
+        price_filter = float(info["filters"][0]["tickSize"])
+
+        return str(
+            Decimal.from_float(price).quantize(Decimal(str(price_filter)))
         )
+
+    def _order_market(self, order: Order) -> dict:
+        order_report = dict()
+
+        executor = "order_market_{}".format(order.side)
+        quant = self._sanitize_quantity(order.quantity)
+
+        if quant.is_enough:
+            order_report = getattr(self.client, executor)(
+                symbol=self.market.ticker_symbol, quantity=quant.value
+            )
+        return order_report
+
+    def _order_limit(self, order: Order) -> dict:
+        order_report = dict()
+
+        executor = "order_limit_{}".format(order.side)
+        quant = self._sanitize_quantity(order.quantity)
+        price = self._sanitize_price(order.price)
+
+        if quant.is_enough:
+            order_report = getattr(self.client, executor)(
+                symbol=self.market.ticker_symbol,
+                quantity=quant.value,
+                price=price,
+            )
+        return order_report
 
     @DocInherit
-    def get_order_amount_precision(self) -> int:
-        return int(
-            self.client.get_symbol_info(symbol=self.market.ticker_symbol)[
-                "quotePrecision"
-            ]
-        )
+    def execute_order(self, order: Order) -> dict:
+        executor = "_order_{}".format(order.order_type)
+        order_report = getattr(self, executor)(order)
+
+        if order.notify:
+            notifier.trade(str(order_report))
+        return order_report
 
     @DocInherit
-    def execute_order(self, order: Order):
-        executor = self.client.create_order
-        if order.test_order:
-            executor = self.client.create_test_order
-
-        order_payload = dict(
-            symbol=order.ticker_symbol,
-            side=order.side,
-            type=order.order_type,
-            quantity=order.quantity,
-        )
-        _order = executor(**order_payload)
-        return _order
-
+    def test_order(self, order: Order):
+        pass
 
 def get_broker(market: Market) -> Broker:
     """Given a market, returns an instantiated broker"""
