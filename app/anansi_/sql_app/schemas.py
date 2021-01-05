@@ -202,11 +202,11 @@ DefaultTestTradingOperation = OpSetup(
 
 DefaultRealTradingOperation = OpSetup(
     debbug=True,
-    broadcasters=["TelegramNotifier"],
+    broadcasters=["PrintNotifier", "TelegramNotifier"],
     market=Market(
         broker_name="Binance", quote_symbol="BTC", base_symbol="EUR"
     ),
-    time_frame="6h",
+    time_frame="2h",
     backtesting=False,
     test_order=False,
 )
@@ -221,4 +221,4 @@ class Order(BaseModel):
     order_type: str
     quantity: float
     price: Optional[float] = None
-    # notify_order: bool = True
+    notify: bool = True
