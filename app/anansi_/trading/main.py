@@ -5,6 +5,7 @@ from ..sql_app.schemas import OpSetup  # , BaseModel
 from .classifiers import get_classifier
 from .order_handler import get_order_handler
 from ..tools.hashes import hash_from_an_object
+from ..tools.time_handlers import ParseDateTime
 from ..storage.storage import StorageResults
 from ..notifiers.notifiers import get_notifier
 
@@ -67,15 +68,22 @@ class DefaultTrader:
                 self.is_running = False
 
         else:
-            sleep_time = self.classifier.time_until_next_closed_candle + 5
+            sleep_time = self.classifier.time_until_next_closed_candle + 30
+            if self.operation.setup.debbug:
+                utc_now = ParseDateTime(
+                    (pendulum.now(tz="UTC")).int_timestamp
+                ).from_timestamp_to_human_readable()
+                self.notifier.debbug("Time now (UTC) = {}".format(utc_now))
+                self.notifier.debbug("Sleeping {} s.".format(sleep_time))
             time.sleep(sleep_time)
 
     def run(self):
         self._start()
         while self.is_running:
-            #try:
-            self.analysis_pipeline()
-            self.forward_step()
+            try:
+                self.analysis_pipeline()
+                self.forward_step()
 
-            #except Exception as e:
-            #    self.notifier.error(e)
+            except Exception as e:
+                self.notifier.error(e)
+                time.sleep(3600)
