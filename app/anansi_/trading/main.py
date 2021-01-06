@@ -76,6 +76,7 @@ class DefaultTrader:
                 self.notifier.debbug("Time now (UTC) = {}".format(utc_now))
                 self.notifier.debbug("Sleeping {} s.".format(sleep_time))
             time.sleep(sleep_time)
+            self.now = (pendulum.now(tz="UTC")).int_timestamp
 
     def run(self):
         self._start()
@@ -86,4 +87,4 @@ class DefaultTrader:
 
             except Exception as e:
                 self.notifier.error(e)
-                time.sleep(3600)
+                time.sleep(3600) # 1 hour cooldown
