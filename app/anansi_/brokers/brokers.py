@@ -17,9 +17,6 @@ from ..sql_app.schemas import BaseModel, Market, Order, Portfolio
 from ..tools import doc, formatting
 from .settings import BinanceSettings
 
-# from binance.enums import TIME_IN_FORCE_GTC
-
-
 thismodule = sys.modules[__name__]
 
 DocInherit = doc.DocInherit
@@ -121,10 +118,6 @@ class Broker:
     def get_min_lot_size(self) -> float:
         """Minimal possible trading amount, by quote."""
         raise NotImplementedError
-
-    #    def get_order_amount_precision(self) -> int:
-    #        """Correct number representation"""
-    #        raise NotImplementedError
 
     def execute_order(self, order: Order):
         """Proceed trade orders """

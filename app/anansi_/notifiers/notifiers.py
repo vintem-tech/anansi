@@ -1,6 +1,7 @@
 import sys
 import telegram
 from typing import Union, List
+from .settings import TelegramSettings
 
 thismodule = sys.modules[__name__]
 
@@ -17,21 +18,19 @@ class BaseNotifier:
 
 class TelegramNotifier(BaseNotifier):
     def __init__(self):
-        super(TelegramNotifier, self).__init__()
-        self.bot = telegram.Bot(token="1390357918:AAHheyKvd4uLM-tlKYrmNQUkQAr2LPOcTTI")
+        super().__init__()
+        self.settings=TelegramSettings()
+        self.bot = telegram.Bot(self.settings.token)
 
     def debbug(self, msg:str):
-        _id = -415037166
-        self.bot.send_message(chat_id=_id, text=msg)
+        self.bot.send_message(chat_id=self.settings.debbug_id, text=msg)
 
     def error(self, msg:str):
-        _id = -485347345
-        self.bot.send_message(chat_id=_id, text=msg)
+        self.bot.send_message(chat_id=self.settings.erro_id, text=msg)
 
     
     def trade(self, msg:str):
-        _id = -357787162
-        self.bot.send_message(chat_id=_id, text=msg)
+        self.bot.send_message(chat_id=self.settings.trade_id, text=msg)
 
 
 class PrintNotifier(BaseNotifier):

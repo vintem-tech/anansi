@@ -51,6 +51,7 @@ class DefaultTrader:
         self.is_running = True
         if debbug:
             self.notifier.debbug(msg="Starting Anansi")
+            self.notifier.show_header = False
 
     def _classifier_analysis(self):
         result = self.classifier.restult_at(desired_datetime=self.now)
@@ -73,8 +74,11 @@ class DefaultTrader:
                 utc_now = ParseDateTime(
                     (pendulum.now(tz="UTC")).int_timestamp
                 ).from_timestamp_to_human_readable()
-                self.notifier.debbug("Time now (UTC) = {}".format(utc_now))
-                self.notifier.debbug("Sleeping {} s.".format(sleep_time))
+                msg = """Time now (UTC) = {}\nSleeping {} s.""".format(
+                    utc_now, sleep_time
+                )
+                self.notifier.debbug(msg)
+
             time.sleep(sleep_time)
             self.now = (pendulum.now(tz="UTC")).int_timestamp
 
@@ -87,4 +91,4 @@ class DefaultTrader:
 
             except Exception as e:
                 self.notifier.error(e)
-                time.sleep(3600) # 1 hour cooldown
+                time.sleep(3600)  # 1 hour cooldown
