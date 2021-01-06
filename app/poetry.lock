@@ -2,7 +2,7 @@
 name = "appdirs"
 version = "1.4.4"
 description = "A small Python module for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
-category = "dev"
+category = "main"
 optional = false
 python-versions = "*"
 
@@ -1490,7 +1490,7 @@ python-versions = "*"
 name = "webencodings"
 version = "0.5.1"
 description = "Character encoding aliases for legacy web content"
-category = "dev"
+category = "main"
 optional = false
 python-versions = "*"
 
@@ -1529,7 +1529,7 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "1efe84bd0327e0ca675ce01d890aa5f1505147f0262ca6e9da672fe2babbf5c7"
+content-hash = "5f27e43effe5c2102b77e90025e832ae40390ec739b0e8c1e51e8c6411bad3de"
 
 [metadata.files]
 appdirs = [
