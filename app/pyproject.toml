@@ -35,5 +35,10 @@ requests-mock = "^1.8.0"
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.dephell.main]
+from = {format = "pyproject", path = "pyproject.toml"}
+to = {format = "requirements", path = "requirements"}
+
+
 [tool.poetry.scripts]
 anansi = 'anansi_.start:run'
