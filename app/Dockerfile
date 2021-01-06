@@ -1,11 +1,13 @@
-FROM python:3.8
-
+FROM python:3.9
+ARG DEBIAN_FRONTEND=noninteractive
 ENV PIP_DISABLE_PIP_VERSION_CHECK=on
-RUN pip install poetry
+RUN apt-get update -y
+RUN apt-get install -y netcat-openbsd
 WORKDIR /app
-COPY poetry.lock pyproject.toml entrypoint.sh /app/
+COPY pyproject.toml entrypoint.sh /app/
+RUN pip install poetry
 RUN poetry config virtualenvs.create false
-RUN poetry install --no-dev -n
-COPY . /app
+RUN poetry install --no-dev --no-ansi -n
+COPY ./anansi_ /app/anansi_
 RUN chmod +x entrypoint.sh
 CMD ["sh", "entrypoint.sh"]
