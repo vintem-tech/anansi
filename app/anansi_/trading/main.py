@@ -51,7 +51,6 @@ class DefaultTrader:
         self.is_running = True
         if debbug:
             self.notifier.debbug(msg="Starting Anansi")
-            self.notifier.show_header = False
 
     def _classifier_analysis(self):
         result = self.classifier.restult_at(desired_datetime=self.now)
