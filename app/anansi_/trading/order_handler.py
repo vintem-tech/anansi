@@ -227,7 +227,7 @@ class RealTradingOrderHandler(OrderHandler):
                 order.side = "sell"
                 order.quantity = order_amount
                 self.notifier.trade(order.json())
-                self.broker.execute(order)
+                self.broker.execute_order(order)
                 
                 portfolio.quote -= order_amount
                 portfolio.base += bought_base_amount
