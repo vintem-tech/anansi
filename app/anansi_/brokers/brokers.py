@@ -29,9 +29,10 @@ def get_response(endpoint: str) -> Union[requests.models.Response, None]:
             if response.status_code == 200:
                 return response
     except Exception as connect_exception:
-        raise ConnectionError(
-            "Could not establish a broker connection."
-        ) from connect_exception
+        #raise ConnectionError(
+        #    "Could not establish a broker connection."
+        #) from connect_exception
+        notifier.error(connect_exception)
     return None
 
 
