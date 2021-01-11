@@ -50,7 +50,8 @@ class DefaultTrader:
         )
         self.is_running = True
         if debbug:
-            self.notifier.debbug(msg="Starting Anansi")
+            msg = "Starting Anansi. Your operation id is {}".format(self.operation.id)
+            self.notifier.debbug(msg)
 
     def _classifier_analysis(self):
         result = self.classifier.restult_at(desired_datetime=self.now)
