@@ -7,24 +7,28 @@ services:
     
     image: influxdb:latest # quay.io/influxdb/influxdb:v2.0.2
     # command: influxdb --reporting-disabled
+    restart: unless-stopped
     env_file:
       - '.env'
+    ports:
+      - '$INFLUXDB_PORT:8086' 
+
     volumes:
       # Mount for influxdb data directory
       - influxdb-data:/var/lib/influxdb
       # Mount for influxdb configuration
       - influxdb-config:/etc/influxdb/
-    ports:
-      # The API for InfluxDB is served on port 8086
-      - "8086:8086"
-    # - "8082:8082"
 
   chronograf: # Some influxdb controllers
     image: chronograf:latest
-    ports:
-      - "38888:8888"
+    environment:
+    - BASE_PATH=/chronograf
+    restart: unless-stopped
     volumes:
       - chronograf-storage:/var/lib/chronograf
+    ports:
+      - '$CHRONOGRAF_PORT:8888'
+
     depends_on:
       - influxdb
     env_file:
@@ -32,26 +36,49 @@ services:
 
   grafana:
     image: grafana/grafana:latest
+    restart: unless-stopped
     container_name: grafana
-    ports:
-      - "3000:3000"
     env_file:
       - '.env'
     user: "0"
     links:
       - influxdb
     volumes:
-      - grafana-data:/var/lib/grafana
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini
+      - ./grafana:/etc/grafana/provisioning/datasources
+      - ./grafana:/var/lib/grafana
+    ports: 
+      - '$GRAFANA_PORT:3000'
 
   app:
-    build: app/
-    
+    image: registry.gitlab.com/anansitrading/refactoring/anansi/app:staging02
+    #build: app/
+    restart: unless-stopped
     env_file:
       - '.env'
-    
     depends_on:
     - influxdb
 
+  nginx:
+    #image: registry.gitlab.com/anansitrading/refactoring/anansi/nginx
+    build: nginx/
+    env_file:
+      - '.env'
+    ports: 
+      - '80:80'
+      #- '3000:3000'
+      #- '8086:8086' 
+      #- '38888:38888'
+    restart: unless-stopped
+    volumes:
+      - ./content:/var/www/html
+      - ./nginx/sites/:/etc/nginx/conf.d
+    
+    depends_on:
+    - influxdb
+    - grafana
+    - chronograf
+    - app
 
 volumes:
   influxdb-data:
@@ -65,7 +92,3 @@ volumes:
   chronograf-storage:
     driver: local
     name: chronograf-storage
-
-  grafana-data:
-    driver: local
-    name: grafana-data
