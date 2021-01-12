@@ -1,11 +1,10 @@
-version: '3.8'
+version: '3.9'
 
 services:
 
-  influxdb: # An optimized Database for time series. 
-            # https://www.influxdata.com/
-    
-    image: influxdb:latest # quay.io/influxdb/influxdb:v2.0.2
+  influxdb:    
+    image: influxdb:latest # 1.8 version. For the 2.x version: 
+                           # quay.io/influxdb/influxdb:v2.0.2
     # command: influxdb --reporting-disabled
     restart: unless-stopped
     env_file:
@@ -28,7 +27,6 @@ services:
       - chronograf-storage:/var/lib/chronograf
     ports:
       - '$CHRONOGRAF_PORT:8888'
-
     depends_on:
       - influxdb
     env_file:
@@ -51,8 +49,7 @@ services:
       - '$GRAFANA_PORT:3000'
 
   app:
-    image: registry.gitlab.com/anansitrading/refactoring/anansi/app:staging02
-    #build: app/
+    build: app/
     restart: unless-stopped
     env_file:
       - '.env'
@@ -60,15 +57,11 @@ services:
     - influxdb
 
   nginx:
-    #image: registry.gitlab.com/anansitrading/refactoring/anansi/nginx
     build: nginx/
     env_file:
       - '.env'
     ports: 
       - '80:80'
-      #- '3000:3000'
-      #- '8086:8086' 
-      #- '38888:38888'
     restart: unless-stopped
     volumes:
       - ./content:/var/www/html
