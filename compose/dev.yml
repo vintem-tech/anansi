@@ -1,0 +1,87 @@
+version: '3.9'
+
+services:
+
+  influxdb:    
+    image: influxdb:latest # 1.8 version. For the 2.x version: 
+                           # quay.io/influxdb/influxdb:v2.0.2
+    # command: influxdb --reporting-disabled
+    restart: unless-stopped
+    env_file:
+      - '.env'
+    ports:
+      - '$INFLUXDB_PORT:8086' 
+
+    volumes:
+      # Mount for influxdb data directory
+      - influxdb-data:/var/lib/influxdb
+      # Mount for influxdb configuration
+      - influxdb-config:/etc/influxdb/
+
+  chronograf: # Some influxdb controllers
+    image: chronograf:latest
+    environment:
+    - BASE_PATH=/chronograf
+    restart: unless-stopped
+    volumes:
+      - chronograf-storage:/var/lib/chronograf
+    ports:
+      - '$CHRONOGRAF_PORT:8888'
+    depends_on:
+      - influxdb
+    env_file:
+      - '.env'
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    container_name: grafana
+    env_file:
+      - '.env'
+    user: "0"
+    links:
+      - influxdb
+    volumes:
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini
+      - ./grafana:/etc/grafana/provisioning/datasources
+      - ./grafana:/var/lib/grafana
+    ports: 
+      - '$GRAFANA_PORT:3000'
+
+  app:
+    build: app/
+    restart: unless-stopped
+    env_file:
+      - '.env'
+    depends_on:
+    - influxdb
+
+  nginx:
+    build: nginx/
+    env_file:
+      - '.env'
+    ports: 
+      - '80:80'
+    restart: unless-stopped
+    volumes:
+      - ./content:/var/www/html
+      - ./nginx/sites/:/etc/nginx/conf.d
+    
+    depends_on:
+    - influxdb
+    - grafana
+    - chronograf
+    - app
+
+volumes:
+  influxdb-data:
+    driver: local
+    name: influxdb-data
+  
+  influxdb-config:
+    driver: local
+    name: influxdb-config
+  
+  chronograf-storage:
+    driver: local
+    name: chronograf-storage
