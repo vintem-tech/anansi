@@ -42,7 +42,11 @@ class Trend:
             price_metrics=setup.price_metrics
         )
         indicator_column = "SMA_{}".format(setup.number_samples)
-        self._klines.loc[:, indicator_column] = self._klines.Price.rolling(
+
+        price_column = getattr(
+            self._klines, "Price_{}".format(setup.price_metrics)
+        )
+        self._klines.loc[:, indicator_column] = price_column.rolling(
             window=setup.number_samples
         ).mean()
 
@@ -63,8 +67,12 @@ class Volatility:
         n = setup.number_samples
         k = setup.number_STDs
 
-        sma = self._klines.Price.rolling(window=n).mean()
-        deviation = self._klines.Price.rolling(window=n).std()
+        price_column = getattr(
+            self._klines, "Price_{}".format(setup.price_metrics)
+        )
+        sma = price_column.rolling(window=n).mean()
+        deviation = price_column.rolling(window=n).std()
+
         upper_band = sma + k * deviation
         lower_band = sma - k * deviation
 

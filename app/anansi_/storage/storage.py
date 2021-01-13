@@ -3,10 +3,10 @@ pensado para cobrir a tarefa de salvar klines, deve ser capaz de ler/escrever
 coleções de/em arquivos e/ou banco de dados, servindo como uma camada de
 implementação e provendo uma interface para este fim"""
 
-import pandas as pd
-import numpy as np
-from environs import Env
 import collections
+import numpy as np
+import pandas as pd
+from environs import Env
 
 env = Env()
 
@@ -44,14 +44,14 @@ class InfluxDb:
 
         Args:
             dataframe (pd.core.frame.DataFrame): Timeseries dataframe
-        
-        For retention policy, follow below example, and declare the 
+
+        For retention policy, follow below example, and declare the
         'retention_policy=name' at 'client.write_points':
 
-        client.create_retention_policy(name="long_duration", 
+        client.create_retention_policy(name="long_duration",
         replication=1, duration='INF') or
-        
-        client.alter_retention_policy(name="short_duration", 
+
+        client.alter_retention_policy(name="short_duration",
         replication=1, duration='10d')
         """
         client = DataFrameClient(**influxdb_params)
@@ -118,11 +118,8 @@ class StorageKlines:
         work_klines.set_index("Open_time", inplace=True)
         self.agent.append(work_klines)
 
-    def get_klines(
-        self, start_time: int, end_time: int, time_frame: str
-    ) -> pd.core.frame.DataFrame:
+    def get_raw_klines(self, start_time: int, end_time: int, time_frame: str):
         const = 10 ** 9  # Coversion sec <--> nanosec
-
         klines_query = """
         SELECT first("Open") AS "Open", max("High") AS "High", min("Low") AS 
         "Low", last("Close") AS "Close", sum("Volume") AS "Volume" FROM 
@@ -135,13 +132,73 @@ class StorageKlines:
             str(const * end_time),
             time_frame,
         )
-        _klines = self.agent.proceed(klines_query)
+        return self.agent.proceed(klines_query)
+
+    def get_klines(
+        self, start_time: int, end_time: int, time_frame: str
+    ) -> pd.core.frame.DataFrame:
+        const = 10 ** 9  # Coversion sec <--> nanosec
+
+        _klines = self.get_raw_klines(start_time, end_time, time_frame)
         klines = _klines[self.table]
 
         klines.reset_index(inplace=True)
         klines = klines.rename(columns={"index": "Open_time"})
         klines.Open_time = klines.Open_time.values.astype(np.int64) // const
         return klines
+
+
+class StorageResults:
+    __slots__ = [
+        "table",
+        "database",
+        "agent",
+    ]
+
+    def __init__(self, table: str, database: str):
+        self.table = table
+        self.database = database
+        self.agent = InfluxDb(database=database, measurement=table)
+
+    def oldest_record(self) -> int:
+        oldest_query = """
+            SELECT * FROM "{}"."autogen"."{}" GROUP BY * ORDER BY ASC LIMIT 1
+            """.format(
+            self.database,
+            self.table,
+        )
+        return (self.agent.proceed(oldest_query))[self.table]
+
+    def newest_record(self) -> int:
+        newest_query = """
+            SELECT * FROM "{}"."autogen"."{}" GROUP BY * ORDER BY DESC LIMIT 1
+            """.format(
+            self.database,
+            self.table,
+        )
+        return (self.agent.proceed(newest_query))[self.table]
+
+    def append(self, result: pd.core.frame.DataFrame):
+        work_result = result.copy()
+
+        work_result.KlinesDateTime.from_human_readable_to_timestamp()
+        work_result.Open_time = pd.to_datetime(work_result.Open_time, unit="s")
+        work_result.set_index("Open_time", inplace=True)
+        self.agent.append(work_result)
+
+    def get_results(
+        self, start_time: int, end_time: int, time_frame: str
+    ) -> pd.core.frame.DataFrame:
+        const = 10 ** 9  # Coversion sec <-> nanosec
+
+        results_query = """ """
+        _results = self.agent.proceed(results_query)
+        results = _results[self.table]
+
+        results.reset_index(inplace=True)
+        results = results.rename(columns={"index": "Open_time"})
+        results.Open_time = results.Open_time.values.astype(np.int64) // const
+        return results
 
 
 """(influxdb:v2.0.2)
