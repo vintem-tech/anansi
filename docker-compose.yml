@@ -48,13 +48,13 @@ services:
     ports: 
       - '$GRAFANA_PORT:3000'
 
-  app:
-    build: app/
-    restart: unless-stopped
-    env_file:
-      - '.env'
-    depends_on:
-    - influxdb
+#  app:
+#    build: app/
+#    restart: unless-stopped
+#    env_file:
+#      - '.env'
+#    depends_on:
+#    - influxdb
 
   nginx:
     build: nginx/
