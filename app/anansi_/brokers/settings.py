@@ -65,10 +65,6 @@ class BrokerSettings(BaseModel):
 BINANCE_API_KEY=None
 BINANCE_API_SECRET=None
 
-BINANCE_API_KEY="hello"
-BINANCE_API_SECRET="world"
-
-
 class BinanceSettings(BrokerSettings):
     """
     https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md
