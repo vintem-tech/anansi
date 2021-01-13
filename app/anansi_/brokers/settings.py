@@ -62,13 +62,19 @@ class BrokerSettings(BaseModel):
     show_only_desired_info: bool = True
     fee_rate_decimal:float = None
 
+BINANCE_API_KEY=None
+BINANCE_API_SECRET=None
+
+BINANCE_API_KEY="hello"
+BINANCE_API_SECRET="world"
+
 
 class BinanceSettings(BrokerSettings):
     """
     https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md
     """
-    api_key: str = env.str("BINANCE_API_KEY", default=None)
-    api_secret: str = env.str("BINANCE_API_SECRET", default=None)
+    api_key: str = env.str("BINANCE_API_KEY", default=BINANCE_API_KEY)
+    api_secret: str = env.str("BINANCE_API_SECRET", default=BINANCE_API_SECRET)
     datetime_unit = "milliseconds"
     base_endpoint = "https://api.binance.com/api/v3/"
     ping_endpoint = base_endpoint + "ping"
