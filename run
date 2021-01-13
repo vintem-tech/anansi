@@ -1,9 +1,0 @@
-#!/bin/sh
-
-path_to_env=env/$1.env 
-path_to_compose=compose/$1.yml
-
-cp $path_to_env $PWD/.env
-cp $path_to_compose $PWD/docker-compose.yml
-
-docker-compose up
