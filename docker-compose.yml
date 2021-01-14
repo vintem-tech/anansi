@@ -71,7 +71,7 @@ services:
     - influxdb
     - grafana
     - chronograf
-    - app
+#    - app
 
 volumes:
   influxdb-data:
