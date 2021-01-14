@@ -211,6 +211,9 @@ DefaultRealTradingOperation = OpSetup(
     test_order=False,
 )
 
+class Position(BaseModel):
+    side: Optional[str]
+    stop_price: Optional[float]
 
 class Order(BaseModel):
     """Order parameters collection"""
