@@ -1,7 +1,7 @@
 import pandas as pd
 import pendulum
 import time
-from ..sql_app.schemas import OpSetup  # , BaseModel
+from ..sql_app.schemas import OpSetup, Position  # , BaseModel
 from .classifiers import get_classifier
 from .order_handler import get_order_handler
 from ..tools.hashes import hash_from_an_object
@@ -16,6 +16,7 @@ class Operation:
         self.id = hash_from_an_object(setup)
         self.current_result = pd.DataFrame()
         self.storage = StorageResults(table=self.id, database="results")
+        self.position = Position()
 
     def update(self, result: pd.core.frame.DataFrame) -> None:
         self.current_result[list(result.columns)] = result
@@ -54,6 +55,7 @@ class DefaultTrader:
             self.notifier.debbug(msg)
 
     def _classifier_analysis(self):
+        # TODO: Só realizar esta analise se já existir um candle aberto...
         result = self.classifier.restult_at(desired_datetime=self.now)
         self.operation.update(result)
 
