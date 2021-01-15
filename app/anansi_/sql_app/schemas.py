@@ -44,12 +44,13 @@ class Market(BaseModel):
 # "h"     = "High"
 # "l"     = "Low"
 # "c"     = "Close"
-# "oh2"   = ("Open" + "High")/2
-# "olc3"  = ("Open" + "Low" + "Close")/3
-# "ohlc4" = ("Open" + "High" + "Low" + "Close")/4
+# "oc2"   = ("Open" + "Close")/2
+# "hl2"   = ("High" + "Low")/2
+# "hlc3"  = ("High" + "Low" + "Close")/3
+# "ohlc4" = ("Open" + "High" + "Low" + "Close")/4 
 
 
-possible_price_metrics = ["o", "h", "l", "c", "oh2", "olc3", "ohlc4"]
+possible_price_metrics = ["o", "h", "l", "c", "oc2", "hl2", "hlc3", "ohlc4"]
 
 
 class Portfolio(BaseModel):
@@ -143,12 +144,11 @@ class BollingerBands(BaseModel):
 
     price_metrics: str = "ohlc4"
     number_samples: int = 20
-    number_STDs: int = 2
+    number_STDs: float = 2.0
 
 
 class DidiIndexSetup(BaseModel):
     """'Didi Index' ('agulhadas do Didi') setup schema, with default values."""
-
 
     sma_triple_cross: SmaTripleCross = SmaTripleCross()
     bollinger_bands: BollingerBands = BollingerBands()
