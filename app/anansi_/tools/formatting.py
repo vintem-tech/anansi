@@ -1,6 +1,7 @@
 """Quis anim est incididunt anim non ullamco mollit pariatur """
 
 import pandas as pd
+from print_dict import format_dict
 from tabulate import tabulate
 
 from .time_handlers import pendulum, seconds_in
@@ -77,3 +78,6 @@ class FormatKlines:
 def table_from_dict(my_dict: dict) -> str:
     """Quis anim est incididunt anim non ullamco mollit pariatur """
     return tabulate([list(my_dict.values())], headers=list(my_dict.keys()))
+
+def text_in_lines_from_dict(dict_in:dict):
+    return format_dict(dict_in)
