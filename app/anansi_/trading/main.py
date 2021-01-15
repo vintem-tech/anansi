@@ -1,13 +1,17 @@
+import time
+from threading import Thread
+
 import pandas as pd
 import pendulum
-import time
+from print_dict import format_dict
+from ..notifiers.notifiers import get_notifier
 from ..sql_app.schemas import OpSetup, Position  # , BaseModel
-from .classifiers import get_classifier
-from .order_handler import get_order_handler
+from ..storage.storage import StorageResults
 from ..tools.hashes import hash_from_an_object
 from ..tools.time_handlers import ParseDateTime
-from ..storage.storage import StorageResults
-from ..notifiers.notifiers import get_notifier
+from ..tools.formatting import text_in_lines_from_dict
+from .classifiers import get_classifier
+from .order_handler import get_order_handler
 
 
 class Operation:
@@ -31,7 +35,7 @@ class Operation:
         raise NotImplementedError
 
 
-class DefaultTrader:
+class DefaultTrader(Thread):
     def __init__(self, operation: Operation):
         self.operation = operation
 
@@ -41,6 +45,7 @@ class DefaultTrader:
 
         self.is_running: bool = False
         self.now: int = None  # Datetime (seconds UTC timestamp)
+        super().__init__()
 
     def _start(self):
         debbug = self.operation.setup.debbug
@@ -51,7 +56,10 @@ class DefaultTrader:
         )
         self.is_running = True
         if debbug:
-            msg = "Starting Anansi. Your operation id is {}".format(self.operation.id)
+            setup_str = text_in_lines_from_dict(self.operation.setup.dict())
+            msg = "Starting Anansi. Your operation id is {}\n\n{}".format(
+                self.operation.id, setup_str
+            )
             self.notifier.debbug(msg)
 
     def _classifier_analysis(self):
@@ -94,3 +102,9 @@ class DefaultTrader:
             except Exception as e:
                 self.notifier.error(e)
                 time.sleep(3600)  # 1 hour cooldown
+
+        final_msg = "Op. {} finalized!".format(self.operation.id)
+        self.notifier.error(final_msg)
+
+    def run_in_background(self):
+        self.start()
