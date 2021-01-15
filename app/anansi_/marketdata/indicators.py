@@ -8,8 +8,9 @@ this parameter, as well as the associated calculation.
 "h"     = "High"
 "l"     = "Low"
 "c"     = "Close"
-"oh2"   = ("Open" + "High")/2
-"olc3"  = ("Open" + "Low" + "Close")/3
+"oc2"   = ("Open" + "Close")/2
+"hl2"   = ("High" + "Low")/2
+"hlc3"  = ("High" + "Low" + "Close")/3
 "ohlc4" = ("Open" + "High" + "Low" + "Close")/4
 """
 
@@ -20,6 +21,7 @@ _columns = {
     "h": ["High"],
     "l": ["Low"],
     "c": ["Close"],
+    "oc2": ["Open", "Close"],
     "hl2": ["High", "Low"],
     "hlc3": ["High", "Low", "Close"],
     "ohlc4": ["Open", "High", "Low", "Close"],
