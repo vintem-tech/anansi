@@ -149,7 +149,7 @@ class DidiIndex(KlinesBasedClassifier):
             else "Zeroed"
         )
         self.result["Side"] = side
-        self.result["Leverage"] = leverage
+        self.result["Leverage"] = abs(leverage)
 
     def restult_at(
         self, desired_datetime: DateTimeType
