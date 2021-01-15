@@ -26,7 +26,7 @@ class TelegramNotifier(BaseNotifier):
         self.bot.send_message(chat_id=self.settings.debbug_id, text=msg)
 
     def error(self, msg:str):
-        self.bot.send_message(chat_id=self.settings.erro_id, text=msg)
+        self.bot.send_message(chat_id=self.settings.error_id, text=msg)
 
     
     def trade(self, msg:str):
