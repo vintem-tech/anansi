@@ -152,7 +152,7 @@ class DidiIndexSetup(BaseModel):
 
     sma_triple_cross: SmaTripleCross = SmaTripleCross()
     bollinger_bands: BollingerBands = BollingerBands()
-    weight_case_partial_opened:float = 0.65 # Between 0.0 and 1.0
+    weight_case_partial_opened:float = 1.0 # Recommended 0.0 or 1.0
 
 
 class OpSetup(BaseModel):
@@ -202,11 +202,11 @@ DefaultTestTradingOperation = OpSetup(
 
 DefaultRealTradingOperation = OpSetup(
     debbug=True,
-    broadcasters=["PrintNotifier", "TelegramNotifier"],
+    broadcasters=["TelegramNotifier"],
     market=Market(
         broker_name="Binance", quote_symbol="BTC", base_symbol="EUR"
     ),
-    time_frame="2h",
+    time_frame="6h",
     backtesting=False,
     test_order=False,
 )
