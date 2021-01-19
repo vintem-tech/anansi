@@ -154,7 +154,6 @@ class DidiIndexSetup(BaseModel):
     bollinger_bands: BollingerBands = BollingerBands()
     weight_case_partial_opened:float = 1.0 # Recommended 0.0 or 1.0
 
-
 class OpSetup(BaseModel):
     """Operational schema, with default values."""
 
@@ -170,6 +169,7 @@ class OpSetup(BaseModel):
     initial_base_amount: float = 1000.00
     test_order: bool = False
     order_type: str = "market"
+    stop_is_on: bool = False
     allow_naked_sells: bool = False
 
     @property
@@ -186,34 +186,6 @@ class OpSetup(BaseModel):
             setup=self.classifier_setup,
             backtesting=self.backtesting,
         )
-
-
-DefaultBackTestingOperation = OpSetup()
-DefaultTestTradingOperation = OpSetup(
-    debbug=True,
-    broadcasters=["PrintNotifier", "TelegramNotifier"],
-    market=Market(
-        broker_name="Binance", quote_symbol="BTC", base_symbol="EUR"
-    ),
-    time_frame="6h",
-    backtesting=False,
-    test_order=True,
-)
-
-DefaultRealTradingOperation = OpSetup(
-    debbug=True,
-    broadcasters=["TelegramNotifier"],
-    market=Market(
-        broker_name="Binance", quote_symbol="BTC", base_symbol="EUR"
-    ),
-    time_frame="6h",
-    backtesting=False,
-    test_order=False,
-)
-
-class Position(BaseModel):
-    side: Optional[str]
-    stop_price: Optional[float]
 
 class Order(BaseModel):
     """Order parameters collection"""
