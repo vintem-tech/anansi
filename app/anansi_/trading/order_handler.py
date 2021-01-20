@@ -10,6 +10,7 @@ from ..brokers.brokers import get_broker
 from ..marketdata.klines import PriceFromStorage
 from ..notifiers.notifiers import get_notifier
 from ..sql_app.schemas import OpSetup, Order, Portfolio  # Market
+from ..tools.serializers import Deserialize
 
 thismodule = sys.modules[__name__]
 
@@ -20,18 +21,33 @@ class Parameters(BaseModel):
     initial_equivalent_quote: Optional[float]
     min_lot_size: Optional[float]
 
+
+"""
+        self.operation = operation
+        self.setup = Deserialize(name="setup").from_json(operation.setup)
+
+        self.classifier = get_classifier(
+            classifier_name=self.setup.classifier_name,
+            market=self.setup.market,
+            time_frame=self.setup.time_frame,
+            setup=self.setup.classifier_setup)
+
+"""
+
+
 class OrderHandler:
     def __init__(self, operation: OpSetup):
         self.operation = operation
-        self.broker = get_broker(operation.setup.market)
-        self.notifier = get_notifier(broadcasters=operation.setup.broadcasters)
+        self.setup = Deserialize(name="setup").from_json(operation.setup)
+        self.broker = get_broker(self.setup.market)
+        self.notifier = get_notifier(broadcasters=self.setup.broadcasters)
         self.parameters = self._fill_in_parameters()
 
     def _fill_in_parameters(self):
         parameters = Parameters()
 
-        parameters.quote_symbol = self.operation.setup.market.quote_symbol
-        parameters.base_symbol = self.operation.setup.market.base_symbol
+        parameters.quote_symbol = self.setup.market.quote_symbol
+        parameters.base_symbol = self.setup.market.base_symbol
         parameters.initial_equivalent_quote: float = None
         parameters.min_lot_size = self.broker.get_min_lot_size()
 
@@ -40,10 +56,9 @@ class OrderHandler:
     def current_price(self):
         raise NotImplementedError
 
-
     def update_result(self, portfolio: Portfolio, price) -> None:
-        backtesting = bool(self.operation.setup.backtesting)
-        debbug = bool(self.operation.setup.debbug)
+        backtesting = bool(self.setup.backtesting)
+        debbug = bool(self.setup.debbug)
         result = self.operation.current_result
         equivalent_base = portfolio.quote * price + portfolio.base
 
@@ -88,7 +103,6 @@ Leverage = {}
     def get_portfolio(self) -> Portfolio:
         raise NotImplementedError
 
-
     def sanitize_order_amount(self, order_amount: float) -> float:
         precision = self.parameters.order_amount_precision
         amount_str = "{:0.0{}f}".format(order_amount, precision)
@@ -104,13 +118,13 @@ class BacktestingOrderHandler(OrderHandler):
         super().__init__(operation)
 
     def current_price(self) -> float:
-        price_getter = PriceFromStorage(self.operation.setup.market, "ohlc4")
+        price_getter = PriceFromStorage(self.setup.market, "ohlc4")
         current_time = self.operation.current_result.Open_time.tail(1).item()
         return price_getter.get_price_at(desired_datetime=current_time)
 
     def _reset_result(self):
         portfolio = Portfolio()
-        initial_base_amount = self.operation.setup.initial_base_amount
+        initial_base_amount = self.setup.initial_base_amount
         price = self.current_price()
 
         self.parameters.initial_equivalent_quote = initial_base_amount / price
@@ -147,7 +161,7 @@ class BacktestingOrderHandler(OrderHandler):
         fee_rate_decimal = self.broker.settings.fee_rate_decimal
         leverage = self.operation.current_result.Leverage.item()
 
-        if not self.operation.setup.allow_naked_sells and side == "Short":
+        if not self.setup.allow_naked_sells and side == "Short":
             side = "Zeroed"
 
         if side == "Long":
@@ -182,27 +196,29 @@ class RealTradingOrderHandler(OrderHandler):
 
     def get_portfolio(self) -> Portfolio:
         return self.broker.get_portfolio()
-    
+
     def proceed(self):
         price = self.current_price()
         portfolio = self.get_portfolio()
         side = self.operation.current_result.Side.item()
         fee_rate_decimal = self.broker.settings.fee_rate_decimal
         leverage = self.operation.current_result.Leverage.item()
-        
+
         order = Order(
-            test_order=self.operation.setup.test_order,
-            ticker_symbol=self.operation.setup.market.ticker_symbol,
+            test_order=self.setup.test_order,
+            ticker_symbol=(
+                self.setup.market.quote_symbol + self.setup.market.base_symbol
+            ).upper(),
             side=str(),
-            order_type=self.operation.setup.order_type,
+            order_type=self.setup.order_type,
             quantity=0.0,
             price=price,
         )
-        if not self.operation.setup.allow_naked_sells and side == "Short":
+        if not self.setup.allow_naked_sells and side == "Short":
             side = "Zeroed"
 
         if side == "Long":
-            order_amount = 0.998*(leverage * (portfolio.base / price))
+            order_amount = 0.998 * (leverage * (portfolio.base / price))
 
             if order_amount > self.parameters.min_lot_size:
                 fee_quote = fee_rate_decimal * order_amount
@@ -213,12 +229,11 @@ class RealTradingOrderHandler(OrderHandler):
                 self.notifier.trade(order.json())
                 self.broker.execute_order(order)
 
-
                 portfolio.quote += bought_quote_amount
                 portfolio.base -= order_amount * price
 
         if side == "Zeroed":
-            order_amount = 0.998*(portfolio.quote)
+            order_amount = 0.998 * (portfolio.quote)
 
             if order_amount > self.parameters.min_lot_size:
                 fee_quote = fee_rate_decimal * order_amount
@@ -228,7 +243,7 @@ class RealTradingOrderHandler(OrderHandler):
                 order.quantity = order_amount
                 self.notifier.trade(order.json())
                 self.broker.execute_order(order)
-                
+
                 portfolio.quote -= order_amount
                 portfolio.base += bought_base_amount
 
@@ -238,6 +253,9 @@ class RealTradingOrderHandler(OrderHandler):
 def get_order_handler(
     operation: OpSetup,
 ) -> Union[BacktestingOrderHandler, RealTradingOrderHandler]:
-    if operation.setup.backtesting:
+
+    backtesting = (Deserialize(name="setup").from_json(operation.setup)).backtesting
+
+    if backtesting:
         return BacktestingOrderHandler(operation)
     return RealTradingOrderHandler(operation)
