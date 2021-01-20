@@ -91,7 +91,7 @@ class KlinesFrom:
 
     def __init__(self, market: Market, time_frame: str):
         self.broker_name = market.broker_name
-        self.ticker_symbol = market.ticker_symbol.upper()
+        self.ticker_symbol = (market.quote_symbol + market.base_symbol).upper()
         self.time_frame = time_frame
 
     def _now(self) -> int:
@@ -306,7 +306,7 @@ class FromStorage(KlinesFrom):
 
     def __init__(self, market: Market, time_frame: str, storage_name: str):
         table = "{}_{}".format(
-            market.broker_name, market.ticker_symbol.lower()
+            market.broker_name, (market.quote_symbol + market.base_symbol).lower()
         )
         self.storage = StorageKlines(table=table, database=storage_name)
         super(FromStorage, self).__init__(market, time_frame)
