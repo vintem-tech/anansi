@@ -12,10 +12,10 @@ db = Database()
 # postgres_user = env.str("POSTGRES_USER")
 # postgres_password = env.str("POSTGRES_PASSWORD")
 
-db_host="localhost"
-postgres_db="ANANSI"
-postgres_user="anansi"
-postgres_password="anansi"
+db_host = "localhost"
+postgres_db = "ANANSI"
+postgres_user = "anansi"
+postgres_password = "anansi"
 
 _ORM_bind_to = dict(
     provider="postgres",
@@ -42,6 +42,7 @@ class Position(db.Entity, AttributeUpdater):
     enter_price = Optional(float)
     exit_reference_price = Optional(float)
 
+
 class LastCheck(db.Entity, AttributeUpdater):
     Operation = Optional(lambda: Operation)  # Foreing key
     by_classifier_at = Optional(int)  # UTC timestamp
@@ -54,17 +55,22 @@ class Operation(db.Entity, AttributeUpdater):
     is_running = Required(bool, default="is_running")
     last_check = Required(LastCheck)
     trade_log = Set(lambda: TradeLog)
+    current_result = pd.DataFrame()
 
-    def save_result(self, result: pd.core.frame.DataFrame) -> bool:
+    def update_current_result(self, result: pd.core.frame.DataFrame) -> None:
+        self.current_result[list(result.columns)] = result
+
+    def save_current_result(self):
         storage = StorageResults(table=self.id, database="results")
-        storage.append(result)
+        storage.append(self.current_result)
 
     def get_last_result(self) -> pd.core.frame.DataFrame:
         raise NotImplementedError
-    
+
     def report_trade(self, payload):
         self.trade_log.create(**payload)
         commit()
+
 
 class TradeLog(db.Entity, AttributeUpdater):
     operation = Optional(lambda: Operation)
@@ -73,5 +79,6 @@ class TradeLog(db.Entity, AttributeUpdater):
     price = Optional(float)
     fee = Optional(float)  # base_asset units
     quote_amount = Optional(float)
+
 
 db.generate_mapping(create_tables=True)
