@@ -27,15 +27,16 @@ class Market(BaseModel):
     broker_name: str
     quote_symbol: str
     base_symbol: str
+    #ticker_symbol: str = self.quote_symbol + self.base_symbol 
 
-    @property
-    def ticker_symbol(self):
-        """Returns the symbol of a market ticket
-
-        Returns:
-            str: quote_symbol + base_symbol
-        """
-        return self.quote_symbol + self.base_symbol
+#    @property
+#    def ticker_symbol(self):
+#        """Returns the symbol of a market ticket
+#
+#        Returns:
+#            str: quote_symbol + base_symbol
+#        """
+#        return self.quote_symbol + self.base_symbol
 
 
 # possible_price_metrics means:
