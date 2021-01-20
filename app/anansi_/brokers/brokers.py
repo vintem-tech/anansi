@@ -68,6 +68,7 @@ class Broker:
     def __init__(self, market: Market, settings: BaseModel):
         self.market = market
         self.settings = settings
+        self.ticker_symbol=(market.quote_symbol + market.base_symbol).upper()
 
     def server_time(self) -> int:
         """Date time of broker server.
@@ -162,9 +163,7 @@ class Binance(Broker):
         until: int = kwargs.get("until")
         number_of_candles: int = kwargs.get("number_of_candles")
 
-        endpoint = self.settings.klines_endpoint.format(
-            self.market.ticker_symbol, time_frame
-        )
+        endpoint = self.settings.klines_endpoint.format(self.ticker_symbol, time_frame)
         if since:
             endpoint += "&startTime={}".format(str(since * 1000))
         if until:
@@ -190,8 +189,7 @@ class Binance(Broker):
 
     @DocInherit
     def get_price(self) -> float:
-        ticker_symbol = self.market.ticker_symbol
-        return float(self.client.get_avg_price(symbol=ticker_symbol)["price"])
+        return float(self.client.get_avg_price(symbol=self.ticker_symbol)["price"])
 
     @DocInherit
     def get_portfolio(self) -> float:
@@ -205,7 +203,7 @@ class Binance(Broker):
     @DocInherit
     def get_min_lot_size(self) -> float:
         min_notional = float(
-            self.client.get_symbol_info(symbol=self.market.ticker_symbol)[
+            self.client.get_symbol_info(symbol=self.ticker_symbol)[
                 "filters"
             ][3]["minNotional"]
         )  # Measured by base asset
@@ -216,7 +214,7 @@ class Binance(Broker):
         quant = Quant()
         quant.is_enough = False
 
-        info = self.client.get_symbol_info(symbol=self.market.ticker_symbol)
+        info = self.client.get_symbol_info(symbol=self.ticker_symbol)
         minimum = float(info["filters"][2]["minQty"])
         quant_ = Decimal.from_float(quantity).quantize(Decimal(str(minimum)))
 
@@ -227,7 +225,7 @@ class Binance(Broker):
         return quant
 
     def _sanitize_price(self, price: float) -> str:
-        info = self.client.get_symbol_info(symbol=self.market.ticker_symbol)
+        info = self.client.get_symbol_info(symbol=self.ticker_symbol)
         price_filter = float(info["filters"][0]["tickSize"])
 
         return str(
@@ -242,7 +240,7 @@ class Binance(Broker):
 
         if quant.is_enough:
             order_report = getattr(self.client, executor)(
-                symbol=self.market.ticker_symbol, quantity=quant.value
+                symbol=self.ticker_symbol, quantity=quant.value
             )
         return order_report
 
@@ -255,7 +253,7 @@ class Binance(Broker):
 
         if quant.is_enough:
             order_report = getattr(self.client, executor)(
-                symbol=self.market.ticker_symbol,
+                symbol=self.ticker_symbol,
                 quantity=quant.value,
                 price=price,
             )
