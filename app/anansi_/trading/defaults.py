@@ -6,7 +6,7 @@ trading_testing = OpSetup(
     debbug=True,
     broadcasters=["PrintNotifier", "TelegramNotifier"],
     market=Market(
-        broker_name="Binance", quote_symbol="BTC", base_symbol="EUR"
+        broker_name="Binance", quote_symbol="BTC", base_symbol="EUR", ticker_symbol="BTCEUR",
     ),
     time_frame="6h",
     backtesting=False,
@@ -17,7 +17,7 @@ real_trading = OpSetup(
     debbug=True,
     broadcasters=["TelegramNotifier"],
     market=Market(
-        broker_name="Binance", quote_symbol="BTC", base_symbol="EUR"
+        broker_name="Binance", quote_symbol="BTC", base_symbol="EUR", ticker_symbol="BTCEUR",
     ),
     time_frame="6h",
     backtesting=False,
