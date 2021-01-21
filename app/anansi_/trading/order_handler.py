@@ -6,11 +6,12 @@ from typing import Optional, Union
 
 from pydantic import BaseModel
 
-from ..brokers.brokers import get_broker
+from .brokers import get_broker
 from ..marketdata.klines import PriceFromStorage
 from ..notifiers.notifiers import get_notifier
 from ..sql_app.schemas import OpSetup, Order, Portfolio  # Market
 from ..tools.serializers import Deserialize
+from ..tools.time_handlers import ParseDateTime
 
 thismodule = sys.modules[__name__]
 
@@ -20,19 +21,6 @@ class Parameters(BaseModel):
     base_symbol: Optional[str]
     initial_equivalent_quote: Optional[float]
     min_lot_size: Optional[float]
-
-
-"""
-        self.operation = operation
-        self.setup = Deserialize(name="setup").from_json(operation.setup)
-
-        self.classifier = get_classifier(
-            classifier_name=self.setup.classifier_name,
-            market=self.setup.market,
-            time_frame=self.setup.time_frame,
-            setup=self.setup.classifier_setup)
-
-"""
 
 
 class OrderHandler:
@@ -103,12 +91,6 @@ Leverage = {}
     def get_portfolio(self) -> Portfolio:
         raise NotImplementedError
 
-    def sanitize_order_amount(self, order_amount: float) -> float:
-        precision = self.parameters.order_amount_precision
-        amount_str = "{:0.0{}f}".format(order_amount, precision)
-
-        return float(amount_str)
-
     def proceed(self):
         raise NotImplementedError
 
@@ -154,12 +136,15 @@ class BacktestingOrderHandler(OrderHandler):
         return portfolio
 
     def proceed(self):
+        result = self.operation.current_result
         price = self.current_price()
         portfolio = self.get_portfolio()
-        side = self.operation.current_result.Side.item()
-
-        fee_rate_decimal = self.broker.settings.fee_rate_decimal
-        leverage = self.operation.current_result.Leverage.item()
+        side = result.Side.item()
+        leverage = result.Leverage.item()
+        fee_rate_decimal = self.broker.fee_rate_decimal
+        opentime = ParseDateTime(
+            result.Open_time.tail(1).item()
+        ).from_human_readable_to_timestamp()
 
         if not self.setup.allow_naked_sells and side == "Short":
             side = "Zeroed"
@@ -174,6 +159,18 @@ class BacktestingOrderHandler(OrderHandler):
                 portfolio.quote += bought_quote_amount
                 portfolio.base -= order_amount * price
 
+                order_dict = dict(
+                    timestamp=opentime,
+                    signal="BUY",
+                    price=price,
+                    fee=price * fee_quote,
+                    quote_amount=order_amount,
+                )
+                self.operation.report_trade(order_dict)
+                self.operation.position.update(
+                    side="Long", enter_price=price, exit_reference_price=price
+                )
+
         if side == "Zeroed":
             order_amount = portfolio.quote
 
@@ -183,6 +180,20 @@ class BacktestingOrderHandler(OrderHandler):
 
                 portfolio.quote -= order_amount
                 portfolio.base += bought_base_amount
+
+                order_dict = dict(
+                    timestamp=opentime,
+                    signal="SELL",
+                    price=price,
+                    fee=price * fee_quote,
+                    quote_amount=order_amount,
+                )
+                self.operation.report_trade(order_dict)
+                self.operation.position.update(
+                    side="Zeroed",
+                    enter_price=price,
+                    exit_reference_price=price,
+                )
 
         self.update_result(portfolio, price)
 
@@ -201,7 +212,7 @@ class RealTradingOrderHandler(OrderHandler):
         price = self.current_price()
         portfolio = self.get_portfolio()
         side = self.operation.current_result.Side.item()
-        fee_rate_decimal = self.broker.settings.fee_rate_decimal
+        fee_rate_decimal = self.broker.fee_rate_decimal
         leverage = self.operation.current_result.Leverage.item()
 
         order = Order(
@@ -227,10 +238,18 @@ class RealTradingOrderHandler(OrderHandler):
                 order.side = "buy"
                 order.quantity = order_amount
                 self.notifier.trade(order.json())
-                self.broker.execute_order(order)
 
-                portfolio.quote += bought_quote_amount
-                portfolio.base -= order_amount * price
+                checked_order = self.broker.execute_order(order)
+
+                if checked_order:
+                    self.operation.report_trade(checked_order)
+                    self.operation.position.update(
+                        side="Long",
+                        enter_price=price,
+                        exit_reference_price=price,
+                    )
+                    portfolio.quote += bought_quote_amount
+                    portfolio.base -= order_amount * price
 
         if side == "Zeroed":
             order_amount = 0.998 * (portfolio.quote)
@@ -242,7 +261,16 @@ class RealTradingOrderHandler(OrderHandler):
                 order.side = "sell"
                 order.quantity = order_amount
                 self.notifier.trade(order.json())
-                self.broker.execute_order(order)
+
+                checked_order = self.broker.execute_order(order)
+
+                if checked_order:
+                    self.operation.report_trade(checked_order)
+                    self.operation.position.update(
+                        side="Zeroed",
+                        enter_price=price,
+                        exit_reference_price=price,
+                    )
 
                 portfolio.quote -= order_amount
                 portfolio.base += bought_base_amount
@@ -254,7 +282,9 @@ def get_order_handler(
     operation: OpSetup,
 ) -> Union[BacktestingOrderHandler, RealTradingOrderHandler]:
 
-    backtesting = (Deserialize(name="setup").from_json(operation.setup)).backtesting
+    backtesting = (
+        Deserialize(name="setup").from_json(operation.setup)
+    ).backtesting
 
     if backtesting:
         return BacktestingOrderHandler(operation)
