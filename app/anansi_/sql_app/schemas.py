@@ -27,17 +27,7 @@ class Market(BaseModel):
     broker_name: str
     quote_symbol: str
     base_symbol: str
-    #ticker_symbol: str = self.quote_symbol + self.base_symbol 
-
-#    @property
-#    def ticker_symbol(self):
-#        """Returns the symbol of a market ticket
-#
-#        Returns:
-#            str: quote_symbol + base_symbol
-#        """
-#        return self.quote_symbol + self.base_symbol
-
+    ticker_symbol: str
 
 # possible_price_metrics means:
 
@@ -163,7 +153,7 @@ class OpSetup(BaseModel):
     classifier_name: str = "DidiIndex"
     classifier_setup: BaseModel = DidiIndexSetup()
     market: Market = Market(
-        broker_name="Binance", quote_symbol="BTC", base_symbol="USDT"
+        broker_name="Binance", quote_symbol="BTC", base_symbol="USDT", ticker_symbol="BTCUSDT"
     )
     time_frame: str = "6h"
     backtesting: bool = True
