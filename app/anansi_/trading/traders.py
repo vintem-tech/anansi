@@ -31,31 +31,35 @@ class DefaultTrader(Thread):
         super().__init__()
 
     def _start(self):
-        debbug = self.setup.debbug
-        self.now = (
-            self.classifier.initial_backtesting_now()
-            if self.setup.backtesting
-            else pendulum.now("UTC").int_timestamp
-        )
-        self.operation.update(is_running=True)
+        self.now = pendulum.now("UTC").int_timestamp
+        if self.setup.backtesting:
+            self.operation.reset()
+            self.now = self.classifier.initial_backtesting_now()
 
-        if debbug:
+        if self.setup.debbug:
             setup_str = text_in_lines_from_dict(self.setup._asdict())
             msg = "Starting Anansi. Your operation id is {}\n\n{}".format(
                 self.operation.id, setup_str
             )
             self.notifier.debbug(msg)
+        self.operation.update(is_running=True)
 
     def _classifier_analysis(self):
-        # TODO: Só realizar esta analise se já existir um candle aberto...
-        result = self.classifier.restult_at(desired_datetime=self.now)
-        self.operation.update_current_result(result)
+        new_candle = bool(
+            self.now >= (
+                self.operation.last_check.by_classifier_at +
+                self.classifier.time_frame_total_seconds))
+
+        if new_candle:
+            result = self.classifier.restult_at(desired_datetime=self.now)
+            self.operation.update_current_result(result)
+            self.operation.last_check.update(by_classifier_at=self.now)
 
     def analysis_pipeline(self) -> None:
         self._classifier_analysis()
         self.order_handler.proceed()
 
-    def forward_step(self):
+    def _forward_step(self):
         debbug = self.setup.debbug
         if self.setup.backtesting:
             self.now += self.classifier.time_frame_total_seconds
@@ -83,7 +87,7 @@ class DefaultTrader(Thread):
         while self.operation.is_running:
             #try:
             self.analysis_pipeline()
-            self.forward_step()
+            self._forward_step()
 
             #except Exception as e:
                 #self.notifier.error(e)
