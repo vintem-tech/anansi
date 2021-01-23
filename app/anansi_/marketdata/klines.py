@@ -12,15 +12,12 @@ import time
 import pandas as pd
 import pendulum
 
-from ..brokers.brokers import get_broker
 from ..sql_app.schemas import DateTimeType, Market
 from ..storage.storage import StorageKlines
-from ..tools.time_handlers import (
-    ParseDateTime,
-    sanitize_input_datetime,
-    seconds_in,
-)
+from ..tools.time_handlers import (ParseDateTime, sanitize_input_datetime,
+                                   seconds_in)
 from . import indicators
+from .brokers import get_broker
 
 pd.options.mode.chained_assignment = None
 
@@ -91,7 +88,7 @@ class KlinesFrom:
 
     def __init__(self, market: Market, time_frame: str):
         self.broker_name = market.broker_name
-        self.ticker_symbol = market.ticker_symbol.upper()
+        self.ticker_symbol = (market.quote_symbol + market.base_symbol).upper()
         self.time_frame = time_frame
 
     def _now(self) -> int:
@@ -306,7 +303,7 @@ class FromStorage(KlinesFrom):
 
     def __init__(self, market: Market, time_frame: str, storage_name: str):
         table = "{}_{}".format(
-            market.broker_name, market.ticker_symbol.lower()
+            market.broker_name, (market.quote_symbol + market.base_symbol).lower()
         )
         self.storage = StorageKlines(table=table, database=storage_name)
         super(FromStorage, self).__init__(market, time_frame)

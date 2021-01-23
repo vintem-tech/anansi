@@ -3,17 +3,15 @@
 
 """All the brokers low level communications goes here."""
 import sys
-from decimal import Decimal
-from typing import Optional, Union
+from typing import Union
 
 import pandas as pd
 import pendulum
 import requests
-from binance.client import Client as BinanceClient
 from pydantic import BaseModel
 
 from ..notifiers.notifiers import get_notifier
-from ..sql_app.schemas import BaseModel, Market, Order, Portfolio
+from ..sql_app.schemas import Market
 from ..tools import doc, formatting
 from .settings import BinanceSettings
 
@@ -29,9 +27,6 @@ def get_response(endpoint: str) -> Union[requests.models.Response, None]:
             if response.status_code == 200:
                 return response
     except Exception as connect_exception:
-        #raise ConnectionError(
-        #    "Could not establish a broker connection."
-        #) from connect_exception
         notifier.error(connect_exception)
     return None
 
@@ -52,14 +47,6 @@ def remove_last_candle_if_unclosed(klines: pd.DataFrame) -> pd.DataFrame:
     if unclosed:
         return klines[:-1]
     return klines
-
-
-class Quant:
-    """Auxiliary class to store the amount quantity information, useful
-    for the trade order flow"""
-
-    is_enough: Optional[bool]
-    value: Optional[str]
 
 
 class Broker:
@@ -108,26 +95,6 @@ class Broker:
 
         raise NotImplementedError
 
-    def get_price(self) -> float:
-        """Intant trading average price"""
-        raise NotImplementedError
-
-    def get_portfolio(self) -> Portfolio:
-        """The portfolio composition, given a market"""
-        raise NotImplementedError
-
-    def get_min_lot_size(self) -> float:
-        """Minimal possible trading amount, by quote."""
-        raise NotImplementedError
-
-    def execute_order(self, order: Order):
-        """Proceed trade orders """
-        raise NotImplementedError
-
-    def test_order(self, order: Order):
-        """Proceed test orders """
-        raise NotImplementedError
-
 
 class Binance(Broker):
     """All needed functions, wrapping the communication with binance"""
@@ -135,9 +102,6 @@ class Binance(Broker):
     @DocInherit
     def __init__(self, market: Market, settings=BinanceSettings()):
         super().__init__(market, settings)
-        self.client = BinanceClient(
-            api_key=self.settings.api_key, api_secret=self.settings.api_secret
-        )
 
     @DocInherit
     def server_time(self) -> int:
@@ -162,9 +126,7 @@ class Binance(Broker):
         until: int = kwargs.get("until")
         number_of_candles: int = kwargs.get("number_of_candles")
 
-        endpoint = self.settings.klines_endpoint.format(
-            self.market.ticker_symbol, time_frame
-        )
+        endpoint = self.settings.klines_endpoint.format(self.market.ticker_symbol, time_frame)
         if since:
             endpoint += "&startTime={}".format(str(since * 1000))
         if until:
@@ -187,92 +149,6 @@ class Binance(Broker):
         if self.settings.show_only_desired_info:
             return klines[self.settings.klines_desired_informations]
         return klines
-
-    @DocInherit
-    def get_price(self) -> float:
-        ticker_symbol = self.market.ticker_symbol
-        return float(self.client.get_avg_price(symbol=ticker_symbol)["price"])
-
-    @DocInherit
-    def get_portfolio(self) -> float:
-        portfolio = Portfolio()
-        portfolio.quote, portfolio.base = (
-            float(self.client.get_asset_balance(asset=symbol)["free"])
-            for symbol in [self.market.quote_symbol, self.market.base_symbol]
-        )
-        return portfolio
-
-    @DocInherit
-    def get_min_lot_size(self) -> float:
-        min_notional = float(
-            self.client.get_symbol_info(symbol=self.market.ticker_symbol)[
-                "filters"
-            ][3]["minNotional"]
-        )  # Measured by base asset
-
-        return 1.03*min_notional/self.get_price()
-
-    def _sanitize_quantity(self, quantity: float) -> Quant:
-        quant = Quant()
-        quant.is_enough = False
-
-        info = self.client.get_symbol_info(symbol=self.market.ticker_symbol)
-        minimum = float(info["filters"][2]["minQty"])
-        quant_ = Decimal.from_float(quantity).quantize(Decimal(str(minimum)))
-
-        if float(quant_) > self.get_min_lot_size():
-            quant.is_enough = True
-            quant.value = str(quant_)
-
-        return quant
-
-    def _sanitize_price(self, price: float) -> str:
-        info = self.client.get_symbol_info(symbol=self.market.ticker_symbol)
-        price_filter = float(info["filters"][0]["tickSize"])
-
-        return str(
-            Decimal.from_float(price).quantize(Decimal(str(price_filter)))
-        )
-
-    def _order_market(self, order: Order) -> dict:
-        order_report = dict()
-
-        executor = "order_market_{}".format(order.side)
-        quant = self._sanitize_quantity(order.quantity)
-
-        if quant.is_enough:
-            order_report = getattr(self.client, executor)(
-                symbol=self.market.ticker_symbol, quantity=quant.value
-            )
-        return order_report
-
-    def _order_limit(self, order: Order) -> dict:
-        order_report = dict()
-
-        executor = "order_limit_{}".format(order.side)
-        quant = self._sanitize_quantity(order.quantity)
-        price = self._sanitize_price(order.price)
-
-        if quant.is_enough:
-            order_report = getattr(self.client, executor)(
-                symbol=self.market.ticker_symbol,
-                quantity=quant.value,
-                price=price,
-            )
-        return order_report
-
-    @DocInherit
-    def execute_order(self, order: Order) -> dict:
-        executor = "_order_{}".format(order.order_type)
-        order_report = getattr(self, executor)(order)
-
-        if order.notify:
-            notifier.trade(str(order_report))
-        return order_report
-
-    @DocInherit
-    def test_order(self, order: Order):
-        pass
 
 def get_broker(market: Market) -> Broker:
     """Given a market, returns an instantiated broker"""

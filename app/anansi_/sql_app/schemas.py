@@ -27,16 +27,7 @@ class Market(BaseModel):
     broker_name: str
     quote_symbol: str
     base_symbol: str
-
-    @property
-    def ticker_symbol(self):
-        """Returns the symbol of a market ticket
-
-        Returns:
-            str: quote_symbol + base_symbol
-        """
-        return self.quote_symbol + self.base_symbol
-
+    ticker_symbol: str
 
 # possible_price_metrics means:
 
@@ -154,7 +145,6 @@ class DidiIndexSetup(BaseModel):
     bollinger_bands: BollingerBands = BollingerBands()
     weight_case_partial_opened:float = 1.0 # Recommended 0.0 or 1.0
 
-
 class OpSetup(BaseModel):
     """Operational schema, with default values."""
 
@@ -163,13 +153,14 @@ class OpSetup(BaseModel):
     classifier_name: str = "DidiIndex"
     classifier_setup: BaseModel = DidiIndexSetup()
     market: Market = Market(
-        broker_name="Binance", quote_symbol="BTC", base_symbol="USDT"
+        broker_name="Binance", quote_symbol="BTC", base_symbol="USDT", ticker_symbol="BTCUSDT"
     )
     time_frame: str = "6h"
     backtesting: bool = True
     initial_base_amount: float = 1000.00
     test_order: bool = False
     order_type: str = "market"
+    stop_is_on: bool = False
     allow_naked_sells: bool = False
 
     @property
@@ -186,34 +177,6 @@ class OpSetup(BaseModel):
             setup=self.classifier_setup,
             backtesting=self.backtesting,
         )
-
-
-DefaultBackTestingOperation = OpSetup()
-DefaultTestTradingOperation = OpSetup(
-    debbug=True,
-    broadcasters=["PrintNotifier", "TelegramNotifier"],
-    market=Market(
-        broker_name="Binance", quote_symbol="BTC", base_symbol="EUR"
-    ),
-    time_frame="6h",
-    backtesting=False,
-    test_order=True,
-)
-
-DefaultRealTradingOperation = OpSetup(
-    debbug=True,
-    broadcasters=["TelegramNotifier"],
-    market=Market(
-        broker_name="Binance", quote_symbol="BTC", base_symbol="EUR"
-    ),
-    time_frame="6h",
-    backtesting=False,
-    test_order=False,
-)
-
-class Position(BaseModel):
-    side: Optional[str]
-    stop_price: Optional[float]
 
 class Order(BaseModel):
     """Order parameters collection"""
