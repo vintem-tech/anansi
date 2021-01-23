@@ -7,15 +7,10 @@ from ..storage.storage import StorageResults
 env = Env()
 db = Database()
 
-# db_host = env.str("DB_HOST")
-# postgres_db = env.str("POSTGRES_DB")
-# postgres_user = env.str("POSTGRES_USER")
-# postgres_password = env.str("POSTGRES_PASSWORD")
-
-db_host = "localhost"
-postgres_db = "ANANSI"
-postgres_user = "anansi"
-postgres_password = "anansi"
+db_host = env.str("DB_HOST")
+postgres_db = env.str("POSTGRES_DB")
+postgres_user = env.str("POSTGRES_USER")
+postgres_password = env.str("POSTGRES_PASSWORD")
 
 _ORM_bind_to = dict(
     provider="postgres",
@@ -52,9 +47,9 @@ class LastCheck(db.Entity, AttributeUpdater):
 class Operation(db.Entity, AttributeUpdater):
     setup = Optional(Json)
     position = Required(Position, cascade_delete=True)
+    last_check = Required(LastCheck, cascade_delete=True)
+    trade_log = Set(lambda: TradeLog, cascade_delete=True)
     is_running = Required(bool, default="is_running")
-    last_check = Required(LastCheck)
-    trade_log = Set(lambda: TradeLog)
     current_result = pd.DataFrame()
 
     def update_current_result(self, result: pd.core.frame.DataFrame) -> None:
@@ -69,6 +64,12 @@ class Operation(db.Entity, AttributeUpdater):
 
     def report_trade(self, payload):
         self.trade_log.create(**payload)
+        commit()
+    
+    def reset(self):
+        self.last_check.update(by_classifier_at=0)
+        self.position.update(side="Zeroed")
+        self.trade_log.clear()
         commit()
 
 
