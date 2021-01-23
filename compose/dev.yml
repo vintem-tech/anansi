@@ -1,6 +1,27 @@
 version: '3.9'
 
 services:
+  postgres:
+    image: 'postgres'
+    restart: unless-stopped
+    env_file:
+      - '.env'
+    ports:
+      - '$POSTGRES_PORT:5432'
+    volumes:
+      - postgres:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: unless-stopped
+    env_file:
+      - '.env'
+    ports:
+      - '$PGADMIN_PORT:80'
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+    depends_on:
+      - postgres
 
   influxdb:    
     image: influxdb:latest # 1.8 version. For the 2.x version: 
@@ -11,11 +32,8 @@ services:
       - '.env'
     ports:
       - '$INFLUXDB_PORT:8086' 
-
     volumes:
-      # Mount for influxdb data directory
       - influxdb-data:/var/lib/influxdb
-      # Mount for influxdb configuration
       - influxdb-config:/etc/influxdb/
 
   chronograf: # Some influxdb controllers
@@ -48,13 +66,13 @@ services:
     ports: 
       - '$GRAFANA_PORT:3000'
 
-  app:
-    build: app/
-    restart: unless-stopped
-    env_file:
-      - '.env'
-    depends_on:
-    - influxdb
+#  app:
+#    build: app/
+#    restart: unless-stopped
+#    env_file:
+#      - '.env'
+#    depends_on:
+#    - influxdb
 
   nginx:
     build: nginx/
@@ -71,9 +89,17 @@ services:
     - influxdb
     - grafana
     - chronograf
-    - app
+#    - app
 
 volumes:
+  postgres:
+    driver: local
+    name: postgres
+  
+  pgadmin:
+    driver: local
+    name: pgadmin
+
   influxdb-data:
     driver: local
     name: influxdb-data
