@@ -12,15 +12,12 @@ import time
 import pandas as pd
 import pendulum
 
-from ..brokers.brokers import get_broker
 from ..sql_app.schemas import DateTimeType, Market
 from ..storage.storage import StorageKlines
-from ..tools.time_handlers import (
-    ParseDateTime,
-    sanitize_input_datetime,
-    seconds_in,
-)
+from ..tools.time_handlers import (ParseDateTime, sanitize_input_datetime,
+                                   seconds_in)
 from . import indicators
+from .brokers import get_broker
 
 pd.options.mode.chained_assignment = None
 
