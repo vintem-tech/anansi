@@ -3,7 +3,7 @@
 # pylint: disable=too-few-public-methods
 # pylint: disable=E1136
 
-"""Shared pydantic model classes."""
+"""Shared pydantic parameters classes."""
 
 from typing import Union, Sequence, Optional, List
 from pydantic import BaseModel, validator
@@ -38,7 +38,7 @@ class Market(BaseModel):
 # "oc2"   = ("Open" + "Close")/2
 # "hl2"   = ("High" + "Low")/2
 # "hlc3"  = ("High" + "Low" + "Close")/3
-# "ohlc4" = ("Open" + "High" + "Low" + "Close")/4 
+# "ohlc4" = ("Open" + "High" + "Low" + "Close")/4
 
 
 possible_price_metrics = ["o", "h", "l", "c", "oc2", "hl2", "hlc3", "ohlc4"]
@@ -66,8 +66,8 @@ class Portfolio(BaseModel):
     base: float = None
 
 
-class SmaTripleCross(BaseModel):
-    """ Setup of Cross Triple Simple Moving Average """
+class DidiIndexSetup(BaseModel):
+    """ Setup of Didi index trend indicator """
 
     price_metrics: str = "ohlc4"
     number_samples: Sequence[int] = (3, 20, 80)
@@ -130,7 +130,7 @@ class SmaTripleCross(BaseModel):
         return value
 
 
-class BollingerBands(BaseModel):
+class BollingerBandsSetup(BaseModel):
     """Bollinger bands setup schema, with default values."""
 
     price_metrics: str = "ohlc4"
@@ -138,45 +138,30 @@ class BollingerBands(BaseModel):
     number_STDs: float = 2.0
 
 
-class DidiIndexSetup(BaseModel):
-    """'Didi Index' ('agulhadas do Didi') setup schema, with default values."""
+class DidiClassifierSetup(BaseModel):
+    """'Default classifier schema, with default values."""
 
-    sma_triple_cross: SmaTripleCross = SmaTripleCross()
-    bollinger_bands: BollingerBands = BollingerBands()
+    didi_index: DidiIndexSetup = DidiIndexSetup()
+    bollinger_bands: BollingerBandsSetup = BollingerBandsSetup()
     weight_case_partial_opened:float = 1.0 # Recommended 0.0 or 1.0
+    time_frame: str = "6h"
 
-class OpSetup(BaseModel):
+class OperationSetup(BaseModel):
     """Operational schema, with default values."""
 
     debbug: bool = True
     broadcasters: List[str] = ["PrintNotifier"]
-    classifier_name: str = "DidiIndex"
-    classifier_setup: BaseModel = DidiIndexSetup()
+    classifier_name: str = "DidiClassifier"
+    classifier_setup: BaseModel = DidiClassifierSetup()
     market: Market = Market(
         broker_name="Binance", quote_symbol="BTC", base_symbol="USDT", ticker_symbol="BTCUSDT"
     )
-    time_frame: str = "6h"
     backtesting: bool = True
     initial_base_amount: float = 1000.00
     test_order: bool = False
     order_type: str = "market"
     stop_is_on: bool = False
     allow_naked_sells: bool = False
-
-    @property
-    def classifier_payload(self) -> dict:
-        """Prepares the payload for the classifier.
-
-        Returns:
-            [dict]: Classifier arguments.
-        """
-        return dict(
-            classifier_name=self.classifier_name,
-            market=self.market,
-            time_frame=self.time_frame,
-            setup=self.classifier_setup,
-            backtesting=self.backtesting,
-        )
 
 class Order(BaseModel):
     """Order parameters collection"""
