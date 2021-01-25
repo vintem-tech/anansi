@@ -1,16 +1,15 @@
 import time
 from threading import Thread
 
-import pandas as pd
 import pendulum
+
 from ..notifiers.notifiers import get_notifier
-from ..sql_app.schemas import OpSetup
-from ..tools.time_handlers import ParseDateTime
 from ..tools.formatting import text_in_lines_from_dict
 from ..tools.serializers import Deserialize
+from ..tools.time_handlers import ParseDateTime
 from .classifiers import get_classifier
-from .order_handler import get_order_handler
 from .models import Operation
+from .order_handler import get_order_handler
 
 
 class DefaultTrader(Thread):
@@ -21,8 +20,8 @@ class DefaultTrader(Thread):
         self.classifier = get_classifier(
             classifier_name=self.setup.classifier_name,
             market=self.setup.market,
-            time_frame=self.setup.time_frame,
             setup=self.setup.classifier_setup,
+            backtesting=self.setup.backtesting
         )
 
         self.notifier = get_notifier(broadcasters=self.setup.broadcasters)
@@ -48,7 +47,7 @@ class DefaultTrader(Thread):
         new_candle = bool(
             self.now >= (
                 self.operation.last_check.by_classifier_at +
-                self.classifier.time_frame_total_seconds))
+                self.classifier.time_frame_total_seconds()))
 
         if new_candle:
             result = self.classifier.restult_at(desired_datetime=self.now)
@@ -62,7 +61,7 @@ class DefaultTrader(Thread):
     def _forward_step(self):
         debbug = self.setup.debbug
         if self.setup.backtesting:
-            self.now += self.classifier.time_frame_total_seconds
+            self.now += self.classifier.time_frame_total_seconds()
 
             if self.now > self.classifier.final_backtesting_now():
                 self.operation.update(is_running=False)

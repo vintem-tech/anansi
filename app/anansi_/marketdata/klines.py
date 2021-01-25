@@ -1,10 +1,10 @@
 """Deals specifically with klines, delivering them formatted as pandas
-dataframes, with some extra methods, such as market indicators. It is
-also responsible for serving as a queue for requesting klines from the
-brokers, in order not to exceed the limits of their APIs. Finally, it
-also deals with saving and reading klines to/from the 'storage', also
-fulfilling the function of creating "synthetic klines" (candles from
-a timeframe created by interpolation from a different timeframe)
+dataframes, with some extra methods, such as market indicators. This
+module also acts as a queue for requesting klines from the brokers, in
+order not to exceed the limits of their APIs. Finally, it also deals
+with saving and reading klines to/from the 'storage', also fulfilling
+the function of creating "synthetic klines" (candles from a certain
+timeframe created by interpolation from another different timeframe).
 """
 
 import time
@@ -90,9 +90,6 @@ class KlinesFrom:
         self.broker_name = market.broker_name
         self.ticker_symbol = (market.quote_symbol + market.base_symbol).upper()
         self.time_frame = time_frame
-
-    def _now(self) -> int:
-        return (pendulum.now(tz="UTC")).int_timestamp
 
     def seconds_timeframe(self) -> int:
         return seconds_in(self.time_frame)
@@ -200,7 +197,7 @@ class FromBroker(KlinesFrom):
         "_broker",
         "_time_frame",
         "_append_to_storage",
-        "_storage_name",
+        "storage_name",
     ]
 
     def __init__(self, market: Market, time_frame: str = str()):
@@ -208,13 +205,13 @@ class FromBroker(KlinesFrom):
         super().__init__(market, time_frame)
         self._time_frame = self._validate_tf(time_frame)
         self._append_to_storage: bool = False
-        self._storage_name: str = str()
+        self.storage_name: str = str()
 
-    def _validate_tf(self, tf: str):
+    def _validate_tf(self, timeframe: str):
         tf_list = self._broker.settings.possible_time_frames
-        if tf:
-            if tf in tf_list:
-                return tf
+        if timeframe:
+            if timeframe in tf_list:
+                return timeframe
             else:
                 raise ValueError("Time frame must be in {}".format(tf_list))
         else:
@@ -271,14 +268,9 @@ class FromBroker(KlinesFrom):
                 table = "{}_{}".format(
                     self.broker_name,
                     self.ticker_symbol.lower(),
-                    # self._time_frame # Não faz sentido o nome da tabela
-                    # conter o timeframe, já que o storage
-                    # deve resolver a agregação, a despeito
-                    # de qual seja o mínimo timeframe
-                    # armazenado
                 )
                 storage = StorageKlines(
-                    table=table, database=self._storage_name
+                    table=table, database=self.storage_name
                 )
                 storage.append(_klines)
 
@@ -302,17 +294,15 @@ class FromStorage(KlinesFrom):
     ]
 
     def __init__(self, market: Market, time_frame: str, storage_name: str):
-        table = "{}_{}".format(
-            market.broker_name, (market.quote_symbol + market.base_symbol).lower()
-        )
+        table = "{}_{}".format(market.broker_name, (market.ticker_symbol).lower())
         self.storage = StorageKlines(table=table, database=storage_name)
-        super(FromStorage, self).__init__(market, time_frame)
+        super().__init__(market, time_frame)
 
     def oldest_open_time(self) -> int:
-        return self.storage._seconds_timestamp_of_oldest_record()
+        return self.storage.seconds_timestamp_of_oldest_record()
 
     def newest_open_time(self) -> int:
-        return self.storage._seconds_timestamp_of_newest_record()
+        return self.storage.seconds_timestamp_of_newest_record()
 
     def _get_core(
         self, start_time: int, end_time: int
@@ -339,7 +329,7 @@ class ToStorage:
         self.klines_getter._append_to_storage = True
 
     def create_largest_refined_backtesting(self):
-        self.klines_getter._storage_name = "backtesting_klines"
+        self.klines_getter.storage_name = "backtesting_klines"
 
         start_time = self.klines_getter.oldest_open_time()
         end_time = self.klines_getter.newest_open_time()

@@ -4,24 +4,21 @@ coleções de/em arquivos e/ou banco de dados, servindo como uma camada de
 implementação e provendo uma interface para este fim"""
 
 import collections
+
 import numpy as np
 import pandas as pd
 from environs import Env
+from influxdb import DataFrameClient  # Influxdb v1.8
 
 env = Env()
 
 influxdb_params = dict(
     host=env.str("INFLUXDB_HOST", default="localhost"),
-    port=env.int("INFLUXDB_PORT", 8086),
+    port=env.int("INFLUXDB_PORT", default=8086),
     username=env.str("INFLUXDB_USER", default="Anansi"),
     password=env.str("INFLUXDB_USER_PASSWORD", default="anansi2020"),
     gzip=env.bool("INFLUXDB_GZIP", default=True),
 )
-
-
-# Influxdb v1.8
-
-from influxdb import DataFrameClient
 
 
 class InfluxDb:
@@ -91,7 +88,7 @@ class StorageKlines:
         self.database = database
         self.agent = InfluxDb(database=database, measurement=table)
 
-    def _seconds_timestamp_of_oldest_record(self) -> int:
+    def seconds_timestamp_of_oldest_record(self) -> int:
         oldest_query = """
             SELECT * FROM "{}"."autogen"."{}" GROUP BY * ORDER BY ASC LIMIT 1
             """.format(
@@ -101,7 +98,7 @@ class StorageKlines:
         oldest = (self.agent.proceed(oldest_query))[self.table]
         return int(pd.Timestamp(oldest.index[0]).timestamp())
 
-    def _seconds_timestamp_of_newest_record(self) -> int:
+    def seconds_timestamp_of_newest_record(self) -> int:
         newest_query = """
             SELECT * FROM "{}"."autogen"."{}" GROUP BY * ORDER BY DESC LIMIT 1
             """.format(
@@ -187,11 +184,17 @@ class StorageResults:
         self.agent.append(work_result)
 
     def get_results(
-        self, start_time: int, end_time: int, time_frame: str
+        self, start_time: int, end_time: int
     ) -> pd.core.frame.DataFrame:
         const = 10 ** 9  # Coversion sec <-> nanosec
 
-        results_query = """ """
+        results_query = """SELECT * FROM "{}"."autogen"."{}" WHERE time >= {}
+        AND time <= {} FILL(linear)""".format(
+            self.database,
+            self.table,
+            str(const * start_time),
+            str(const * end_time),
+        )
         _results = self.agent.proceed(results_query)
         results = _results[self.table]
 
@@ -201,49 +204,47 @@ class StorageResults:
         return results
 
 
-"""(influxdb:v2.0.2)
+# (influxdb:v2.0.2)
 
-## Image for docker-compose:
+# ## Image for docker-compose:
 
-  influxdb:
-    image: quay.io/influxdb/influxdb:v2.0.2
-
-
-## References:
-
-https://github.com/influxdata/influxdb-client-python
-https://docs.influxdata.com/influxdb/v2.0/tools/client-libraries/python/
+#   influxdb:
+#     image: quay.io/influxdb/influxdb:v2.0.2
 
 
-## Basic script to append dataframes to buckets
+# ## References:
 
-import influxdb_client
-from influxdb_client.client.write_api import SYNCHRONOUS
-import pandas as pd
+# https://github.com/influxdata/influxdb-client-python
+# https://docs.influxdata.com/influxdb/v2.0/tools/client-libraries/python/
 
-bucket = "<bucket>"
-org = "<organization>"
-token = "<token>"
-url="http://localhost:8086"
+# ## Basic script to append dataframes to buckets
 
-client = influxdb_client.InfluxDBClient(
-  url=url,
-  token=token,
-  org=org,
-  enable_gzip=True
-)
+# import influxdb_client
+# from influxdb_client.client.write_api import SYNCHRONOUS
+# import pandas as pd
 
-write_api = client.write_api(write_options=SYNCHRONOUS)
+# bucket = "<bucket>"
+# org = "<organization>"
+# token = "<token>"
+# url="http://localhost:8086"
 
-work_klines = my_klines.copy()
+# client = influxdb_client.InfluxDBClient(
+#   url=url,
+#   token=token,
+#   org=org,
+#   enable_gzip=True
+# )
 
-work_klines.KlinesDateTime.from_human_readable_to_timestamp()
+# write_api = client.write_api(write_options=SYNCHRONOUS)
 
-work_klines.Open_time = pd.to_datetime(work_klines.Open_time, unit="s")
-work_klines.set_index("<date_time-timestamp>", inplace=True)
+# work_klines = my_klines.copy()
 
-write_api .write(bucket=bucket,
-                 org=org,
-                 record=work_klines,
-                 data_frame_measurement_name='<measurement_name>')
-"""
+# work_klines.KlinesDateTime.from_human_readable_to_timestamp()
+
+# work_klines.Open_time = pd.to_datetime(work_klines.Open_time, unit="s")
+# work_klines.set_index("<date_time-timestamp>", inplace=True)
+
+# write_api .write(bucket=bucket,
+#                  org=org,
+#                  record=work_klines,
+#                  data_frame_measurement_name='<measurement_name>')

@@ -8,7 +8,7 @@ from pydantic import BaseModel
 env = Env()
 
 class TelegramSettings(BaseModel):
-    token:str = env.str("TELEGRAM_TOKEN", default=None)
+    token:str = env.str("TELEGRAM_TOKEN", default="0123456789:ABCd_F67pwokcpwjpjJKJPJoj98709IJOIp")
     debbug_id:int = env.int("TELEGRAM_DEBBUG_ID", default=None)
     error_id:int = env.int("TELEGRAM_ERROR_ID", default=None)
     trade_id:int = env.int("TELEGRAM_TRADE_ID", default=None)

@@ -9,9 +9,11 @@ from pydantic import BaseModel
 from .brokers import get_broker
 from ..marketdata.klines import PriceFromStorage
 from ..notifiers.notifiers import get_notifier
-from ..sql_app.schemas import OpSetup, Order, Portfolio  # Market
+from ..sql_app.schemas import Order, Portfolio  # Market
 from ..tools.serializers import Deserialize
 from ..tools.time_handlers import ParseDateTime
+
+from .models import Operation
 
 thismodule = sys.modules[__name__]
 
@@ -24,7 +26,7 @@ class Parameters(BaseModel):
 
 
 class OrderHandler:
-    def __init__(self, operation: OpSetup):
+    def __init__(self, operation: Operation):
         self.operation = operation
         self.setup = Deserialize(name="setup").from_json(operation.setup)
         self.broker = get_broker(self.setup.market)
@@ -96,7 +98,7 @@ Leverage = {}
 
 
 class BacktestingOrderHandler(OrderHandler):
-    def __init__(self, operation: OpSetup):
+    def __init__(self, operation: Operation):
         super().__init__(operation)
 
     def current_price(self) -> float:
@@ -199,7 +201,7 @@ class BacktestingOrderHandler(OrderHandler):
 
 
 class RealTradingOrderHandler(OrderHandler):
-    def __init__(self, operation: OpSetup):
+    def __init__(self, operation: Operation):
         super().__init__(operation)
 
     def current_price(self):
@@ -279,7 +281,7 @@ class RealTradingOrderHandler(OrderHandler):
 
 
 def get_order_handler(
-    operation: OpSetup,
+    operation: Operation,
 ) -> Union[BacktestingOrderHandler, RealTradingOrderHandler]:
 
     backtesting = (

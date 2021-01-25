@@ -14,8 +14,6 @@ this parameter, as well as the associated calculation.
 "ohlc4" = ("Open" + "High" + "Low" + "Close")/4
 """
 
-import pandas as pd
-
 _columns = {
     "o": ["Open"],
     "h": ["High"],
@@ -51,6 +49,22 @@ class Trend:
         self._klines.loc[:, indicator_column] = price_column.rolling(
             window=setup.number_samples
         ).mean()
+
+    def didi_index(self, setup):
+        self._klines.apply_indicator.trend.price_from_kline(
+            price_metrics=setup.price_metrics
+        )
+        price_column = getattr(
+            self._klines, "Price_{}".format(setup.price_metrics)
+        )
+        sma_series = list()
+
+        for n in setup.number_samples:
+            sma_series.append(price_column.rolling(window=n).mean())
+            
+        self._klines.loc[:, "Didi_fast"] = sma_series[0]/sma_series[1] - 1
+        self._klines.loc[:, "Didi_middle"] = self._klines.apply(lambda row: 0.0, axis=1)
+        self._klines.loc[:, "Didi_slow"] = sma_series[2]/sma_series[1] - 1
 
 
 class Momentum:
