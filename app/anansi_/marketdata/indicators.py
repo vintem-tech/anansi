@@ -14,8 +14,6 @@ this parameter, as well as the associated calculation.
 "ohlc4" = ("Open" + "High" + "Low" + "Close")/4
 """
 
-import pandas as pd
-
 _columns = {
     "o": ["Open"],
     "h": ["High"],
