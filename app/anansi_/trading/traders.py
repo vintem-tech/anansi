@@ -47,7 +47,7 @@ class DefaultTrader(Thread):
         new_candle = bool(
             self.now >= (
                 self.operation.last_check.by_classifier_at +
-                self.classifier.time_frame_total_seconds))
+                self.classifier.time_frame_total_seconds()))
 
         if new_candle:
             result = self.classifier.restult_at(desired_datetime=self.now)
