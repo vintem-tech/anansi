@@ -78,7 +78,7 @@ class DidiClassifier:
             if total_opened_bands
             else 0.0
             if total_closed_bands
-            else self.setup.partial_opened_bollinger_bands_weight
+            else self.setup.partial_opened_bands_weight
         )
         self.result["Bollinger_weight"] = bollinger_weight
 
