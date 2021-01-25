@@ -7,10 +7,10 @@ from ..storage.storage import StorageResults
 env = Env()
 db = Database()
 
-db_host = env.str("DB_HOST")
-postgres_db = env.str("POSTGRES_DB")
-postgres_user = env.str("POSTGRES_USER")
-postgres_password = env.str("POSTGRES_PASSWORD")
+db_host = env.str("DB_HOST", default="localhost")
+postgres_db = env.str("POSTGRES_DB", default="ANANSI")
+postgres_user = env.str("POSTGRES_USER", default="anansi")
+postgres_password = env.str("POSTGRES_PASSWORD", default="anansi")
 
 _ORM_bind_to = dict(
     provider="postgres",
