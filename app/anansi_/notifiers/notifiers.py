@@ -1,3 +1,4 @@
+# pylint: disable=E1136
 import sys
 import telegram
 from typing import Union, List
@@ -28,14 +29,13 @@ class TelegramNotifier(BaseNotifier):
     def error(self, msg:str):
         self.bot.send_message(chat_id=self.settings.error_id, text=msg)
 
-    
     def trade(self, msg:str):
         self.bot.send_message(chat_id=self.settings.trade_id, text=msg)
 
 
 class PrintNotifier(BaseNotifier):
     def __init__(self):
-        super(PrintNotifier, self).__init__()
+        super().__init__()
     
     def debbug(self, msg:str):
         print(msg)
@@ -48,7 +48,7 @@ class PrintNotifier(BaseNotifier):
 
 class EmailNotifier(BaseNotifier):
     def __init__(self):
-        super(EmailNotifier, self).__init__()
+        super().__init__()
 
 
 class PushNotifier(BaseNotifier):
