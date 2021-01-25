@@ -14,7 +14,7 @@ env = Env()
 
 influxdb_params = dict(
     host=env.str("INFLUXDB_HOST", default="localhost"),
-    port=env.int("INFLUXDB_PORT", 8086),
+    port=env.int("INFLUXDB_PORT", default=8086),
     username=env.str("INFLUXDB_USER", default="Anansi"),
     password=env.str("INFLUXDB_USER_PASSWORD", default="anansi2020"),
     gzip=env.bool("INFLUXDB_GZIP", default=True),
