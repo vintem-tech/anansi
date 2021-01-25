@@ -29,6 +29,7 @@ class Market(BaseModel):
     base_symbol: str
     ticker_symbol: str
 
+
 # possible_price_metrics means:
 
 # "o"     = "Open"
@@ -143,25 +144,26 @@ class DidiClassifierSetup(BaseModel):
 
     didi_index: DidiIndexSetup = DidiIndexSetup()
     bollinger_bands: BollingerBandsSetup = BollingerBandsSetup()
-    weight_case_partial_opened:float = 1.0 # Recommended 0.0 or 1.0
+    partial_opened_bands_weight: float = 1.0
     time_frame: str = "6h"
+
 
 class OperationSetup(BaseModel):
     """Operational schema, with default values."""
 
-    debbug: bool = True
-    broadcasters: List[str] = ["PrintNotifier"]
-    classifier_name: str = "DidiClassifier"
-    classifier_setup: BaseModel = DidiClassifierSetup()
-    market: Market = Market(
-        broker_name="Binance", quote_symbol="BTC", base_symbol="USDT", ticker_symbol="BTCUSDT"
-    )
-    backtesting: bool = True
-    initial_base_amount: float = 1000.00
-    test_order: bool = False
-    order_type: str = "market"
-    stop_is_on: bool = False
-    allow_naked_sells: bool = False
+    debbug: bool
+    broadcasters: List[str]  # A list with one or more values in:
+    # ["PrintNotifier", "TelegramNotifier", "EmailNotifier", "PushNotifier"]
+    classifier_name: str
+    classifier_setup: BaseModel
+    market: Market
+    backtesting: bool
+    initial_base_amount: Optional[float]  # In case of backtesting
+    test_order: bool
+    order_type: str
+    stop_is_on: bool
+    allow_naked_sells: bool
+
 
 class Order(BaseModel):
     """Order parameters collection"""
