@@ -1,7 +1,8 @@
-"""Este módulo tem por objetivo lidar com o salvamento de coleções. Inicialmente
-pensado para cobrir a tarefa de salvar klines, deve ser capaz de ler/escrever
-coleções de/em arquivos e/ou banco de dados, servindo como uma camada de
-implementação e provendo uma interface para este fim"""
+"""Este módulo tem por objetivo lidar com o salvamento de coleções. 
+Inicialmente pensado para cobrir a tarefa de salvar klines, deve ser 
+capaz de ler/escrever coleções de/em arquivos e/ou banco de dados, 
+servindo como uma camada de implementação e provendo uma interface 
+para este fim"""
 
 import collections
 
@@ -88,22 +89,26 @@ class StorageKlines:
         self.database = database
         self.agent = InfluxDb(database=database, measurement=table)
 
-    def seconds_timestamp_of_oldest_record(self) -> int:
+    def seconds_timestamp_of_oldest_record(self, time_frame: str) -> int:
         oldest_query = """
-            SELECT * FROM "{}"."autogen"."{}" GROUP BY * ORDER BY ASC LIMIT 1
+            SELECT first("Open") AS "Open" FROM "{}"."autogen"."{}" GROUP BY
+            time({}) FILL(linear) ORDER BY ASC LIMIT 1
             """.format(
             self.database,
             self.table,
+            time_frame
         )
         oldest = (self.agent.proceed(oldest_query))[self.table]
         return int(pd.Timestamp(oldest.index[0]).timestamp())
 
-    def seconds_timestamp_of_newest_record(self) -> int:
+    def seconds_timestamp_of_newest_record(self, time_frame: str) -> int:
         newest_query = """
-            SELECT * FROM "{}"."autogen"."{}" GROUP BY * ORDER BY DESC LIMIT 1
+            SELECT first("Open") AS "Open" FROM "{}"."autogen"."{}" GROUP BY
+            time({}) FILL(linear) ORDER BY DESC LIMIT 1
             """.format(
             self.database,
             self.table,
+            time_frame
         )
         newest = (self.agent.proceed(newest_query))[self.table]
         return int(pd.Timestamp(newest.index[0]).timestamp())
