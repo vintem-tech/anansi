@@ -299,10 +299,10 @@ class FromStorage(KlinesFrom):
         super().__init__(market, time_frame)
 
     def oldest_open_time(self) -> int:
-        return self.storage.seconds_timestamp_of_oldest_record()
+        return self.storage.seconds_timestamp_of_oldest_record(self.time_frame)
 
     def newest_open_time(self) -> int:
-        return self.storage.seconds_timestamp_of_newest_record()
+        return self.storage.seconds_timestamp_of_newest_record(self.time_frame)
 
     def _get_core(
         self, start_time: int, end_time: int
