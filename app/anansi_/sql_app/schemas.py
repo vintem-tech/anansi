@@ -156,6 +156,8 @@ class OperationSetup(BaseModel):
     # ["PrintNotifier", "TelegramNotifier", "EmailNotifier", "PushNotifier"]
     classifier_name: str
     classifier_setup: BaseModel
+    stoploss_name: str
+    stoploss_setup: BaseModel
     market: Market
     backtesting: bool
     initial_base_amount: Optional[float]  # In case of backtesting
@@ -175,3 +177,31 @@ class Order(BaseModel):
     quantity: float
     price: Optional[float] = None
     notify: bool = True
+
+class Treshold(BaseModel):
+    """Given n measurements, fires the trigger when n positives are achieved"""
+    n_measurements: int
+    n_positives: int
+
+class Trigger(BaseModel):
+    """Trigger parameters"""
+    rate: float
+    treshold: Treshold
+
+class StopTrailing3T(BaseModel):
+    """Triple Trigger Treshold Stop Trailing setup"""
+
+    time_frame = "5m"
+    price_metric = "oc2"
+    first_trigger = Trigger(
+        rate=5, treshold=Treshold(n_measurements=6, n_positives=3)
+    )
+    second_trigger = Trigger(
+        rate=3, treshold=Treshold(n_measurements=18, n_positives=12)
+    )
+    third_trigger = Trigger(
+        rate=1, treshold=Treshold(n_measurements=36, n_positives=20)
+    )
+    update_target_if = Trigger(
+        rate=0.7, treshold=Treshold(n_measurements=10, n_positives=7)
+    )
