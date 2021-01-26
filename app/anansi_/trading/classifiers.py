@@ -5,9 +5,11 @@ from typing import Union
 
 import pandas as pd
 
+from .models import Operation
 from ..marketdata.klines import klines_getter
 from ..sql_app.schemas import BaseModel, DateTimeType, Market
 from ..tools.time_handlers import seconds_in, time_until_next_closed_candle
+from ..tools.serializers import Deserialize
 
 thismodule = sys.modules[__name__]
 
@@ -120,7 +122,17 @@ class DidiClassifier:
         return self.result
 
 
-def get_classifier(
-    classifier_name: str, market: Market, setup: BaseModel, backtesting=False
-) -> Union[DidiClassifier]:
+def get_classifier(operation)-> Union[DidiClassifier]:
+    """Given an operation, returns an instance of the named <classifier_name>
+    classifier.
+
+    Args: operation (Operation): An instance of an Operation
+
+    Returns: Union[DidiClassifier]: The classifier
+    """
+    _setup = Deserialize(name="setup").from_json(operation.setup)
+    classifier_name = _setup.classifier_name
+    market = _setup.market
+    backtesting = _setup.backtesting
+    setup = _setup.classifier_setup
     return getattr(thismodule, classifier_name)(market, setup, backtesting)
