@@ -35,6 +35,7 @@ class Position(db.Entity, AttributeUpdater):
     operation = Optional(lambda: Operation)  # Foreing key
     side = Required(str, default="Zeroed")
     enter_price = Optional(float)
+    timestamp = Optional(int)
     exit_reference_price = Optional(float)
 
 
@@ -47,17 +48,18 @@ class LastCheck(db.Entity, AttributeUpdater):
 class Operation(db.Entity, AttributeUpdater):
     setup = Optional(Json)
     position = Required(Position, cascade_delete=True)
+    portfolio = Optional(Json)
     last_check = Required(LastCheck, cascade_delete=True)
     trade_log = Set(lambda: TradeLog, cascade_delete=True)
     is_running = Required(bool, default="is_running")
-    current_result = pd.DataFrame()
 
-    def update_current_result(self, result: pd.core.frame.DataFrame) -> None:
-        self.current_result[list(result.columns)] = result
-
-    def save_current_result(self):
-        storage = StorageResults(table=self.id, database="results")
-        storage.append(self.current_result)
+    def save_result(
+        self, result_class: str, result: pd.core.frame.DataFrame
+    ) -> None:
+        storage = StorageResults(
+            table=result_class, database="operation_{}".format(self.id)
+        )
+        storage.append(result)
 
     def get_last_result(self) -> pd.core.frame.DataFrame:
         raise NotImplementedError
@@ -65,7 +67,7 @@ class Operation(db.Entity, AttributeUpdater):
     def report_trade(self, payload):
         self.trade_log.create(**payload)
         commit()
-    
+
     def reset(self):
         self.last_check.update(by_classifier_at=0)
         self.position.update(side="Zeroed")
@@ -73,10 +75,10 @@ class Operation(db.Entity, AttributeUpdater):
         commit()
 
 
-class TradeLog(db.Entity, AttributeUpdater):
+class TradeLog(db.Entity):
     operation = Optional(lambda: Operation)
-    timestamp = Optional(int)
     signal = Optional(str)
+    timestamp = Optional(int)
     price = Optional(float)
     fee = Optional(float)  # base_asset units
     quote_amount = Optional(float)
