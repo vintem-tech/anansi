@@ -180,11 +180,13 @@ class Order(BaseModel):
 
 class Treshold(BaseModel):
     """Given n measurements, fires the trigger when n positives are achieved"""
+
     n_measurements: int
     n_positives: int
 
 class Trigger(BaseModel):
     """Trigger parameters"""
+
     rate: float
     treshold: Treshold
 
