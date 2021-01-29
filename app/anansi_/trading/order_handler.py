@@ -17,6 +17,65 @@ from .models import Operation
 
 thismodule = sys.modules[__name__]
 
+class Signal:
+    def __init__(self, from_side: str, to_side: str, by_stop: bool):
+        self.from_side = from_side.capitalize()
+        self.to_side = to_side.capitalize()
+        self.by_stop = by_stop
+
+    def get(self):
+        if self.from_side == self.to_side:
+            return "HOLD"
+
+        if self.from_side == "Zeroed":
+            if self.to_side == "Long":
+                return "BUY"
+            if self.to_side == "Short":
+                return "NAKED_SELL"
+
+        if self.from_side == "Long":
+            if self.to_side == "Zeroed":
+                if self.by_stop:
+                    return "LONG_STOPPED"
+                return "SELL"
+            if self.to_side == "Short":
+                return "DOUBLE_NAKED_SELL"
+
+        if self.from_side == "Short":
+            if self.to_side == "Zeroed":
+                if self.by_stop:
+                    return "SHORT_STOPPED"
+                return "BUY"
+            if self.to_side == "Long":
+                return "DOUBLE_SELL"
+
+class OrderHandler:
+    def __init__(self, operation:Operation):
+        self.operation = operation
+    
+    def proceed(self, at_time: int, from_side: str, to_side: str, by_stop: bool=False):
+        pass
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 class Parameters(BaseModel):
     quote_symbol: Optional[str]
@@ -25,7 +84,34 @@ class Parameters(BaseModel):
     min_lot_size: Optional[float]
 
 
-class OrderHandler:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class BkpOrderHandler:
     def __init__(self, operation: Operation):
         self.operation = operation
         self.setup = Deserialize(name="setup").from_json(operation.setup)
@@ -170,7 +256,10 @@ class BacktestingOrderHandler(OrderHandler):
                 )
                 self.operation.report_trade(order_dict)
                 self.operation.position.update(
-                    side="Long", enter_price=price, exit_reference_price=price
+                    side="Long",
+                    enter_price=price,
+                    exit_reference_price=price,
+                    timestamp=opentime,
                 )
 
         if side == "Zeroed":
@@ -195,6 +284,7 @@ class BacktestingOrderHandler(OrderHandler):
                     side="Zeroed",
                     enter_price=price,
                     exit_reference_price=price,
+                    timestamp=opentime,
                 )
 
         self.update_result(portfolio, price)
@@ -249,6 +339,7 @@ class RealTradingOrderHandler(OrderHandler):
                         side="Long",
                         enter_price=price,
                         exit_reference_price=price,
+                        timestamp=checked_order["timestamp"],
                     )
                     portfolio.quote += bought_quote_amount
                     portfolio.base -= order_amount * price
@@ -272,6 +363,7 @@ class RealTradingOrderHandler(OrderHandler):
                         side="Zeroed",
                         enter_price=price,
                         exit_reference_price=price,
+                        timestamp=checked_order["timestamp"],
                     )
 
                 portfolio.quote -= order_amount
