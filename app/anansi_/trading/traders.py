@@ -43,28 +43,34 @@ class DefaultTrader(Thread):
             self.operation.position.side != "Zeroed" and self.setup.stop_is_on
         )
         if verify_stoploss:
-            self.stoploss.verify()
+            result = self.stoploss.verify(desired_datetime=self.now)
+            self.operation.save_result("stoploss", result)
+            self.order_handler.proceed(
+                at_time=self.now,
+                from_side=self.operation.position.side,
+                to_side=result.Side,
+                by_stop=True,
+            )
             self.operation.last_check.update(by_stop_loss_at=self.now)
-        else:
-            pass
 
     def _classifier_analysis(self):
-        new_candle = bool(
-            self.now
-            >= (
-                self.operation.last_check.by_classifier_at
-                + self.classifier.time_frame_total_seconds()
-            )
-        )
+        last_check = self.operation.last_check.by_classifier_at
+        step = self.classifier.time_frame_total_seconds()
+        new_candle = bool(self.now >= last_check + step)
+
         if new_candle:
             result = self.classifier.restult_at(desired_datetime=self.now)
-            self.operation.update_current_result(result)
+            self.operation.save_result("classifier", result)
+            self.order_handler.proceed(
+                at_time=self.now,
+                from_side=self.operation.position.side,
+                to_side=result.Side,
+            )
             self.operation.last_check.update(by_classifier_at=self.now)
 
     def analysis_pipeline(self) -> None:
         self._stop_analysis()
         self._classifier_analysis()
-        self.order_handler.proceed()
 
     def _forward_step(self):
         debbug = self.setup.debbug
@@ -73,7 +79,7 @@ class DefaultTrader(Thread):
         )
         if self.setup.backtesting:
             add_to_now = (
-        # Aqui há um inconsistência, já que ele pode desarmar por stop e "pular" um candle.
+                # Aqui há um inconsistência, já que ele pode desarmar por stop e "pular" um candle.
                 self.stoploss.time_frame_total_seconds()
                 if stoploss_monitoring
                 else self.classifier.time_frame_total_seconds()
