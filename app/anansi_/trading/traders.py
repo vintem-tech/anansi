@@ -47,8 +47,7 @@ class DefaultTrader(Thread):
             self.operation.save_result("stoploss", result)
             self.order_handler.proceed(
                 at_time=self.now,
-                from_side=self.operation.position.side,
-                to_side=result.Side,
+                analysis_result=result,
                 by_stop=True,
             )
             self.operation.last_check.update(by_stop_loss_at=self.now)
@@ -63,8 +62,7 @@ class DefaultTrader(Thread):
             self.operation.save_result("classifier", result)
             self.order_handler.proceed(
                 at_time=self.now,
-                from_side=self.operation.position.side,
-                to_side=result.Side,
+                analysis_result=result,
             )
             self.operation.last_check.update(by_classifier_at=self.now)
 
