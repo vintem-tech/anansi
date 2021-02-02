@@ -5,7 +5,7 @@
 import sys
 import time
 from decimal import Decimal
-from typing import Optional, Union
+from typing import Optional
 
 from binance.client import Client as BinanceClient
 from environs import Env
@@ -23,14 +23,14 @@ DocInherit = doc.DocInherit
 notifier = get_notifier(broadcasters=["TelegramNotifier"])
 
 
-class Quant:
+class Quant(BaseModel):
     """Auxiliary class to store the amount quantity information, useful
     for the trade order flow"""
 
     is_enough: Optional[bool]
     value: Optional[str]
 
-
+#! TODO: Are settings really needed here?
 class Broker:
     """Parent class that should be a model to group broker functions """
 
@@ -40,7 +40,7 @@ class Broker:
         # self.settings = settings
 
     def get_price(self) -> float:
-        """Intant trading average price"""
+        """Instant average trading price"""
         raise NotImplementedError
 
     def get_portfolio(self) -> Portfolio:
@@ -63,10 +63,10 @@ class Broker:
         """Verify order status and return the relevant informations"""
         raise NotImplementedError
 
+BINANCE_API_KEY = str()
+BINANCE_API_SECRET = str()
 
-BINANCE_API_KEY = None
-BINANCE_API_SECRET = None
-
+#! TODO: change API key
 BINANCE_API_KEY = (
     "rjp1jPSMK1XSvFAv8HzhnpOoWFmyH9XmPQ6Rj3r1RB29VuPWGWy5uRhL4XysHoVw"
 )
@@ -140,7 +140,7 @@ class Binance(Broker):
     def _order_market(self, order: Order) -> dict:
         order_report = dict()
 
-        executor = "order_market_{}".format(order.side)
+        executor = "order_market_{}".format(order.signal)
         quant = self._sanitize_quantity(order.quantity)
 
         if quant.is_enough:
@@ -152,7 +152,7 @@ class Binance(Broker):
     def _order_limit(self, order: Order) -> dict:
         order_report = dict()
 
-        executor = "order_limit_{}".format(order.side)
+        executor = "order_limit_{}".format(order.signal)
         quant = self._sanitize_quantity(order.quantity)
         price = self._sanitize_price(order.price)
 
