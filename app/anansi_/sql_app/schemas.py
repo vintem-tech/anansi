@@ -170,13 +170,15 @@ class OperationSetup(BaseModel):
 class Order(BaseModel):
     """Order parameters collection"""
 
-    test_order: bool
-    ticker_symbol: str
-    side: str
-    order_type: str
-    quantity: float
-    price: Optional[float] = None
+    test_order: bool = False
     notify: bool = True
+    signal: Optional[str]
+    order_type: Optional[str]
+    quantity: Optional[float]
+    leverage: Optional[float]
+    price: Optional[float] = None
+    at_time: Optional[int]
+
 
 class Treshold(BaseModel):
     """Given n measurements, fires the trigger when n positives are achieved"""
@@ -207,3 +209,14 @@ class StopTrailing3T(BaseModel):
     update_target_if = Trigger(
         rate=0.7, treshold=Treshold(n_measurements=10, n_positives=7)
     )
+
+class PossibleSignals(BaseModel):
+    """Stores the possible trading signals"""
+    hold: str = "hold"
+    buy:str = "buy"
+    sell:str = "sell"
+    naked_sell:str = "naked_sell"
+    double_naked_sell:str = "double_naked_sell"
+    double_buy:str = "double_buy"
+    long_stopped:str = "long_stopped"
+    short_stopped:str = "short_stopped"
