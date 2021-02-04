@@ -28,6 +28,7 @@ class StopTrailing3T:
         self.update_target_if = self.setup.classifier_setup.update_target_if
         self.data = pd.DataFrame()
         self.result = pd.DataFrame()
+        self.now: int = None
 
     def number_of_samples(self):
         return max(
@@ -84,7 +85,7 @@ class StopTrailing3T:
             positive_found = len(sliced_data[filter_condition])
             self.result[positive_found_column] = positive_found
             update = bool(positive_found >= positives_to_trigger)
-            
+
             if update:
                 self.operation.position.update(
                     exit_reference_price=new_reference
@@ -120,8 +121,9 @@ class StopTrailing3T:
             return bool(positive_found >= positives_to_trigger)
         return False
 
-    def verify(self, desired_datetime: DateTimeType):
+    def result_at(self, desired_datetime: int) -> pd.core.frame.DataFrame:
         _stop = list()
+        self.now = desired_datetime
         self.prepare_data(desired_datetime)
         for name in ["first", "second", "third"]:
             _stop.append(self._check_trigger(name))
@@ -132,10 +134,11 @@ class StopTrailing3T:
         self._update_reference_price()
         return self.result()
 
-    def sleep_time(self):
+    def time_until_next_closed_candle(self):
         return time_until_next_closed_candle(
             time_frame=self.setup.time_frame,
             current_open_time=self.result.Open_time.tail(1).item(),
+            now=self.now,
         )
 
     def time_frame_total_seconds(self):
