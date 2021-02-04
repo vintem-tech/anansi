@@ -31,8 +31,15 @@ class AttributeUpdater(object):
             commit()
 
 
+class Portfolio(db.Entity, AttributeError):
+    position = Optional(lambda: Position)  # Foreing key
+    quote = Optional(float)
+    base = Optional(float)
+
+
 class Position(db.Entity, AttributeUpdater):
     operation = Optional(lambda: Operation)  # Foreing key
+    portfolio = Required(Portfolio, cascade_delete=True)
     side = Required(str, default="Zeroed")
     enter_price = Optional(float)
     timestamp = Optional(int)
@@ -48,7 +55,6 @@ class LastCheck(db.Entity, AttributeUpdater):
 class Operation(db.Entity, AttributeUpdater):
     setup = Optional(Json)
     position = Required(Position, cascade_delete=True)
-    portfolio = Optional(Json)
     last_check = Required(LastCheck, cascade_delete=True)
     trade_log = Set(lambda: TradeLog, cascade_delete=True)
     is_running = Required(bool, default="is_running")
@@ -71,6 +77,7 @@ class Operation(db.Entity, AttributeUpdater):
     def reset(self):
         self.last_check.update(by_classifier_at=0)
         self.position.update(side="Zeroed")
+        self.position.portfolio.update(quote=0.0, base=1000.00)
         self.trade_log.clear()
         commit()
 
