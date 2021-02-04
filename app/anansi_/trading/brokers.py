@@ -138,12 +138,12 @@ class Binance(Broker):
         return portfolio
 
     @DocInherit
-    def get_min_lot_size(self) -> float:
-        min_notional = float(
+    def get_min_lot_size(self) -> float: # Measured by quote asset
+        min_notional = float( # Measured by base asset
             self.client.get_symbol_info(symbol=self.market.ticker_symbol)[
                 "filters"
             ][3]["minNotional"]
-        )  # Measured by base asset
+        )
         return 1.03 * min_notional / self.get_price()
 
     def _sanitize_quantity(self, quantity: float) -> Quant:
@@ -208,10 +208,8 @@ class Binance(Broker):
         order_executor = "_order_{}".format(order.order_type)
         fulfilled_order = getattr(self, order_executor)()
         if fulfilled_order:
-            order.order_id = fulfilled_order["orderId"]
+            self.order.order_id = fulfilled_order["orderId"]
             self._check_and_update_order()
-        else:
-            self.order.status = "unfulfilled"
         return self.order
 
     @DocInherit
