@@ -1,13 +1,16 @@
 from ..sql_app.schemas import (
+    BackTesting,
     DidiClassifierSetup,
     Market,
     OperationSetup,
     StopTrailing3T,
+    Order,
 )
 
 
 back_testing = OperationSetup(
     debbug=True,
+    backtesting = BackTesting(is_on=True),
     broadcasters=["PrintNotifier"],
     classifier_name="DidiClassifier",
     classifier_setup=DidiClassifierSetup(),
@@ -19,13 +22,15 @@ back_testing = OperationSetup(
         base_symbol="USDT",
         ticker_symbol="BTCUSDT",
     ),
-    backtesting=True,
-    initial_base_amount=1000.00,
-    test_order=False,
-    order_type="market",
+    default_order = Order(
+        test_order=False,
+        notify=True,
+        order_type="market",
+    ),
     stop_is_on=True,
     allow_naked_sells=False,
 )
+#TODO: Correção daqui pra baixo:
 trading_testing = OperationSetup(
     debbug=True,
     broadcasters=["PrintNotifier", "TelegramNotifier"],
