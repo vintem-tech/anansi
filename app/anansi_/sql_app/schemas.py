@@ -148,10 +148,35 @@ class DidiClassifierSetup(BaseModel):
     time_frame: str = "6h"
 
 
+class Order(BaseModel):
+    """Order parameters collection"""
+
+    order_id: Optional[Union[str,int]]
+    test_order: Optional[bool]
+    notify: Optional[bool]
+    order_type: Optional[str]
+    generated_signal = Optional[str]
+    signal: Optional[str]
+    suggested_quantity: Optional[float]
+    leverage: Optional[float]
+    price: Optional[float]
+    at_time: Optional[int]
+    portfolio_before: Optional[Portfolio]
+    status: Optional[str]
+    portfolio_after: Optional[Portfolio]
+    proceeded_quantity: Optional[float]
+    fee: Optional[float]
+
+class BackTesting(BaseModel):
+    is_on: bool
+    price_metrics: str = "ohlc4"
+    fee_rate_decimal :float = 0.001
+
 class OperationSetup(BaseModel):
     """Operational schema, with default values."""
 
     debbug: bool
+    backtesting: Optional[BackTesting]
     broadcasters: List[str]  # A list with one or more values in:
     # ["PrintNotifier", "TelegramNotifier", "EmailNotifier", "PushNotifier"]
     classifier_name: str
@@ -159,25 +184,9 @@ class OperationSetup(BaseModel):
     stoploss_name: str
     stoploss_setup: BaseModel
     market: Market
-    backtesting: bool
-    initial_base_amount: Optional[float]  # In case of backtesting
-    test_order: bool
-    order_type: str
+    default_order: Optional[Order]
     stop_is_on: bool
     allow_naked_sells: bool
-
-
-class Order(BaseModel):
-    """Order parameters collection"""
-
-    test_order: bool = False
-    notify: bool = True
-    signal: Optional[str]
-    order_type: Optional[str]
-    quantity: Optional[float]
-    leverage: Optional[float]
-    price: Optional[float] = None
-    at_time: Optional[int]
 
 
 class Treshold(BaseModel):
@@ -186,11 +195,13 @@ class Treshold(BaseModel):
     n_measurements: int
     n_positives: int
 
+
 class Trigger(BaseModel):
     """Trigger parameters"""
 
     rate: float
     treshold: Treshold
+
 
 class StopTrailing3T(BaseModel):
     """Triple Trigger Treshold Stop Trailing setup"""
@@ -209,6 +220,7 @@ class StopTrailing3T(BaseModel):
     update_target_if = Trigger(
         rate=0.7, treshold=Treshold(n_measurements=10, n_positives=7)
     )
+
 
 class PossibleSignals(BaseModel):
     """Stores the possible trading signals"""
