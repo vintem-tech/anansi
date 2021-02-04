@@ -1,41 +1,21 @@
 # pylint: disable=E1136
 # pylint: disable=no-name-in-module
 
-import pandas as pd
 import sys
 from typing import Optional, Union
 
+import pandas as pd
 from pydantic import BaseModel
 
-from .brokers import get_broker
-from ..marketdata.klines import PriceFromStorage
 from ..notifiers.notifiers import get_notifier
-from ..sql_app.schemas import (
-    # Order,
-    Portfolio,
-    PossibleSignals as sig,
-)  # Market
+from ..sql_app.schemas import DateTimeType, Order, Portfolio
+from ..sql_app.schemas import PossibleSignals as sig  # Order,; Market
 from ..tools.serializers import Deserialize
 from ..tools.time_handlers import ParseDateTime
-
+from .brokers import get_broker
 from .models import Operation
 
 thismodule = sys.modules[__name__]
-
-
-class Order(BaseModel):
-    """Order parameters collection"""
-
-    test_order: bool = False
-    notify: bool = True
-    signal: Optional[str]
-    order_type: Optional[str] = "market"
-    quantity: Optional[float]
-    leverage: Optional[float]
-    price: Optional[float] = None
-    at_time: Optional[int]
-    portfolio: Optional[Portfolio]
-    fee: Optional[float]
 
 
 class Signal:
@@ -71,45 +51,17 @@ class Signal:
                 return sig.double_buy
 
 
-class BackTestingBroker:
-    def __init__(self, operation):
-        self.operation = operation
-
-    def get_price(self) -> float:
-        """Instant average trading price"""
-        raise NotImplementedError
-
-    def get_portfolio(self) -> Portfolio:
-        """The portfolio composition, given a market"""
-        raise NotImplementedError
-
-    def get_min_lot_size(self) -> float:
-        """Minimal possible trading amount, by quote."""
-        raise NotImplementedError
-
-    def execute_order(self, order: Order):
-        """Proceed trade orders """
-        raise NotImplementedError
-
-    def test_order(self, order: Order):
-        """Proceed test orders """
-        raise NotImplementedError
-
-    def check_order(self, order_id):
-        """Verify order status and return the relevant informations"""
-        raise NotImplementedError
-
-
 class OrderHandler:
     def __init__(self, operation: Operation):
         self.operation = operation
         self.setup = Deserialize(name="setup").from_json(operation.setup)
-        self.broker = (
-            BackTestingBroker(operation)
-            if self.setup.backtesting
-            else get_broker(self.setup.market)
-        )
-        self.order = Order()
+        self.broker = get_broker(operation)
+        self.order = self.setup.default_order
+
+    def _hold(self):
+        self.order.signal = sig.hold
+        self.order.portfolio_after = self.order.portfolio_before
+        self.order.status = "ignored"
 
     def _buy(self):
         self.order.signal = sig.buy
@@ -117,12 +69,14 @@ class OrderHandler:
             self.order.leverage
             * (self.order.portfolio.base / self.order.price)
         )
-        return self.broker.execute_order(self.order)
+        order = self.order
+        self.order = self.broker.execute(order)
 
     def _sell(self):
         self.order.signal = sig.sell
         self.order.quantity = 0.998 * self.order.portfolio.quote
-        return self.broker.execute_order(self.order)
+        order = self.order
+        self.order = self.broker.execute(order)
 
     def _naked_sell(self):
         pass
@@ -134,9 +88,16 @@ class OrderHandler:
         pass
 
     def _long_stopped(self):
-        pass
+        self.order.order_type = "market"
+        self._sell()
 
     def _short_stopped(self):
+        pass
+
+    def _process(self, signal: str) -> None:
+        getattr(self, "_{}".format(signal))
+
+    def _update_and_notifier(self):
         pass
 
     def proceed(
@@ -145,19 +106,20 @@ class OrderHandler:
         analysis_result: pd.core.frame.DataFrame,
         by_stop: bool = False,
     ):
-        generated_signal = Signal(
+        self.order = self.setup.default_order
+        self.order.status = "unfulfilled"
+        self.order.generated_signal = Signal(
             from_side=self.operation.position.side,
             to_side=analysis_result.Side.item(),
             by_stop=by_stop,
         ).generate()
         self.order.at_time = at_time
         self.order.leverage = analysis_result.Leverage.item()
-        self.order.price = self.broker.get_price()
-        self.order.portfolio = self.broker.get_portfolio()
-
-        _order = getattr(self, "_{}".format(generated_signal))
-        return _order  # Na verdade, fará atualizações nos registros...
-
+        self.order.price = self.broker.get_price(at_time=at_time)
+        self.order.portfolio_before = self.broker.get_portfolio()
+        
+        self._process(self.order.generated_signal)
+        self._update_and_notifier()
 
 def get_order_handler(operation: Operation) -> OrderHandler:
     return OrderHandler(operation)
