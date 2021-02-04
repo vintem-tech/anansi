@@ -22,6 +22,7 @@ class DefaultTrader(Thread):
         self.order_handler = get_order_handler(operation)
         self.notifier = get_notifier(broadcasters=self.setup.broadcasters)
         self.now: int = None  # Datetime (seconds UTC timestamp)
+        self.step: int = None # Seconds
         super().__init__()
 
     def _start(self):
@@ -39,11 +40,12 @@ class DefaultTrader(Thread):
         self.operation.update(is_running=True)
 
     def _stop_analysis(self):
+        self.step = self.classifier.time_until_next_closed_candle()
         verify_stoploss = bool(
             self.operation.position.side != "Zeroed" and self.setup.stop_is_on
         )
         if verify_stoploss:
-            result = self.stoploss.verify(desired_datetime=self.now)
+            result = self.stoploss.result_at(desired_datetime=self.now)
             self.operation.save_result("stoploss", result)
             self.order_handler.proceed(
                 at_time=self.now,
@@ -51,6 +53,7 @@ class DefaultTrader(Thread):
                 by_stop=True,
             )
             self.operation.last_check.update(by_stop_loss_at=self.now)
+            self.step = self.stoploss.time_until_next_closed_candle()
 
     def _classifier_analysis(self):
         last_check = self.operation.last_check.by_classifier_at
@@ -66,52 +69,27 @@ class DefaultTrader(Thread):
             )
             self.operation.last_check.update(by_classifier_at=self.now)
 
-    def analysis_pipeline(self) -> None:
-        self._stop_analysis()
-        self._classifier_analysis()
-
     def _forward_step(self):
-        debbug = self.setup.debbug
-        stoploss_monitoring = bool(
-            self.operation.position.side != "Zeroed" and self.setup.stop_is_on
-        )
-        if self.setup.backtesting:
-            add_to_now = (
-                # Aqui há um inconsistência, já que ele pode desarmar por stop e "pular" um candle.
-                self.stoploss.time_frame_total_seconds()
-                if stoploss_monitoring
-                else self.classifier.time_frame_total_seconds()
-            )
-            self.now += add_to_now
+        if self.setup.debbug:
+            now = ParseDateTime(self.now).from_timestamp_to_human_readable()
+            _step = ParseDateTime(self.step).from_timestamp_to_human_readable()
+            msg = """Time now (UTC) = {}\nSleeping {} s.""".format(now, _step)
+            self.notifier.debbug(msg)
 
-            if self.now > self.classifier.final_backtesting_now():
-                self.operation.update(is_running=False)
+        if self.setup.backtesting:
+            self.now += self.step
 
         else:
-            if stoploss_monitoring:
-                sleep_time = self.stoploss.sleep_time()
-            else:
-                sleep_time = (
-                    self.classifier.time_until_next_closed_candle() + 10
-                )
-            if debbug:
-                utc_now = ParseDateTime(
-                    (pendulum.now(tz="UTC")).int_timestamp
-                ).from_timestamp_to_human_readable()
-
-                msg = """Time now (UTC) = {}\nSleeping {} s.""".format(
-                    utc_now, sleep_time
-                )
-                self.notifier.debbug(msg)
-
-            time.sleep(sleep_time)
+            time.sleep(self.step)
             self.now = (pendulum.now(tz="UTC")).int_timestamp
+
 
     def run(self):
         self._start()
         while self.operation.is_running:
             # try:
-            self.analysis_pipeline()
+            self._stop_analysis()
+            self._classifier_analysis()
             self._forward_step()
 
             # except Exception as e:
@@ -119,7 +97,7 @@ class DefaultTrader(Thread):
             # time.sleep(3600)  # 1 hour cooldown
 
         final_msg = "Op. {} finalized!".format(self.operation.id)
-        self.notifier.error(final_msg)
+        self.notifier.debbug(final_msg)
 
     def run_in_background(self):
         self.start()
