@@ -24,6 +24,7 @@ class DidiClassifier:
         )
         self.data = pd.DataFrame()
         self.result = pd.DataFrame()
+        self.now: int = None
 
     def number_of_samples(self):
         return max(
@@ -38,6 +39,7 @@ class DidiClassifier:
         return time_until_next_closed_candle(
             time_frame=self.setup.time_frame,
             current_open_time=self.result.Open_time.tail(1).item(),
+            now=self.now,
         )
 
     def get_data_until(self, desired_datetime: DateTimeType) -> None:
@@ -111,10 +113,8 @@ class DidiClassifier:
         self.result["Side"] = side
         self.result["Leverage"] = abs(leverage)
 
-    def restult_at(
-        self, desired_datetime: DateTimeType
-    ) -> pd.core.frame.DataFrame:
-
+    def restult_at(self, desired_datetime: int) -> pd.core.frame.DataFrame:
+        self.now = desired_datetime
         self.get_data_until(desired_datetime)
         self._apply_indicators_pipeline()
         self._evaluate_indicators_results()
@@ -122,7 +122,7 @@ class DidiClassifier:
         return self.result
 
 
-def get_classifier(operation)-> Union[DidiClassifier]:
+def get_classifier(operation:Operation) -> Union[DidiClassifier]:
     """Given an operation, returns an instance of the named <classifier_name>
     classifier.
 
