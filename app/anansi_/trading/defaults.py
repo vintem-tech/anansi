@@ -23,7 +23,6 @@ back_testing = OperationSetup(
         ticker_symbol="BTCUSDT",
     ),
     default_order = Order(
-        test_order=False,
         notify=True,
         order_type="market",
     ),
