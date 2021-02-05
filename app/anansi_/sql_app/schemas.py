@@ -90,7 +90,6 @@ class DidiIndexSetup(BaseModel):
         """.format(
             possible_price_metrics
         )
-
         valid_value = bool(value in possible_price_metrics)
         if not valid_value:
             raise ValueError(
