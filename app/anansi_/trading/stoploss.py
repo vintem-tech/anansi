@@ -20,7 +20,7 @@ class StopTrailing3T:
         self.klines_getter = klines_getter(
             market=operation.market,
             time_frame=self.setup.classifier_setup.time_frame,
-            backtesting=self.setup.backtesting,
+            backtesting=self.setup.backtesting.is_on,
         )
         self.first_trigger = self.setup.classifier_setup.first_trigger
         self.second_trigger = self.setup.classifier_setup.second_trigger
