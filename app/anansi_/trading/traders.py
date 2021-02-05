@@ -27,7 +27,7 @@ class DefaultTrader(Thread):
 
     def _start(self):
         self.now = pendulum.now("UTC").int_timestamp
-        if self.setup.backtesting:
+        if self.setup.backtesting.is_on:
             self.operation.reset()
             self.now = self.classifier.initial_backtesting_now()
 
@@ -76,7 +76,7 @@ class DefaultTrader(Thread):
             msg = """Time now (UTC) = {}\nSleeping {} s.""".format(now, _step)
             self.notifier.debbug(msg)
 
-        if self.setup.backtesting:
+        if self.setup.backtesting.is_on:
             self.now += self.step
 
         else:
