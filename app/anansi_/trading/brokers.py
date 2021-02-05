@@ -230,8 +230,7 @@ def get_broker(operation: Operation) -> Union[Broker, BackTestingBroker]:
     """
 
     _setup = Deserialize(name="setup").from_json(operation.setup)
-    backtesting = _setup.backtesting
-    if backtesting:
+    if _setup.backtesting.is_on:
         return BackTestingBroker(operation)
 
     market = _setup.market
