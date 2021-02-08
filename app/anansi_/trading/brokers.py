@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from ..marketdata.klines import PriceFromStorage
 from ..notifiers.notifiers import get_notifier
 from ..sql_app.schemas import Market, Order, Portfolio
+from ..sql_app.schemas import Signals as sig
 from ..tools import doc
 from ..tools.serializers import Deserialize
 from .models import Operation
@@ -69,6 +70,9 @@ class BackTestingBroker:
         self.operation = operation
         self.setup = Deserialize(name="setup").from_json(operation.setup)
         self.fee_rate_decimal = self.setup.backtesting.fee_rate_decimal
+        self.order = Order()
+        self.portfolio = Portfolio()
+        self.order_id = 1
 
     def get_price(self, **kwargs) -> float:
         """Instant (past or present) artificial average trading price"""
@@ -91,9 +95,58 @@ class BackTestingBroker:
 
         return 10.3 / self.get_price()
 
-    def execute(self, order: Order):
-        """Proceed trade orders """
+    def _order_buy(self):
+        order_amount = self.order.suggested_quantity
+        fee_quote = self.fee_rate_decimal * order_amount
+        spent_base_amount = order_amount*self.order.price
+        bought_quote_amount = self.order.suggested_quantity - fee_quote
+
+        new_base = self.portfolio.base - spent_base_amount
+        new_quote = self.portfolio.quote + bought_quote_amount
+
+        self.order.fee = fee_quote * self.order.price
+        self.order.proceeded_quantity = bought_quote_amount
+        self.operation.position.portolio.update(base=new_base, quote=new_quote)
+
+    def _order_sell(self):
+        order_amount = self.order.suggested_quantity
+        fee_quote = self.fee_rate_decimal * order_amount
+        bought_base_amount = self.order.price * (order_amount - fee_quote)
+
+        new_base = self.portfolio.base + bought_base_amount
+        new_quote = self.portfolio.quote - order_amount
+
+        self.order.fee = fee_quote * self.order.price
+        self.order.proceeded_quantity = order_amount - fee_quote
+        self.operation.position.portolio.update(base=new_base, quote=new_quote)
+
+    def _order_market(self) -> dict:
+        executor = "_order_{}".format(self.order.signal)
+        getattr(self, executor)()
+
+    def _order_limit(self) -> dict:
         raise NotImplementedError
+
+    def _append_order_to_storage(self) -> dict:
+        pass
+
+    @DocInherit
+    def execute(self, order: Order) -> Order:
+        self.order = order
+        self.order.order_id = self.order_id
+        if self.order.signal == sig.hold:
+            self.order.warnings = "Ignored hold signal"
+        else:
+            self.portfolio = self.get_portfolio()
+            if self.order.suggested_quantity > self.get_min_lot_size():
+                order_executor = "_order_{}".format(order.order_type)
+                getattr(self, order_executor)()
+                self.order.fulfilled = True
+            else:
+                self.order.warnings = "Insufficient balance."
+        self._append_order_to_storage()
+        self.order_id+=1
+        return self.order
 
 
 BINANCE_API_KEY = str()
@@ -138,8 +191,8 @@ class Binance(Broker):
         return portfolio
 
     @DocInherit
-    def get_min_lot_size(self) -> float: # Measured by quote asset
-        min_notional = float( # Measured by base asset
+    def get_min_lot_size(self) -> float:  # Measured by quote asset
+        min_notional = float(  # Measured by base asset
             self.client.get_symbol_info(symbol=self.market.ticker_symbol)[
                 "filters"
             ][3]["minNotional"]
@@ -197,19 +250,27 @@ class Binance(Broker):
         base_amount = float(order["cummulativeQuoteQty"])
         self.order.price = base_amount / quote_amount
         self.order.at_time = int(float(order["time"]) / 1000)
-        self.order.status = "fulfilled"
-        self.order.portfolio_after = self.get_portfolio()
+        self.order.fulfilled = True
         self.order.proceeded_quantity = quote_amount
         self.order.fee = self.fee_rate_decimal * base_amount
 
     @DocInherit
     def execute(self, order: Order) -> Order:
         self.order = order
+        if self.order.generated_signal == sig.hold:
+            self.order.warnings = "Ignored hold signal"
+            return self.order
+
         order_executor = "_order_{}".format(order.order_type)
-        fulfilled_order = getattr(self, order_executor)()
-        if fulfilled_order:
-            self.order.order_id = fulfilled_order["orderId"]
-            self._check_and_update_order()
+        try:
+            fulfilled_order = getattr(self, order_executor)()
+            if fulfilled_order:
+                self.order.order_id = fulfilled_order["orderId"]
+                self._check_and_update_order()
+            else:
+                self.order.warnings = "Insufficient balance"
+        except Exception as broker_erro:
+            self.order.warnings = str(broker_erro)
         return self.order
 
     @DocInherit
