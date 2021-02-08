@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from ..notifiers.notifiers import get_notifier
 from ..sql_app.schemas import DateTimeType, Order, Portfolio
-from ..sql_app.schemas import PossibleSignals as sig  # Order,; Market
+from ..sql_app.schemas import Signals as sig  # Order,; Market
 from ..tools.serializers import Deserialize
 from ..tools.time_handlers import ParseDateTime
 from .brokers import get_broker
@@ -17,6 +17,8 @@ from .models import Operation
 
 thismodule = sys.modules[__name__]
 
+
+# Cuidar do objeto Order, bem como da atualização em banco de dados (TradeLog) em caso de movimento
 
 class Signal:
     def __init__(self, from_side: str, to_side: str, by_stop: bool):
@@ -56,12 +58,12 @@ class OrderHandler:
         self.operation = operation
         self.setup = Deserialize(name="setup").from_json(operation.setup)
         self.broker = get_broker(operation)
-        self.order = self.setup.default_order
+        self.order = self.setup.default_order # Cuidar deste instanciamento da ordem, a fim de que seja um objeto Pydantic
 
     def _hold(self):
         self.order.signal = sig.hold
-        self.order.portfolio_after = self.order.portfolio_before
-        self.order.status = "ignored"
+        order = self.order
+        self.order = self.broker.execute(order)
 
     def _buy(self):
         self.order.signal = sig.buy
@@ -106,18 +108,21 @@ class OrderHandler:
         analysis_result: pd.core.frame.DataFrame,
         by_stop: bool = False,
     ):
+        self.order.order_type = self.setup.default_order_type
+        self.order.from_side = self.operation.position.side
+        self.order.to_side = analysis_result.Side.item()
         self.order = self.setup.default_order
         self.order.status = "unfulfilled"
         self.order.generated_signal = Signal(
-            from_side=self.operation.position.side,
-            to_side=analysis_result.Side.item(),
+            from_side=self.order.from_side,
+            to_side=self.order.to_side,
             by_stop=by_stop,
         ).generate()
         self.order.at_time = at_time
         self.order.leverage = analysis_result.Leverage.item()
         self.order.price = self.broker.get_price(at_time=at_time)
         self.order.portfolio_before = self.broker.get_portfolio()
-        
+
         self._process(self.order.generated_signal)
         self._update_and_notifier()
 
