@@ -19,7 +19,12 @@ class DefaultTrader(Thread):
         self.setup = Deserialize(name="setup").from_json(operation.setup)
         self.classifier = get_classifier(operation)
         self.stoploss = get_stop(operation)
+
+        # O notifier também poderia ser instanciado passando a operação. Assim,
+        # resultados de logs (debbugs e/ou erros) poder ser apendados como
+        # séries temporais no influxdb
         self.order_handler = get_order_handler(operation)
+        
         self.notifier = get_notifier(broadcasters=self.setup.broadcasters)
         self.now: int = None  # Datetime (seconds UTC timestamp)
         self.step: int = None # Seconds
