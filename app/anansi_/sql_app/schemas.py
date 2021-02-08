@@ -147,46 +147,76 @@ class DidiClassifierSetup(BaseModel):
     time_frame: str = "6h"
 
 
+
+class Signals(BaseModel):
+    """Stores the possible trading signals"""
+
+    hold: str = "hold"
+    buy:str = "buy"
+    sell:str = "sell"
+    naked_sell:str = "naked_sell"
+    double_naked_sell:str = "double_naked_sell"
+    double_buy:str = "double_buy"
+    long_stopped:str = "long_stopped"
+    short_stopped:str = "short_stopped"
+
+
 class Order(BaseModel):
     """Order parameters collection"""
 
     order_id: Optional[Union[str,int]]
-    test_order: Optional[bool]
-    notify: Optional[bool]
+    test_order: Optional[bool] = False
     order_type: Optional[str]
-    generated_signal = Optional[str]
-    signal: Optional[str]
-    suggested_quantity: Optional[float]
+
+    from_side: Optional[str]
+    to_side: Optional[str]
     leverage: Optional[float]
+
+    generated_signal = Optional[str]
+    suggested_quantity: Optional[float]
+
+    signal: Optional[str]
     price: Optional[float]
-    at_time: Optional[int]
-    portfolio_before: Optional[Portfolio]
-    status: Optional[str]
-    portfolio_after: Optional[Portfolio]
+    timestamp: Optional[int]
     proceeded_quantity: Optional[float]
+
+    filled: Optional[bool]
     fee: Optional[float]
+    warnings: Optional[str]
 
 class BackTesting(BaseModel):
     is_on: bool
     price_metrics: str = "ohlc4"
     fee_rate_decimal :float = 0.001
+    initial_portfolio = Portfolio(quote=0.0, base=1000.00)
 
-class OperationSetup(BaseModel):
-    """Operational schema, with default values."""
+class Classifier(BaseModel):
+    name: str
+    setup: BaseModel
 
-    debbug: bool
-    backtesting: Optional[BackTesting]
-    broadcasters: List[str]  # A list with one or more values in:
-    # ["PrintNotifier", "TelegramNotifier", "EmailNotifier", "PushNotifier"]
-    classifier_name: str
-    classifier_setup: BaseModel
-    stoploss_name: str
-    stoploss_setup: BaseModel
-    market: Market
-    default_order: Optional[Order]
-    stop_is_on: bool
-    allow_naked_sells: bool
+class StopLoss(BaseModel):
+    is_on: bool
+    name: str
+    setup: BaseModel
 
+class NotifierLevels: # Muito possivelmente desnecessário, já que serão atributos do notifier.
+    debug: str = "debug"
+    info: str = "info"
+    warning: str = "warning"
+    error: str  = "error"
+
+class NotifierBroadcasters:
+    default_print: str = "default_print"
+    default_log:str = "default_log"
+    telegram:str = "telegram"
+    whatsapp:str = "whatsapp"
+    email:str = "email"
+    push:str = "push"
+
+
+class Notifier:
+    debug: bool
+    broadcasters: List
 
 class Treshold(BaseModel):
     """Given n measurements, fires the trigger when n positives are achieved"""
@@ -220,14 +250,14 @@ class StopTrailing3T(BaseModel):
         rate=0.7, treshold=Treshold(n_measurements=10, n_positives=7)
     )
 
+class OperationSetup(BaseModel):
+    """Operational schema, with default values."""
 
-class PossibleSignals(BaseModel):
-    """Stores the possible trading signals"""
-    hold: str = "hold"
-    buy:str = "buy"
-    sell:str = "sell"
-    naked_sell:str = "naked_sell"
-    double_naked_sell:str = "double_naked_sell"
-    double_buy:str = "double_buy"
-    long_stopped:str = "long_stopped"
-    short_stopped:str = "short_stopped"
+    classifier: Classifier
+    stoploss: StopLoss
+    notifier: Notifier
+    backtesting: Optional[BackTesting]
+
+    market: Market
+    default_order_type: str
+    allow_naked_sells: bool
