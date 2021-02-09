@@ -7,7 +7,7 @@ from ..notifiers.notifiers import get_notifier
 from ..tools.formatting import text_in_lines_from_dict
 from ..tools.serializers import Deserialize
 from ..tools.time_handlers import ParseDateTime
-from .classifiers import get_classifier
+from .classifiers import Classifier#, get_classifier
 from .stoploss import get_stop
 from .models import Operation
 from .order_handler import get_order_handler
@@ -17,7 +17,7 @@ class DefaultTrader(Thread):
     def __init__(self, operation: Operation):
         self.operation = operation
         self.setup = Deserialize(name="setup").from_json(operation.setup)
-        self.classifier = get_classifier(operation)
+        self.classifier = Classifier(operation)
         self.stoploss = get_stop(operation)
 
         # O notifier também poderia ser instanciado passando a operação. Assim,
@@ -106,3 +106,7 @@ class DefaultTrader(Thread):
 
     def run_in_background(self):
         self.start()
+
+class OffSetRealTimeTresholdTrader:
+    pass
+
