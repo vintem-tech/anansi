@@ -90,7 +90,6 @@ class DidiIndexSetup(BaseModel):
         """.format(
             possible_price_metrics
         )
-
         valid_value = bool(value in possible_price_metrics)
         if not valid_value:
             raise ValueError(
@@ -148,30 +147,117 @@ class DidiClassifierSetup(BaseModel):
     time_frame: str = "6h"
 
 
-class OperationSetup(BaseModel):
-    """Operational schema, with default values."""
 
-    debbug: bool
-    broadcasters: List[str]  # A list with one or more values in:
-    # ["PrintNotifier", "TelegramNotifier", "EmailNotifier", "PushNotifier"]
-    classifier_name: str
-    classifier_setup: BaseModel
-    market: Market
-    backtesting: bool
-    initial_base_amount: Optional[float]  # In case of backtesting
-    test_order: bool
-    order_type: str
-    stop_is_on: bool
-    allow_naked_sells: bool
+class Signals(BaseModel):
+    """Stores the possible trading signals"""
+
+    hold: str = "hold"
+    buy:str = "buy"
+    sell:str = "sell"
+    naked_sell:str = "naked_sell"
+    double_naked_sell:str = "double_naked_sell"
+    double_buy:str = "double_buy"
+    long_stopped:str = "long_stopped"
+    short_stopped:str = "short_stopped"
 
 
 class Order(BaseModel):
     """Order parameters collection"""
 
-    test_order: bool
-    ticker_symbol: str
-    side: str
-    order_type: str
-    quantity: float
-    price: Optional[float] = None
-    notify: bool = True
+    order_id: Optional[Union[str,int]]
+    test_order: Optional[bool] = False
+    order_type: Optional[str]
+
+    from_side: Optional[str]
+    to_side: Optional[str]
+    leverage: Optional[float]
+
+    generated_signal = Optional[str]
+    suggested_quantity: Optional[float]
+
+    signal: Optional[str]
+    price: Optional[float]
+    timestamp: Optional[int]
+    proceeded_quantity: Optional[float]
+
+    filled: Optional[bool]
+    fee: Optional[float]
+    warnings: Optional[str]
+
+class BackTesting(BaseModel):
+    is_on: bool
+    price_metrics: str = "ohlc4"
+    fee_rate_decimal :float = 0.001
+    initial_portfolio = Portfolio(quote=0.0, base=1000.00)
+
+class Classifier(BaseModel):
+    name: str
+    setup: BaseModel
+
+class StopLoss(BaseModel):
+    is_on: bool
+    name: str
+    setup: BaseModel
+
+class NotifierLevels: # Muito possivelmente desnecessário, já que serão atributos do notifier.
+    debug: str = "debug"
+    info: str = "info"
+    warning: str = "warning"
+    error: str  = "error"
+
+class NotifierBroadcasters:
+    default_print: str = "default_print"
+    default_log:str = "default_log"
+    telegram:str = "telegram"
+    whatsapp:str = "whatsapp"
+    email:str = "email"
+    push:str = "push"
+
+
+class Notifier:
+    debug: bool
+    broadcasters: List
+
+class Treshold(BaseModel):
+    """Given n measurements, fires the trigger when n positives are achieved"""
+
+    n_measurements: int
+    n_positives: int
+
+
+class Trigger(BaseModel):
+    """Trigger parameters"""
+
+    rate: float
+    treshold: Treshold
+
+
+class StopTrailing3T(BaseModel):
+    """Triple Trigger Treshold Stop Trailing setup"""
+
+    time_frame = "5m"
+    price_metric = "oc2"
+    first_trigger = Trigger(
+        rate=5, treshold=Treshold(n_measurements=6, n_positives=3)
+    )
+    second_trigger = Trigger(
+        rate=3, treshold=Treshold(n_measurements=18, n_positives=12)
+    )
+    third_trigger = Trigger(
+        rate=1, treshold=Treshold(n_measurements=36, n_positives=20)
+    )
+    update_target_if = Trigger(
+        rate=0.7, treshold=Treshold(n_measurements=10, n_positives=7)
+    )
+
+class OperationSetup(BaseModel):
+    """Operational schema, with default values."""
+
+    classifier: Classifier
+    stoploss: StopLoss
+    notifier: Notifier
+    backtesting: Optional[BackTesting]
+
+    market: Market
+    default_order_type: str
+    allow_naked_sells: bool

@@ -40,19 +40,19 @@ def seconds_in(time_frame: str) -> int:
 
 
 def time_until_next_closed_candle(
-    time_frame: str, current_open_time: str
+    time_frame: str,
+    current_open_time: str,
+    now: int = pendulum.now("UTC").int_timestamp,
 ) -> int:
     timestamp_open_time = ParseDateTime(
         current_open_time
     ).from_human_readable_to_timestamp()
-    
+
     step = seconds_in(time_frame)
     next_close_time = timestamp_open_time + (2 * step)
 
-    _time_until_next_closed_candle = (
-        next_close_time - pendulum.now("UTC").int_timestamp
-    )
+    _time_until_next_closed_candle = next_close_time - now
     if _time_until_next_closed_candle <= 0:
         _time_until_next_closed_candle = int(step / 10)
 
-    return _time_until_next_closed_candle
+    return _time_until_next_closed_candle + 5
