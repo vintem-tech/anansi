@@ -12,12 +12,12 @@ from pydantic import BaseModel
 
 from ..notifiers.notifiers import get_notifier
 from ..sql_app.schemas import Market
-from ..tools import doc, formatting
+from ..tools import documentation, formatting
 from .settings import BinanceSettings
 
 thismodule = sys.modules[__name__]
 
-DocInherit = doc.DocInherit
+DocInherit = documentation.DocInherit
 notifier = get_notifier(broadcasters=["TelegramNotifier"])
 
 def get_response(endpoint: str) -> Union[requests.models.Response, None]:
