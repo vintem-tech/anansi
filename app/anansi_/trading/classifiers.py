@@ -121,18 +121,23 @@ class DidiClassifier:
 
         return self.result
 
+class Classifier:
+    """Given an operation, returns an instance of the SuperClassifier,
+    which precedes the classification analysis AND updates operation
+    related attributes.
+    """
+    
+    def __init__(self, operation:Operation):
+        self.operation = operation
 
-def get_classifier(operation:Operation) -> Union[DidiClassifier]:
-    """Given an operation, returns an instance of the named <classifier_name>
+def get_classifier(market:Market, setup:object, backtesting:bool) -> Union[DidiClassifier]:
+    """Given a market, returns an instance of the named <classifier_name>
     classifier.
 
     Args: operation (Operation): An instance of an Operation
 
     Returns: Union[DidiClassifier]: The classifier
     """
-    _setup = Deserialize(name="setup").from_json(operation.setup)
-    classifier_name = _setup.classifier_name
-    market = _setup.market
-    backtesting = _setup.backtesting
-    setup = _setup.classifier_setup
+
+    classifier_name = setup.classifier_name
     return getattr(thismodule, classifier_name)(market, setup, backtesting)
