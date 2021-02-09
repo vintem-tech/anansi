@@ -14,7 +14,7 @@ from ..marketdata.klines import PriceFromStorage
 from ..notifiers.notifiers import get_notifier
 from ..sql_app.schemas import Market, Order, Portfolio
 from ..sql_app.schemas import Signals as sig
-from ..tools import doc
+from ..tools import documentation
 from ..tools.serializers import Deserialize
 from .models import Operation
 
@@ -22,7 +22,7 @@ env = Env()
 
 thismodule = sys.modules[__name__]
 
-DocInherit = doc.DocInherit
+DocInherit = documentation.DocInherit
 notifier = get_notifier(broadcasters=["TelegramNotifier"])
 
 
