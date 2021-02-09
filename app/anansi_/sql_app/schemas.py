@@ -25,8 +25,8 @@ class Market(BaseModel):
     """ Market attributes """
 
     broker_name: str
-    quote_symbol: str
-    base_symbol: str
+    #quote_symbol: str
+    #base_symbol: str
     ticker_symbol: str
 
 
@@ -250,7 +250,7 @@ class StopTrailing3T(BaseModel):
         rate=0.7, treshold=Treshold(n_measurements=10, n_positives=7)
     )
 
-class OperationSetup(BaseModel):
+class OperationalSetup(BaseModel):
     """Operational schema, with default values."""
 
     classifier: Classifier
