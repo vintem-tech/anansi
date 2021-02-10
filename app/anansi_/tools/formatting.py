@@ -26,7 +26,7 @@ class FormatKlines:
         datetime_unit: str,
         columns: list,
     ):
-        """Quis anim est incididunt anim non ullamco mollit pariatur """
+
         self.time_frame = time_frame
         self.datetime_format = datetime_format
         self.datetime_unit = datetime_unit
