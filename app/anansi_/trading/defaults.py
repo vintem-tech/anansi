@@ -2,13 +2,13 @@ from ..sql_app.schemas import (
     BackTesting,
     DidiClassifierSetup,
     Market,
-    OperationSetup,
+    OperationalSetup,s
     StopTrailing3T,
     Order,
 )
 
 
-back_testing = OperationSetup(
+back_testing = OperationalSetup(
     debbug=True,
     backtesting = BackTesting(is_on=True),
     broadcasters=["PrintNotifier"],
@@ -30,7 +30,7 @@ back_testing = OperationSetup(
     allow_naked_sells=False,
 )
 #TODO: Correção daqui pra baixo:
-trading_testing = OperationSetup(
+trading_testing = OperationalSetup(
     debbug=True,
     broadcasters=["PrintNotifier", "TelegramNotifier"],
     classifier_name="DidiClassifier",
@@ -49,7 +49,7 @@ trading_testing = OperationSetup(
     stop_is_on=False,
     allow_naked_sells=False,
 )
-real_trading = OperationSetup(
+real_trading = OperationalSetup(
     debbug=True,
     broadcasters=["TelegramNotifier"],
     classifier_name="DidiClassifier",
