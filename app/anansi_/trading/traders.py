@@ -9,12 +9,12 @@ import time
 
 import pendulum
 
-from ..config.defaults import Messages
+from ..config.messages import TradingMonitor
 from ..notifiers.notifiers import Notifier
 from .analyzers import Classifier, StopLoss
 from .models import Operation
 
-messages = Messages()
+messages = TradingMonitor()
 
 class Trader:
     """Capable of periodically performing a classification analysis
@@ -49,7 +49,7 @@ class Trader:
     def _forward_step(self):
         step = (
             self.stoploss.time_until_next_closed_candle()
-            if self.stoploss.is_on()
+            if self.stoploss.is_activated()
             else
             self.classifier.time_until_next_closed_candle()
         )
