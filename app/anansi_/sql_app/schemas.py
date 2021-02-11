@@ -25,6 +25,8 @@ class Market(BaseModel):
     """ Market attributes """
 
     broker_name: str
+    quote_symbol: str
+    base_symbol: str
     ticker_symbol: str
 
 
@@ -150,23 +152,19 @@ class DidiClassifierSetup(BaseModel):
 class Order(BaseModel):
     """Order parameters collection"""
 
+    timestamp: Optional[int]
     order_id: Optional[Union[str, int]]
-    test_order: Optional[bool] = False
     order_type: Optional[str]
-
     from_side: Optional[str]
     to_side: Optional[str]
     leverage: Optional[float]
-
-    generated_signal = Optional[str]
+    generated_signal: Optional[str]
     suggested_quantity: Optional[float]
-
     signal: Optional[str]
     price: Optional[float]
-    timestamp: Optional[int]
+    test_order: bool = False
     proceeded_quantity: Optional[float]
-
-    filled: Optional[bool]
+    fulfilled: Optional[bool]
     fee: Optional[float]
     warnings: Optional[str]
 
