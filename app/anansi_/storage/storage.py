@@ -183,9 +183,12 @@ class StorageResults:
     def append(self, result: pd.core.frame.DataFrame):
         work_result = result.copy()
 
-        work_result.KlinesDateTime.from_human_readable_to_timestamp()
-        work_result.Open_time = pd.to_datetime(work_result.Open_time, unit="s")
-        work_result.set_index("Open_time", inplace=True)
+        #work_result.KlinesDateTime.from_human_readable_to_timestamp()
+        #work_result.Open_time = pd.to_datetime(work_result.Open_time, unit="s")
+        #work_result.set_index("Open_time", inplace=True)
+
+        work_result.timestamp = pd.to_datetime(work_result.timestamp, unit="s")
+        work_result.set_index("timestamp", inplace=True)
         self.agent.append(work_result)
 
     def get_results(
@@ -204,8 +207,8 @@ class StorageResults:
         results = _results[self.table]
 
         results.reset_index(inplace=True)
-        results = results.rename(columns={"index": "Open_time"})
-        results.Open_time = results.Open_time.values.astype(np.int64) // const
+        results = results.rename(columns={"index": "timestamp"})
+        results.timestamp = results.timestamp.values.astype(np.int64) // const
         return results
 
 
