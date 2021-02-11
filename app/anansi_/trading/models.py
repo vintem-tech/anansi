@@ -1,8 +1,10 @@
 import pandas as pd
+import json
 from environs import Env
 from pony.orm import Database, Json, Optional, Required, Set, commit, sql_debug
 
 from ..storage.storage import StorageResults
+from ..sql_app.schemas import OperationalSetup
 
 env = Env()
 db = Database()
@@ -31,7 +33,7 @@ class AttributeUpdater(object):
             commit()
 
 
-class Portfolio(db.Entity, AttributeError):
+class Portfolio(db.Entity, AttributeUpdater):
     position = Optional(lambda: Position)  # Foreing key
     quote = Optional(float)
     base = Optional(float)
@@ -39,7 +41,7 @@ class Portfolio(db.Entity, AttributeError):
 
 class Position(db.Entity, AttributeUpdater):
     operation = Optional(lambda: Operation)  # Foreing key
-    portfolio = Required(Portfolio, cascade_delete=True)
+    portfolio = Optional(Portfolio, cascade_delete=True)
     side = Required(str, default="Zeroed")
     enter_price = Optional(float)
     timestamp = Optional(int)
@@ -60,11 +62,9 @@ class Operation(db.Entity, AttributeUpdater):
     is_running = Required(bool, default="is_running")
 
     def save_result(
-        self, result_class: str, result: pd.core.frame.DataFrame
+        self, database: str, result: pd.core.frame.DataFrame
     ) -> None:
-        storage = StorageResults(
-            table=result_class, database="operation_{}".format(self.id)
-        )
+        storage = StorageResults(table=str(self.id), database=database)
         storage.append(result)
 
     def get_last_result(self) -> pd.core.frame.DataFrame:
@@ -80,6 +80,9 @@ class Operation(db.Entity, AttributeUpdater):
         self.position.portfolio.update(quote=0.0, base=1000.00)
         self.trade_log.clear()
         commit()
+
+    def operational_setup(self) -> OperationalSetup:
+        return OperationalSetup(**json.loads(self.setup))
 
 
 class TradeLog(db.Entity):
