@@ -6,6 +6,7 @@ import sys
 from decimal import Decimal
 from typing import Optional, Union
 
+import pandas as pd
 from binance.client import Client as BinanceClient
 from environs import Env
 from pydantic import BaseModel
@@ -15,7 +16,6 @@ from ..notifiers.notifiers import get_notifier
 from ..sql_app.schemas import Market, Order, Portfolio
 from ..sql_app.schemas import Signals as sig
 from ..tools import documentation
-from ..tools.serializers import Deserialize
 from .models import Operation
 
 env = Env()
@@ -68,7 +68,7 @@ class Broker:
 class BackTestingBroker:
     def __init__(self, operation):
         self.operation = operation
-        self.setup = Deserialize(name="setup").from_json(operation.setup)
+        self.setup = operation.operational_setup()
         self.fee_rate_decimal = self.setup.backtesting.fee_rate_decimal
         self.order = Order()
         self.portfolio = Portfolio()
@@ -98,7 +98,7 @@ class BackTestingBroker:
     def _order_buy(self):
         order_amount = self.order.suggested_quantity
         fee_quote = self.fee_rate_decimal * order_amount
-        spent_base_amount = order_amount*self.order.price
+        spent_base_amount = order_amount * self.order.price
         bought_quote_amount = self.order.suggested_quantity - fee_quote
 
         new_base = self.portfolio.base - spent_base_amount
@@ -128,14 +128,16 @@ class BackTestingBroker:
         raise NotImplementedError
 
     def _append_order_to_storage(self) -> dict:
-        pass
+        columns=list(self.order.dict().keys())
+        data=[list(self.order.dict().values())]
+        _order = pd.DataFrame(columns, data)
+        self.operation.save_result(database="order", result=_order)
 
-    @DocInherit
     def execute(self, order: Order) -> Order:
         self.order = order
         self.order.order_id = self.order_id
         if self.order.signal == sig.hold:
-            self.order.warnings = "Ignored hold signal"
+            self.order.warnings = "Bypassed due to the 'hold' signal"
         else:
             self.portfolio = self.get_portfolio()
             if self.order.suggested_quantity > self.get_min_lot_size():
@@ -145,7 +147,7 @@ class BackTestingBroker:
             else:
                 self.order.warnings = "Insufficient balance."
         self._append_order_to_storage()
-        self.order_id+=1
+        self.order_id += 1
         return self.order
 
 
@@ -249,7 +251,7 @@ class Binance(Broker):
         quote_amount = float(order["executedQty"])
         base_amount = float(order["cummulativeQuoteQty"])
         self.order.price = base_amount / quote_amount
-        self.order.at_time = int(float(order["time"]) / 1000)
+        self.order.timestamp = int(float(order["time"]) / 1000)
         self.order.fulfilled = True
         self.order.proceeded_quantity = quote_amount
         self.order.fee = self.fee_rate_decimal * base_amount
@@ -290,9 +292,9 @@ def get_broker(operation: Operation) -> Union[Broker, BackTestingBroker]:
     manipulating these attributes.
     """
 
-    _setup = Deserialize(name="setup").from_json(operation.setup)
-    if _setup.backtesting.is_on:
+    setup = operation.operational_setup()
+    if setup.backtesting.is_on:
         return BackTestingBroker(operation)
 
-    market = _setup.market
+    market = setup.market
     return getattr(thismodule, market.broker_name.capitalize())(market)
