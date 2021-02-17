@@ -97,3 +97,6 @@ class Notifier:
 
 def get_notifier(broadcasters: List[str]) -> Notifier:
     return Notifier(broadcasters)
+
+def get_operational_notifier_manager_for(operation) -> Notifier:
+    pass
