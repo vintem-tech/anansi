@@ -5,7 +5,7 @@ from .models import Position, Operation, LastCheck
 @db_session
 def create_default_operation(operation_mode: str):
     Operation(
-        setup=get_operational_setup_for(operation_mode),
+        json_setup=get_operational_setup_for(operation_mode),
         position=Position(),
         last_check=LastCheck(by_classifier_at=0),
     )
