@@ -10,7 +10,7 @@ import time
 import pendulum
 
 from ..config.messages import TradingMonitor
-from ..notifiers.notifiers import Notifier
+from ..notifiers.notifiers import get_operational_notifier_manager_for
 from .analyzers import Classifier, StopLoss
 from .models import Operation
 
@@ -22,11 +22,9 @@ class Trader:
     attributes:
 
         - An operational setup and:
-        - A classifier;
-        - A stoploss manager;
-        - A notifier.
-
-    the last 3 must be instantiated for the given operation.
+        - A classifier analyser;
+        - A stoploss analyser;
+        - A notifier manager.
     """
 
     def __init__(self, operation: Operation):
@@ -34,7 +32,7 @@ class Trader:
         self.setup = operation.operational_setup()
         self.classifier = Classifier(operation)
         self.stoploss = StopLoss(operation)
-        self.notifier = Notifier(operation)
+        self.notifier = get_operational_notifier_manager_for(operation)
         self.now: int = None  # Datetime (seconds UTC timestamp)
 
     def _start(self):
@@ -48,7 +46,7 @@ class Trader:
 
     def _forward_step(self):
         step = (
-            self.stoploss.time_until_next_closed_candle()
+            self.stoploss.step
             if self.stoploss.is_activated()
             else
             self.classifier.time_until_next_closed_candle()
@@ -68,8 +66,8 @@ class Trader:
         self._start()
         while self.operation.is_running:
             try:
-                self.stoploss.analyze(at_time=self.now)
-                self.classifier.analyze(at_time=self.now)
+                self.stoploss.execution_pipeline(at_time=self.now)
+                self.classifier.execution_pipeline(at_time=self.now)
                 self._forward_step()
 
             except Exception as e:
