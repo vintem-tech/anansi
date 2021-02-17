@@ -1,10 +1,12 @@
-import pandas as pd
 import json
+
+import pandas as pd
 from environs import Env
 from pony.orm import Database, Json, Optional, Required, Set, commit, sql_debug
 
-from ..storage.storage import StorageResults
 from ..sql_app.schemas import OperationalSetup
+from ..storage.storage import StorageResults
+from ..tools.serializers import Deserialize
 
 env = Env()
 db = Database()
@@ -14,7 +16,7 @@ postgres_db = env.str("POSTGRES_DB", default="ANANSI")
 postgres_user = env.str("POSTGRES_USER", default="anansi")
 postgres_password = env.str("POSTGRES_PASSWORD", default="anansi")
 
-_ORM_bind_to = dict(
+relational_database = dict(
     provider="postgres",
     user=postgres_user,
     password=postgres_password,
@@ -22,7 +24,7 @@ _ORM_bind_to = dict(
     database=postgres_db,
 )
 
-db.bind(**_ORM_bind_to)
+db.bind(**relational_database)
 sql_debug(env.bool("SQL_DEBUG", default=False))
 
 
@@ -55,11 +57,11 @@ class LastCheck(db.Entity, AttributeUpdater):
 
 
 class Operation(db.Entity, AttributeUpdater):
-    setup = Optional(Json)
+    json_setup = Optional(Json)
     position = Required(Position, cascade_delete=True)
     last_check = Required(LastCheck, cascade_delete=True)
     trade_log = Set(lambda: TradeLog, cascade_delete=True)
-    is_running = Required(bool, default="is_running")
+    is_running = Required(bool, default=True)
 
     def save_result(
         self, database: str, result: pd.core.frame.DataFrame
@@ -82,7 +84,7 @@ class Operation(db.Entity, AttributeUpdater):
         commit()
 
     def operational_setup(self) -> OperationalSetup:
-        return OperationalSetup(**json.loads(self.setup))
+        return Deserialize(name="setup").from_json(self.json_setup)
 
 
 class TradeLog(db.Entity):
