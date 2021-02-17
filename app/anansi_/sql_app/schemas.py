@@ -216,6 +216,10 @@ class StopTrailing3T(BaseModel):
 
     time_frame:str
     price_metric:str
+    
+    
+    
+    # Acho que será desnecessário
     first_trigger: Trigger
     second_trigger: Trigger
     third_trigger: Trigger
