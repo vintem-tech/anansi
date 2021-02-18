@@ -22,10 +22,10 @@ class Classifier:
         _payload = PayLoad(
             _setup.market, _setup.classifier, _setup.backtesting
         )
+        self._classifier = get_classifier(_payload)
         self.operation = operation
         self.order_handler = OrderHandler(operation)
         self.setup = _setup.classifier.setup
-        self.classifier = get_classifier(_payload)
         self.result = pd.DataFrame()
         self.now: int = None
 
@@ -37,15 +37,15 @@ class Classifier:
         )
 
     def initial_backtesting_now(self) -> int:
-        oldest_open_time = self.classifier.klines_getter.oldest_open_time()
+        oldest_open_time = self._classifier.klines_getter.oldest_open_time()
         step = (
-            self.classifier.number_of_samples()
+            self._classifier.number_of_samples()
             * seconds_in(self.setup.time_frame)
         )
         return oldest_open_time + step
 
     def final_backtesting_now(self) -> int:
-        return self.classifier.klines_getter.newest_open_time()
+        return self._classifier.klines_getter.newest_open_time()
 
     def _is_a_new_analysis_needed(self):
         last_check = self.operation.last_check.by_classifier_at
@@ -55,7 +55,7 @@ class Classifier:
     def execution_pipeline(self, at_time: int):
         self.now = at_time
         if self._is_a_new_analysis_needed():
-            self.result = self.classifier.get_restult_at(at_time)
+            self.result = self._classifier.get_restult_at(at_time)
             self.operation.save_result("classifier", self.result)
             self.operation.last_check.update(by_classifier_at=self.now)
             self.order_handler.proceed(at_time, self.result)
