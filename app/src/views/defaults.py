@@ -8,7 +8,7 @@ import sys
 from ..sql_app.schemas import *
 
 thismodule = sys.modules[__name__]
-notifiers = NotifierBroadcasters()
+broadcasters = Broadcasters()
 
 default_didi_index_setup = DidiIndexSetup(
     price_metrics="ohlc4", number_samples=(3, 20, 80)
@@ -47,7 +47,7 @@ default_stop_loss = StopLoss(
     setup=default_stoploss_setup,
 )
 default_notifier = Notifier(
-    debug=True, broadcasters=[notifiers.print_on_screen]
+    debug=True, broadcasters=[broadcasters.print_on_screen]
 )
 default_backtesting = BackTesting(
     is_on=True,

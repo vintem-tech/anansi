@@ -253,7 +253,7 @@ class Signals(BaseModel):
     short_stopped: str = "short_stopped"
 
 
-class NotifierBroadcasters(BaseModel):
+class Broadcasters(BaseModel):
     """Stores the possible trading signals"""
 
     print_on_screen: str = "print_on_screen"

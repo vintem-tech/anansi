@@ -1,4 +1,4 @@
-from anansi_ import __version__
+from src import __version__
 
 
 def test_version():

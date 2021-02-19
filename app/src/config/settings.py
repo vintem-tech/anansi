@@ -9,9 +9,19 @@ from pydantic import BaseModel
 
 env = Env()
 
+#! TODO: change API key
+BINANCE_API_KEY = (
+    "rjp1jPSMK1XSvFAv8HzhnpOoWFmyH9XmPQ6Rj3r1RB29VuPWGWy5uRhL4XysHoVw"
+)
+BINANCE_API_SECRET = (
+    "f5biQUiVqNhK33zPLkmJmn3bzVX7azrENNvWHPNuNyy2cX7XgwLCSq2ZTTc498Qj"
+)
+
 class BrokerSettings(BaseModel):
     """Broker parent class """
 
+    api_key: str
+    api_secret: str
     datetime_format: str = "timestamp"
     datetime_unit: str = "seconds"
     base_endpoint: str = str()
@@ -49,6 +59,7 @@ class BrokerSettings(BaseModel):
     klines_desired_informations: list = kline_information[:-1]
     ignore_opened_candle: bool = True
     show_only_desired_info: bool = True
+    fee_rate_decimal: float = 0.001
 
 
 class BinanceSettings(BrokerSettings):
@@ -56,6 +67,8 @@ class BinanceSettings(BrokerSettings):
     https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md
     """
 
+    api_key: str = env.str("BINANCE_API_KEY", default=BINANCE_API_KEY)
+    api_secret:str = env.str("BINANCE_API_SECRET", default=BINANCE_API_SECRET)
     datetime_unit = "milliseconds"
     base_endpoint = "https://api.binance.com/api/v3/"
     ping_endpoint = base_endpoint + "ping"

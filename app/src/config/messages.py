@@ -8,6 +8,10 @@ from pydantic import BaseModel  # , validator
 from ..tools.formatting import text_in_lines_from_dict
 from ..tools.time_handlers import ParseDateTime
 
+class NotifierHeader:
+    debug = """This is a debbug message. If you see this, debbug=True\n\n"""
+    error = """An error occur. Details: \n\n"""
+    trade = """Trade alert! Order details: \n\n"""
 
 class TradingMonitor:
     """A collection of formated commom messages that should be useful

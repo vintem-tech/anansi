@@ -10,7 +10,7 @@ import time
 import pendulum
 
 from ..config.messages import TradingMonitor
-from ..notifiers.notifiers import get_operational_notifier_manager_for
+from ..notifiers import OperationalNotifier
 from .analyzers import Classifier, StopLoss
 from .models import Operation
 
@@ -32,7 +32,7 @@ class Trader:
         self.setup = operation.operational_setup()
         self.classifier = Classifier(operation)
         self.stoploss = StopLoss(operation)
-        self.notifier = get_operational_notifier_manager_for(operation)
+        self.notifier = OperationalNotifier(operation)
         self.now: int = None  # Datetime (seconds UTC timestamp)
 
     def _start(self):

@@ -1,7 +1,7 @@
 """Usefull tools for time and datetime issues."""
 
 import pendulum
-from ..sql_app.schemas import DateTimeType
+from ..repositories.sql_app.schemas import DateTimeType
 
 
 class ParseDateTime:
