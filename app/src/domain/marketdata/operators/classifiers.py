@@ -1,24 +1,17 @@
 # pylint: disable=E1136
 import sys
-from typing import Union
 
 import pandas as pd
 
 from ....repositories.sql_app.schemas import (
     BaseModel,
-    Classifier,
+    ClassifierPayLoad,
     DateTimeType,
     Market,
 )
 from ..klines import klines_getter
 
 thismodule = sys.modules[__name__]
-
-
-class PayLoad(BaseModel):
-    market: Market
-    classifier: Classifier
-    backtesting: bool
 
 
 class DidiClassifier:
@@ -109,7 +102,7 @@ class DidiClassifier:
         return self.result
 
 
-def get_classifier(payload: PayLoad) -> Union[DidiClassifier]:
+def get_classifier(payload: ClassifierPayLoad):
     """Given a market, returns an instance of the named setup.classifier_name
     classifier.
 
