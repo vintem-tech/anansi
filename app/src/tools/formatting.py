@@ -4,8 +4,14 @@ import pandas as pd
 from print_dict import format_dict
 from tabulate import tabulate
 
-from .time_handlers import pendulum, seconds_in
+from .time_handlers import pendulum, time_frame_to_seconds
 
+class ConvertString:
+    def __init__(self, string):
+        self.string = string
+    
+    def from_snake_to_pascal(self):
+        return (self.string.replace('_',' ').title()).replace(' ','')
 
 class FormatKlines:
     """Quis anim est incididunt anim non ullamco mollit pariatur """
@@ -71,7 +77,7 @@ class FormatKlines:
             self.formatted_klines, columns=self.columns
         ).astype({"Open_time": "int32", "Close_time": "int32"})
 
-        klines.attrs.update({"SecondsTimeFrame": seconds_in(self.time_frame)})
+        klines.attrs.update({"SecondsTimeFrame": time_frame_to_seconds(self.time_frame)})
         return klines
 
 
