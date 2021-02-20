@@ -4,21 +4,19 @@
 """All the brokers low level communications goes here."""
 import sys
 from decimal import Decimal
-from typing import Optional, Union
+from typing import Union
 
 import pandas as pd
 import pendulum
 import requests
 from binance.client import Client as BinanceClient
-from environs import Env
+from binance.exceptions import BinanceOrderException
 from pydantic import BaseModel
 
 from ...config.settings import BinanceSettings
 from ...repositories.sql_app.schemas import Market, Order, Portfolio, Quant
 from ...repositories.sql_app.schemas import Signals as sig
 from ...tools import documentation, formatting
-from ..marketdata.klines import PriceFromStorage
-from ...repositories.sql_app.models import Operation
 
 thismodule = sys.modules[__name__]
 
@@ -53,8 +51,9 @@ def remove_last_candle_if_unclosed(klines: pd.DataFrame) -> pd.DataFrame:
         return klines[:-1]
     return klines
 
+
 class Broker:
-    """Parent class that should be a model to group broker functions """
+    """Must be a model that groups broker needed low level functions"""
 
     def __init__(self, market: Market, settings: BaseModel):
         self.market = market
@@ -77,7 +76,9 @@ class Broker:
         """
         raise NotImplementedError
 
-    def get_klines(self, time_frame: str, **kwargs) -> pd.DataFrame:
+    def get_klines(
+        self, time_frame: str, ignore_opened_candle=True, **kwargs
+    ) -> pd.DataFrame:
         """Historical market data (candlesticks, OHLCV).
 
         Returns (pd.DataFrame): N lines DataFrame, where 'N' is the number of
@@ -121,6 +122,7 @@ class Broker:
         """Proceed test orders """
         raise NotImplementedError
 
+
 class Binance(Broker):
     """All needed functions, wrapping the communication with binance"""
 
@@ -128,15 +130,14 @@ class Binance(Broker):
     def __init__(self, market: Market, settings=BinanceSettings()):
         super().__init__(market, settings)
         self.client = BinanceClient(
-            api_key=self.settings.api_key,
-            api_secret=self.settings.api_secret
-            )
-    
+            api_key=self.settings.api_key, api_secret=self.settings.api_secret
+        )
+
     @DocInherit
     def server_time(self) -> int:
         endpoint = self.settings.time_endpoint
         time_str = (get_response(endpoint)).json()["serverTime"]
-        return int(float(time_str)/1000)
+        return int(float(time_str) / 1000)
 
     @DocInherit
     def was_request_limit_reached(self) -> bool:
@@ -182,100 +183,6 @@ class Binance(Broker):
         if self.settings.show_only_desired_info:
             return klines[self.settings.klines_desired_informations]
         return klines
-
-
-class BackTestingBroker:
-    def __init__(self, operation):
-        self.operation = operation
-        self.setup = operation.operational_setup()
-        self.fee_rate_decimal = self.setup.backtesting.fee_rate_decimal
-        self.order = Order()
-        self.portfolio = Portfolio()
-        self.order_id = 1
-
-    def get_price(self, **kwargs) -> float:
-        """Instant (past or present) artificial average trading price"""
-
-        return PriceFromStorage(
-            market=self.setup.market,
-            price_metrics=self.setup.backtesting_price_metrics,
-        ).get_price_at(desired_datetime=kwargs.get("at_time"))
-
-    def get_portfolio(self) -> Portfolio:
-        """The portfolio composition, given a market"""
-
-        return Portfolio(
-            quote=self.operation.position.porfolio.quote,
-            base=self.operation.position.portfolio.base,
-        )
-
-    def get_min_lot_size(self) -> float:
-        """Minimal possible trading amount, by quote."""
-
-        return 10.3 / self.get_price()
-
-    def _order_buy(self):
-        order_amount = self.order.suggested_quantity
-        fee_quote = self.fee_rate_decimal * order_amount
-        spent_base_amount = order_amount * self.order.price
-        bought_quote_amount = self.order.suggested_quantity - fee_quote
-
-        new_base = self.portfolio.base - spent_base_amount
-        new_quote = self.portfolio.quote + bought_quote_amount
-
-        self.order.fee = fee_quote * self.order.price
-        self.order.proceeded_quantity = bought_quote_amount
-        self.operation.position.portolio.update(base=new_base, quote=new_quote)
-
-    def _order_sell(self):
-        order_amount = self.order.suggested_quantity
-        fee_quote = self.fee_rate_decimal * order_amount
-        bought_base_amount = self.order.price * (order_amount - fee_quote)
-
-        new_base = self.portfolio.base + bought_base_amount
-        new_quote = self.portfolio.quote - order_amount
-
-        self.order.fee = fee_quote * self.order.price
-        self.order.proceeded_quantity = order_amount - fee_quote
-        self.operation.position.portolio.update(base=new_base, quote=new_quote)
-
-    def _order_market(self) -> dict:
-        executor = "_order_{}".format(self.order.signal)
-        getattr(self, executor)()
-
-    def _order_limit(self) -> dict:
-        raise NotImplementedError
-
-    def _append_order_to_storage(self) -> dict:
-        columns=list(self.order.dict().keys())
-        data=[list(self.order.dict().values())]
-        _order = pd.DataFrame(columns, data)
-        self.operation.save_result(database="order", result=_order)
-
-    def execute(self, order: Order) -> Order:
-        self.order = order
-        self.order.order_id = self.order_id
-        if self.order.signal == sig.hold:
-            self.order.warnings = "Bypassed due to the 'hold' signal"
-        else:
-            self.portfolio = self.get_portfolio()
-            if self.order.suggested_quantity > self.get_min_lot_size():
-                order_executor = "_order_{}".format(order.order_type)
-                getattr(self, order_executor)()
-                self.order.fulfilled = True
-            else:
-                self.order.warnings = "Insufficient balance."
-        self._append_order_to_storage()
-        self.order_id += 1
-        return self.order
-
-
-class Binance(Broker):
-    """All needed functions, wrapping the communication with binance"""
-
-    def __init__(self, market: Market):
-        super().__init__(market)
-
 
     @DocInherit
     def get_price(self, **kwargs) -> float:
@@ -356,7 +263,7 @@ class Binance(Broker):
         self.order.timestamp = int(float(order["time"]) / 1000)
         self.order.fulfilled = True
         self.order.proceeded_quantity = quote_amount
-        self.order.fee = self.fee_rate_decimal * base_amount
+        self.order.fee = self.settings.fee_rate_decimal * base_amount
 
     @DocInherit
     def execute(self, order: Order) -> Order:
@@ -373,7 +280,7 @@ class Binance(Broker):
                 self._check_and_update_order()
             else:
                 self.order.warnings = "Insufficient balance"
-        except Exception as broker_erro:
+        except BinanceOrderException as broker_erro:
             self.order.warnings = str(broker_erro)
         return self.order
 
@@ -386,21 +293,20 @@ def get_broker(market: Market) -> Broker:
     """Given a market, returns an instantiated broker"""
     return getattr(thismodule, market.broker_name.capitalize())(market)
 
-def get_broker(operation: Operation) -> Union[Broker, BackTestingBroker]:
-    """Returns an instance of 'Broker' class  which can perform real
-    orders to the brokers using its secure APIs (real trading), or
-    update useful operational control attributes (back testing).
 
-    Args:
-    operation (Operation): Entity containing the attributes related to
-    the implementation of a single operation (1 market, 1 classifier
-    setup and 1 stoploss setup), as well as convenient methods for
-    manipulating these attributes.
-    """
-
-    setup = operation.operational_setup()
-    if setup.backtesting.is_on:
-        return BackTestingBroker(operation)
-
-    market = setup.market
-    return getattr(thismodule, market.broker_name.capitalize())(market)
+#def get_by_operation(operation: Operation) -> Union[Broker, BackTestingBroker]:
+#    """Returns an instance of 'Broker' class  which can perform real
+#    orders to the brokers using its secure APIs (real trading), or
+#    update useful operational control attributes (back testing).
+#
+#    Args:
+#    operation (Operation): Entity containing the attributes related to
+#    the implementation of a single operation (1 market, 1 classifier
+#    setup and 1 stoploss setup), as well as convenient methods for
+#    manipulating these attributes.
+#    """
+#
+#    setup = operation.operational_setup()
+#    if setup.backtesting.is_on:
+#        return BackTestingBroker(operation)
+#    return get_by_market(setup.market)
