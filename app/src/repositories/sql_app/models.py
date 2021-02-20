@@ -4,9 +4,9 @@ import pandas as pd
 from environs import Env
 from pony.orm import Database, Json, Optional, Required, Set, commit, sql_debug
 
+from ...tools.serializers import Deserialize
 from ..sql_app.schemas import OperationalSetup
-from ..storage.storage import StorageResults
-from ..tools.serializers import Deserialize
+from ..time_series_storage import StorageResults
 
 env = Env()
 db = Database()
