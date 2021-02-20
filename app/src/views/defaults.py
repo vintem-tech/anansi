@@ -5,26 +5,39 @@
 
 import sys
 
-from ..sql_app.schemas import *
+from ..repositories.sql_app.schemas import *
 
 thismodule = sys.modules[__name__]
 broadcasters = Broadcasters()
 
+default_market = Market(
+    broker_name="Binance",
+    quote_symbol="BTC",
+    base_symbol="EUR",
+    ticker_symbol="BTCEUR",
+)
+
 default_didi_index_setup = DidiIndexSetup(
     price_metrics="ohlc4", number_samples=(3, 20, 80)
 )
+
 default_bollinger_bands_setup = BollingerBandsSetup(
     price_metrics="ohlc4", number_samples=20, number_STDs=2.0
 )
+
 default_didi_classifier_setup = DidiClassifierSetup(
     didi_index=default_didi_index_setup,
     bollinger_bands=default_bollinger_bands_setup,
     partial_opened_bands_weight=1.0,
     time_frame="6h",
 )
-default_classifier = Classifier(
-    name="DidiClassifier", setup=default_didi_classifier_setup
+
+default_classifier = ClassifierPayLoad(
+    name="DidiClassifier",
+    market=default_market,
+    setup=default_didi_classifier_setup,
 )
+
 default_stoploss_setup = StopTrailing3T(
     time_frame="1m",
     price_metric="oc2",
@@ -41,26 +54,24 @@ default_stoploss_setup = StopTrailing3T(
         rate=0.5, treshold=Treshold(m_found=7, n_datapoints=10)
     ),
 )
-default_stop_loss = StopLoss(
+
+default_stop_loss = StopLossPayload(
     is_on=True,
     name="StopTrailing3T",
     setup=default_stoploss_setup,
 )
+
 default_notifier = Notifier(
     debug=True, broadcasters=[broadcasters.print_on_screen]
 )
+
 default_backtesting = BackTesting(
     is_on=True,
     price_metrics="ohlc4",
     fee_rate_decimal=0.001,
     initial_portfolio=Portfolio(quote=0.0, base=1000.0),
 )
-default_market = Market(
-    broker_name="Binance",
-    quote_symbol="BTC",
-    base_symbol="EUR",
-    ticker_symbol="BTCEUR",
-)
+
 default_operational_setup = OperationalSetup(
     classifier=default_classifier,
     stoploss=default_stop_loss,
