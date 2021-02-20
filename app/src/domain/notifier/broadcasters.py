@@ -1,13 +1,16 @@
 # pylint: disable=E1136
 import sys
-from typing import Union
+
 import telegram
+
 from ...config.settings import system_settings
+from ...tools.formatting import ConvertString
 
 thismodule = sys.modules[__name__]
 settings = system_settings()
 
-class BaseNotifier:
+
+class Base:
     def debug(self, msg: str):
         raise NotImplementedError
 
@@ -18,7 +21,7 @@ class BaseNotifier:
         raise NotImplementedError
 
 
-class TelegramNotifier(BaseNotifier):
+class Telegram(Base):
     def __init__(self):
         super().__init__()
         self.settings = settings.telegram
@@ -34,7 +37,7 @@ class TelegramNotifier(BaseNotifier):
         self.bot.send_message(chat_id=self.settings.trade_id, text=msg)
 
 
-class PrintNotifier(BaseNotifier):
+class PrintOnScreen(Base):
     def __init__(self):
         super().__init__()
 
@@ -48,14 +51,18 @@ class PrintNotifier(BaseNotifier):
         print(msg)
 
 
-class EmailNotifier(BaseNotifier):
+class Whatsapp(Base):
     pass
 
 
-class PushNotifier(BaseNotifier):
+class Email(Base):
     pass
 
-def get(
-    broadcaster: str,
-) -> Union[TelegramNotifier, PrintNotifier, EmailNotifier, PushNotifier]:
-    return getattr(thismodule, broadcaster)()
+
+class Push(Base):
+    pass
+
+
+def get(broadcaster: str) -> Base:
+    _broadcaster = ConvertString(broadcaster).from_snake_to_pascal()
+    return getattr(thismodule, _broadcaster)()
