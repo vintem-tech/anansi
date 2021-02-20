@@ -1,10 +1,8 @@
 """Deals specifically with klines, delivering them formatted as pandas
 dataframes, with some extra methods, such as market indicators. This
 module also acts as a queue for requesting klines from the brokers, in
-order not to exceed the limits of their APIs. Finally, it also deals
-with saving and reading klines to/from the 'storage', also fulfilling
-the function of creating "synthetic klines" (candles from a certain
-timeframe created by interpolation from another different timeframe).
+order to do not exceed the their APIs limits. Finally, it also deals
+with saving and reading klines to/from the 'time_series_storage'.
 """
 
 import time
@@ -12,12 +10,15 @@ import time
 import pandas as pd
 import pendulum
 
-from ..sql_app.schemas import DateTimeType, Market
-from ..storage.storage import StorageKlines
-from ..tools.time_handlers import (ParseDateTime, sanitize_input_datetime,
-                                   seconds_in)
+from ...domain.brokers.engines import get_broker
+from ...repositories.sql_app.schemas import DateTimeType, Market
+from ...repositories.time_series_storage import StorageKlines
+from ...tools.time_handlers import (
+    ParseDateTime,
+    sanitize_input_datetime,
+    time_frame_to_seconds,
+)
 from .operators import indicators
-from .brokers import get_broker
 
 pd.options.mode.chained_assignment = None
 
@@ -67,7 +68,7 @@ class KlinesDateTime:
 
 @pd.api.extensions.register_dataframe_accessor("apply_indicator")
 class ApplyIndicator:
-    """Klines based market indicators, grouped by common domain."""
+    """Klines based market indicators, grouped by common scope."""
 
     def __init__(self, klines):
         self._klines = klines
@@ -81,18 +82,16 @@ class KlinesFrom:
     """Parent class of FromBroker and Fromstorage"""
 
     __slots__ = [
-        "broker_name",
-        "ticker_symbol",
+        "market",
         "time_frame",
     ]
 
     def __init__(self, market: Market, time_frame: str):
-        self.broker_name = market.broker_name
-        self.ticker_symbol = (market.quote_symbol + market.base_symbol).upper()
+        self.market = market
         self.time_frame = time_frame
 
-    def seconds_timeframe(self) -> int:
-        return seconds_in(self.time_frame)
+    #    def seconds_timeframe(self) -> int:
+    #        return time_frame_to_seconds(self.time_frame)
 
     def oldest_open_time(self) -> int:
         raise NotImplementedError
@@ -109,7 +108,9 @@ class KlinesFrom:
     def _calculate_until_from_since_and_n(
         self, since: int, number_of_candles: int
     ) -> int:
-        until = (number_of_candles + 1) * self.seconds_timeframe() + since
+        until = (number_of_candles + 1) * time_frame_to_seconds(
+            self.time_frame
+        ) + since
         return (
             until
             if until <= self.newest_open_time()
@@ -119,7 +120,9 @@ class KlinesFrom:
     def _calculate_since_from_until_and_n(
         self, until: int, number_of_candles: int
     ) -> int:
-        since = until - (number_of_candles + 1) * self.seconds_timeframe()
+        since = until - (number_of_candles + 1) * time_frame_to_seconds(
+            self.time_frame
+        )
         return (
             since
             if since >= self.oldest_open_time()
@@ -210,12 +213,11 @@ class FromBroker(KlinesFrom):
     def _validate_tf(self, timeframe: str):
         tf_list = self._broker.settings.possible_time_frames
         if timeframe:
-            if timeframe in tf_list:
-                return timeframe
-            else:
+            if timeframe not in tf_list:
                 raise ValueError("Time frame must be in {}".format(tf_list))
         else:
-            return tf_list[0]
+            timeframe = tf_list[0]
+        return timeframe
 
     @property
     def time_frame(self):
@@ -228,7 +230,7 @@ class FromBroker(KlinesFrom):
 
     def oldest_open_time(self) -> int:
         oldest_candle = self._broker.get_klines(
-            ticker_symbol=self.ticker_symbol,
+            ticker_symbol=self.market.ticker_symbol,
             time_frame=self._time_frame,
             since=1,
             number_of_candles=1,
@@ -239,17 +241,14 @@ class FromBroker(KlinesFrom):
         return (pendulum.now(tz="UTC")).int_timestamp
 
     def _request_step(self) -> int:
-        return (
-            self._broker.settings.records_per_request
-            * self.seconds_timeframe()
-        )
+        n_per_req = self._broker.settings.records_per_request
+        return n_per_req * time_frame_to_seconds(self.time_frame)
 
     def _get_core(
         self, start_time: int, end_time: int
     ) -> pd.core.frame.DataFrame:
 
         klines = pd.DataFrame()
-
         for timestamp in range(start_time, end_time + 1, self._request_step()):
             while True:
                 try:
@@ -266,8 +265,8 @@ class FromBroker(KlinesFrom):
 
             if self._append_to_storage:
                 table = "{}_{}".format(
-                    self.broker_name,
-                    self.ticker_symbol.lower(),
+                    self.market.broker_name,
+                    self.market.ticker_symbol.lower(),
                 )
                 storage = StorageKlines(
                     table=table, database=self.storage_name
@@ -294,7 +293,9 @@ class FromStorage(KlinesFrom):
     ]
 
     def __init__(self, market: Market, time_frame: str, storage_name: str):
-        table = "{}_{}".format(market.broker_name, (market.ticker_symbol).lower())
+        table = "{}_{}".format(
+            market.broker_name, (market.ticker_symbol).lower()
+        )
         self.storage = StorageKlines(table=table, database=storage_name)
         super().__init__(market, time_frame)
 
