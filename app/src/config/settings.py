@@ -9,6 +9,28 @@ from pydantic import BaseModel
 
 env = Env()
 
+
+class RelationalDatabase(BaseModel):
+    provider: str
+    host: str
+    port: int
+    database: str
+    user: str
+    password: str
+
+
+class PostgresDatabase(RelationalDatabase):
+    def __init__(self):
+        super().__init__(
+            provider="postgres",
+            host=env.str("DB_HOST", default="localhost"),
+            port=env.int("POSTGRES_PORT",default=5432),
+            database=env.str("POSTGRES_DB", default="ANANSI"),
+            user=env.str("POSTGRES_USER", default="anansi"),
+            password=env.str("POSTGRES_PASSWORD", default="anansi"),
+        )
+
+
 #! TODO: change API key
 BINANCE_API_KEY = (
     "rjp1jPSMK1XSvFAv8HzhnpOoWFmyH9XmPQ6Rj3r1RB29VuPWGWy5uRhL4XysHoVw"
@@ -16,6 +38,7 @@ BINANCE_API_KEY = (
 BINANCE_API_SECRET = (
     "f5biQUiVqNhK33zPLkmJmn3bzVX7azrENNvWHPNuNyy2cX7XgwLCSq2ZTTc498Qj"
 )
+
 
 class BrokerSettings(BaseModel):
     """Broker parent class """
@@ -68,7 +91,7 @@ class BinanceSettings(BrokerSettings):
     """
 
     api_key: str = env.str("BINANCE_API_KEY", default=BINANCE_API_KEY)
-    api_secret:str = env.str("BINANCE_API_SECRET", default=BINANCE_API_SECRET)
+    api_secret: str = env.str("BINANCE_API_SECRET", default=BINANCE_API_SECRET)
     datetime_unit = "milliseconds"
     base_endpoint = "https://api.binance.com/api/v3/"
     ping_endpoint = base_endpoint + "ping"
@@ -85,3 +108,25 @@ class BinanceSettings(BrokerSettings):
         "Taker_buy_quote_asset_volume",
         "Ignore",
     ]
+
+
+class TelegramSettings(BaseModel):
+    token: str = env.str(
+        "TELEGRAM_TOKEN",
+        default="0123456789:ABCd_F67pwokcpwjpjJKJPJoj98709IJOIp",
+    )
+    debug: int = env.int("TELEGRAM_DEBBUG_ID", default=None)
+    error_id: int = env.int("TELEGRAM_ERROR_ID", default=None)
+    trade_id: int = env.int("TELEGRAM_TRADE_ID", default=None)
+
+
+class DefaultSettings(BaseModel):
+    debug: bool = env.bool("DEBUG", default=True)
+    sql_debug: bool = env.bool("SQL_DEBUG", default=False)
+    relational_database: RelationalDatabase = PostgresDatabase()
+    telegram: TelegramSettings = TelegramSettings()
+    binance: BrokerSettings = BinanceSettings()
+
+
+def system_settings():
+    return DefaultSettings()
