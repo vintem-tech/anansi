@@ -4,7 +4,12 @@ from typing import Union
 
 import pandas as pd
 
-from ...sql_app.schemas import BaseModel, Classifier, DateTimeType, Market
+from ....repositories.sql_app.schemas import (
+    BaseModel,
+    Classifier,
+    DateTimeType,
+    Market,
+)
 from ..klines import klines_getter
 
 thismodule = sys.modules[__name__]
