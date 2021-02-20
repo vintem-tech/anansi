@@ -1,13 +1,11 @@
 # pylint: disable=E1136
 import sys
 from typing import Union
-
 import telegram
-
-from .settings import TelegramSettings
+from ...config.settings import system_settings
 
 thismodule = sys.modules[__name__]
-
+settings = system_settings()
 
 class BaseNotifier:
     def debug(self, msg: str):
@@ -23,7 +21,7 @@ class BaseNotifier:
 class TelegramNotifier(BaseNotifier):
     def __init__(self):
         super().__init__()
-        self.settings = TelegramSettings()
+        self.settings = settings.telegram
         self.bot = telegram.Bot(self.settings.token)
 
     def debug(self, msg: str):
@@ -51,14 +49,11 @@ class PrintNotifier(BaseNotifier):
 
 
 class EmailNotifier(BaseNotifier):
-    def __init__(self):
-        super().__init__()
+    pass
 
 
 class PushNotifier(BaseNotifier):
-    def __init__(self):
-        super(PushNotifier, self).__init__()
-
+    pass
 
 def get(
     broadcaster: str,
