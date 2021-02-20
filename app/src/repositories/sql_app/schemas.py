@@ -67,6 +67,14 @@ class Portfolio(BaseModel):
     base: float = None
 
 
+class Quant(BaseModel):
+    """Auxiliary class to store the amount quantity information, useful
+    for the trade order flow"""
+
+    is_enough: Optional[bool]
+    value: Optional[str]
+
+
 class DidiIndexSetup(BaseModel):
     """ Setup of Didi index trend indicator """
 
@@ -171,6 +179,7 @@ class Order(BaseModel):
 
 class BackTesting(BaseModel):
     """Information about backtesting attributes"""
+
     is_on: bool
     price_metrics: str
     fee_rate_decimal: float
@@ -179,12 +188,14 @@ class BackTesting(BaseModel):
 
 class Classifier(BaseModel):
     """Information about classifier attributes"""
+
     name: str
     setup: BaseModel
 
 
 class StopLoss(BaseModel):
     """Information about stoploss attributes"""
+
     is_on: bool
     name: str
     setup: BaseModel
@@ -192,6 +203,7 @@ class StopLoss(BaseModel):
 
 class Notifier(BaseModel):
     """Information about notifier attributes"""
+
     debug: bool
     broadcasters: List
 
@@ -214,11 +226,9 @@ class Trigger(BaseModel):
 class StopTrailing3T(BaseModel):
     """Triple Trigger Treshold Stop Trailing setup"""
 
-    time_frame:str
-    price_metric:str
-    
-    
-    
+    time_frame: str
+    price_metric: str
+
     # Acho que será desnecessário
     first_trigger: Trigger
     second_trigger: Trigger
