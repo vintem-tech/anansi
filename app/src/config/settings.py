@@ -20,8 +20,8 @@ BINANCE_API_SECRET = (
 class BrokerSettings(BaseModel):
     """Broker parent class """
 
-    api_key: str
-    api_secret: str
+    api_key: str = str()
+    api_secret: str = str()
     datetime_format: str = "timestamp"
     datetime_unit: str = "seconds"
     base_endpoint: str = str()
