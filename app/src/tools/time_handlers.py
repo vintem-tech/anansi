@@ -31,11 +31,10 @@ def sanitize_input_datetime(datetime: DateTimeType) -> int:
             return 0  # indicative of error
 
 
-def seconds_in(time_frame: str) -> int:
+def time_frame_to_seconds(time_frame: str) -> int:
     conversor_for = {"m": 60, "h": 3600, "d": 86400, "w": 604800}
     time_unit = time_frame[-1]
     time_amount = int(time_frame.split(time_unit)[0])
-
     return time_amount * conversor_for[time_unit]
 
 
@@ -48,7 +47,7 @@ def time_until_next_closed_candle(
         current_open_time
     ).from_human_readable_to_timestamp()
 
-    step = seconds_in(time_frame)
+    step = time_frame_to_seconds(time_frame)
     next_close_time = timestamp_open_time + (2 * step)
 
     _time_until_next_closed_candle = next_close_time - now
