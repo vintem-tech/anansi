@@ -1,31 +1,18 @@
 import json
 
 import pandas as pd
-from environs import Env
 from pony.orm import Database, Json, Optional, Required, Set, commit, sql_debug
 
+from ...config.settings import system_settings
 from ...tools.serializers import Deserialize
 from ..sql_app.schemas import OperationalSetup
 from ..time_series_storage import StorageResults
 
-env = Env()
+settings = system_settings()
 db = Database()
 
-db_host = env.str("DB_HOST", default="localhost")
-postgres_db = env.str("POSTGRES_DB", default="ANANSI")
-postgres_user = env.str("POSTGRES_USER", default="anansi")
-postgres_password = env.str("POSTGRES_PASSWORD", default="anansi")
-
-relational_database = dict(
-    provider="postgres",
-    user=postgres_user,
-    password=postgres_password,
-    host=db_host,
-    database=postgres_db,
-)
-
-db.bind(**relational_database)
-sql_debug(env.bool("SQL_DEBUG", default=False))
+db.bind(**settings.relational_database.dict())
+sql_debug(settings.sql_debug)
 
 
 class AttributeUpdater(object):
