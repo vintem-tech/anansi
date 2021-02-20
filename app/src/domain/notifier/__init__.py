@@ -1,8 +1,9 @@
-from ..config.messages import NotifierHeader
+from ...config.messages import NotifierHeader
+from ...config.settings import system_settings
 from .broadcasters import get
 
+settings = system_settings()
 header = NotifierHeader()
-
 
 class OperationalNotifier:
     def __init__(self, operation):
@@ -20,7 +21,7 @@ class OperationalNotifier:
             getattr(broadcaster, method)(_msg)
 
     def debug(self, msg: str) -> None:
-        if self.setup.notifier.debug:
+        if settings.debug:
             self._spam(msg, method="debug")
 
     def error(self, msg: str):
