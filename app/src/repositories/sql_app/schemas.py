@@ -186,14 +186,15 @@ class BackTesting(BaseModel):
     initial_portfolio: Portfolio
 
 
-class Classifier(BaseModel):
+class ClassifierPayLoad(BaseModel):
     """Information about classifier attributes"""
-
     name: str
+    market: Market
     setup: BaseModel
+    backtesting: bool
 
 
-class StopLoss(BaseModel):
+class StopLossPayload(BaseModel):
     """Information about stoploss attributes"""
 
     is_on: bool
@@ -239,8 +240,8 @@ class StopTrailing3T(BaseModel):
 class OperationalSetup(BaseModel):
     """Operational schema, with default values."""
 
-    classifier: Classifier
-    stoploss: StopLoss
+    classifier: ClassifierPayLoad
+    stoploss: StopLossPayload
     notifier: Notifier
     backtesting: Optional[BackTesting]
 
