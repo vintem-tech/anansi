@@ -294,7 +294,7 @@ class FromStorage(KlinesFrom):
 
     def __init__(self, market: Market, time_frame: str, storage_name: str):
         table = "{}_{}".format(
-            market.broker_name, (market.ticker_symbol).lower()
+            market.broker_name.capitalize(), (market.ticker_symbol).lower()
         )
         self.storage = StorageKlines(table=table, database=storage_name)
         super().__init__(market, time_frame)
