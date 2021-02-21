@@ -192,6 +192,7 @@ class ClassifierPayLoad(BaseModel):
     market: Market
     setup: BaseModel
     backtesting: bool
+    result_length: int
 
 
 class StopLossPayload(BaseModel):
