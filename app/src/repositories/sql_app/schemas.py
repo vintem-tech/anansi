@@ -76,7 +76,7 @@ class Quant(BaseModel):
 
 
 class DidiIndexSetup(BaseModel):
-    """ Setup of Didi index trend indicator """
+    """ Setup of Didi index trend indicator"""
 
     price_metrics: str
     number_samples: Sequence[int]
@@ -141,7 +141,7 @@ class DidiIndexSetup(BaseModel):
 
 
 class BollingerBandsSetup(BaseModel):
-    """Bollinger bands setup schema, with default values."""
+    """Setup of Bollinger bands volatility indicator"""
 
     price_metrics: str
     number_samples: int
@@ -149,11 +149,13 @@ class BollingerBandsSetup(BaseModel):
 
 
 class DidiClassifierSetup(BaseModel):
-    """'Default classifier schema, with default values."""
+    """Setup of DidiClassifier operator, which uses didi index and 
+    bollinger bands indicators to proceed classification"""
 
     didi_index: DidiIndexSetup
     bollinger_bands: BollingerBandsSetup
-    partial_opened_bands_weight: float
+    only_lower_opened_weight: float
+    only_upper_opened_weight: float
     time_frame: str
 
 
@@ -178,7 +180,7 @@ class Order(BaseModel):
 
 
 class BackTesting(BaseModel):
-    """Information about backtesting attributes"""
+    """Backtesting attributes"""
 
     is_on: bool
     price_metrics: str
@@ -186,17 +188,13 @@ class BackTesting(BaseModel):
     initial_portfolio: Portfolio
 
 
-class ClassifierPayLoad(BaseModel):
-    """Information about classifier attributes"""
+class Classifier(BaseModel):
+    """Classifier handler attributes"""
     name: str
-    market: Market
     setup: BaseModel
-    backtesting: bool
-    result_length: int
 
-
-class StopLossPayload(BaseModel):
-    """Information about stoploss attributes"""
+class StopLoss(BaseModel):
+    """Stoploss handler attributes"""
 
     is_on: bool
     name: str
@@ -204,10 +202,18 @@ class StopLossPayload(BaseModel):
 
 
 class Notifier(BaseModel):
-    """Information about notifier attributes"""
+    """Notifier handler attributes"""
 
     debug: bool
     broadcasters: List
+
+
+class ClassifierPayLoad(BaseModel):
+    """Information that must be passed to get a classifier"""
+    classifier: Classifier
+    market: Market
+    backtesting: bool
+    result_length: int
 
 
 class Treshold(BaseModel):
@@ -241,8 +247,8 @@ class StopTrailing3T(BaseModel):
 class OperationalSetup(BaseModel):
     """Operational schema, with default values."""
 
-    classifier: ClassifierPayLoad
-    stoploss: StopLossPayload
+    classifier: Classifier
+    stoploss: StopLoss
     notifier: Notifier
     backtesting: Optional[BackTesting]
 
