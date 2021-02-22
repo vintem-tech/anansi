@@ -9,14 +9,17 @@ import time
 
 import pendulum
 
-from ..config.messages import TradingMonitor
-from ..notifiers import OperationalNotifier
-from .analyzers import Classifier, StopLoss
-from .models import Operation
+from ...config.messages import TradingMonitor
+from ...exceptions import TraderError
+from ...repositories.sql_app.models import Operation
+from ..notifier import OperationalNotifier
+from .analyzers.classifiers import Classifier
+from .analyzers.stoploss import StopLoss
+from .order_handler import OrderHandler
 
 messages = TradingMonitor()
 
-class Trader:
+class SingleTrader:
     """Capable of periodically performing a classification analysis
     (buy/sell/stop) on a market. A trader must have at least 4 class'
     attributes:
@@ -33,7 +36,16 @@ class Trader:
         self.classifier = Classifier(operation)
         self.stoploss = StopLoss(operation)
         self.notifier = OperationalNotifier(operation)
+        self.order_handler = OrderHandler(operation)
         self.now: int = None  # Datetime (seconds UTC timestamp)
+
+    def _classifier_analysis(self):
+        result = self.classifier.execution_pipeline(at_time=self.now)
+        self.order_handler.evaluate(result)
+    
+    def _stoploss_analysis(self):
+        result = self.stoploss.execution_pipeline(at_time=self.now)
+        self.order_handler.evaluate(result)
 
     def _start(self):
         self.now = pendulum.now("UTC").int_timestamp
@@ -41,7 +53,7 @@ class Trader:
             self.operation.reset()
             self.now = self.classifier.initial_backtesting_now()
 
-        self.notifier.debbug(messages.initial(self.operation.id, self.setup))
+        self.notifier.debug(messages.initial(self.operation.id, self.setup))
         self.operation.update(is_running=True)
 
     def _forward_step(self):
@@ -51,7 +63,7 @@ class Trader:
             else
             self.classifier.time_until_next_closed_candle()
         )
-        self.notifier.debbug(messages.time_monitoring(self.now, step))
+        self.notifier.debug(messages.time_monitoring(self.now, step))
 
         if self.setup.backtesting.is_on:
             self.now += step
@@ -66,12 +78,12 @@ class Trader:
         self._start()
         while self.operation.is_running:
             try:
-                self.stoploss.execution_pipeline(at_time=self.now)
-                self.classifier.execution_pipeline(at_time=self.now)
+                self._stoploss_analysis()
+                self._classifier_analysis()
                 self._forward_step()
 
-            except Exception as e:
-                self.notifier.error(e)
-                time.sleep(600)  # 10 min cooldown
+            except TraderError as err:
+                self.notifier.error(err)
+                time.sleep(300)  # 5 min cooldown
 
-        self.notifier.debbug(messages.final(self.operation.id))
+        self.notifier.debug(messages.final(self.operation.id))
