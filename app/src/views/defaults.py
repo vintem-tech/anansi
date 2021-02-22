@@ -14,7 +14,7 @@ default_market = Market(
     broker_name="Binance",
     quote_symbol="BTC",
     base_symbol="EUR",
-    ticker_symbol="BTCEUR",
+    ticker_symbol="BTCUSDT",
 )
 
 default_didi_index_setup = DidiIndexSetup(
@@ -28,14 +28,21 @@ default_bollinger_bands_setup = BollingerBandsSetup(
 default_didi_classifier_setup = DidiClassifierSetup(
     didi_index=default_didi_index_setup,
     bollinger_bands=default_bollinger_bands_setup,
-    partial_opened_bands_weight=1.0,
+    only_upper_opened_weight=1.0,
+    only_lower_opened_weight=1.0,
     time_frame="6h",
 )
 
-default_classifier = ClassifierPayLoad(
+default_classifier = Classifier(
     name="DidiClassifier",
-    market=default_market,
     setup=default_didi_classifier_setup,
+)
+
+default_classifier_payload = ClassifierPayLoad(
+    classifier=default_classifier,
+    market=default_market,
+    backtesting=True,
+    result_length=10,
 )
 
 default_stoploss_setup = StopTrailing3T(
@@ -55,7 +62,7 @@ default_stoploss_setup = StopTrailing3T(
     ),
 )
 
-default_stop_loss = StopLossPayload(
+default_stop_loss = StopLoss(
     is_on=True,
     name="StopTrailing3T",
     setup=default_stoploss_setup,
