@@ -1,0 +1,2 @@
+class TraderError(Exception):
+    pass
