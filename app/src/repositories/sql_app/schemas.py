@@ -44,7 +44,7 @@ class Market(BaseModel):
 
 possible_price_metrics = ["o", "h", "l", "c", "oc2", "hl2", "hlc3", "ohlc4"]
 
-
+#! Ainda necessário?
 class Portfolio(BaseModel):
     """Market are formed by trading between 'quote' and 'base' assets,
     this class shows the quantity of each asset, given a certain
@@ -149,7 +149,7 @@ class BollingerBandsSetup(BaseModel):
 
 
 class DidiClassifierSetup(BaseModel):
-    """Setup of DidiClassifier operator, which uses didi index and 
+    """Setup of DidiClassifier operator, which uses didi index and
     bollinger bands indicators to proceed classification"""
 
     didi_index: DidiIndexSetup
@@ -179,17 +179,21 @@ class Order(BaseModel):
     warnings: Optional[str]
 
 
-class BackTesting(BaseModel):
+class BackTestingSetup(BaseModel):
     """Backtesting attributes"""
 
-    is_on: bool
+    #is_on: bool
     price_metrics: str
     fee_rate_decimal: float
-    initial_portfolio: Portfolio
+    start_timeframe: int
+    end_timeframe: int
+    wallet: dict
+    #initial_portfolio: Portfolio
 
 
 class Classifier(BaseModel):
     """Classifier handler attributes"""
+
     name: str
     setup: BaseModel
 
@@ -201,15 +205,17 @@ class StopLoss(BaseModel):
     setup: BaseModel
 
 
-class Notifier(BaseModel):
+class NotifierSetup(BaseModel):
     """Notifier handler attributes"""
 
     debug: bool
+    debug_message_every: str # e.g. "1m", "5m", "2h" ...
     broadcasters: List
 
 
 class ClassifierPayLoad(BaseModel):
     """Information that must be passed to get a classifier"""
+
     classifier: Classifier
     market: Market
     backtesting: bool
@@ -244,18 +250,20 @@ class StopTrailing3T(BaseModel):
     update_target_if: Trigger
 
 
-class OperationalSetup(BaseModel):
+class MonitorSetup(BaseModel):
     """Operational schema, with default values."""
 
     classifier: Classifier
     stoploss: StopLoss
-    notifier: Notifier
-    backtesting: Optional[BackTesting]
-
+    #backtesting: Optional[BackTesting]
     market: Market
     default_order_type: str
     allow_naked_sells: bool
 
+class Modes:
+    real_trading: str = "real_trading"
+    test_trading: str = "test_trading"
+    backtesting:str = "backtesting"
 
 # Parameters collections
 class Signals(BaseModel):
