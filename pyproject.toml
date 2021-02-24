@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "anansi_src"
+name = "anansi_trading"
 version = "0.1.0"
 description = ""
 authors = ["Marcus Mello <marcus@vintem.tech>"]
@@ -42,4 +42,4 @@ to = {format = "requirements", path = "requirements.txt"}
 
 
 [tool.poetry.scripts]
-anansi = 'anansi_.start:run'
+anansi = 'cli:__main__'
