@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "anansi_trading"
+name = "anansi_src"
 version = "0.1.0"
 description = ""
 authors = ["Marcus Mello <marcus@vintem.tech>"]
