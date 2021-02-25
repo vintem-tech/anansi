@@ -31,15 +31,6 @@ class PostgresDatabase(RelationalDatabase):
         )
 
 
-#! TODO: change API key
-BINANCE_API_KEY = (
-    "rjp1jPSMK1XSvFAv8HzhnpOoWFmyH9XmPQ6Rj3r1RB29VuPWGWy5uRhL4XysHoVw"
-)
-BINANCE_API_SECRET = (
-    "f5biQUiVqNhK33zPLkmJmn3bzVX7azrENNvWHPNuNyy2cX7XgwLCSq2ZTTc498Qj"
-)
-
-
 class BrokerSettings(BaseModel):
     """Broker parent class """
 
@@ -83,6 +74,14 @@ class BrokerSettings(BaseModel):
     ignore_opened_candle: bool = True
     show_only_desired_info: bool = True
     fee_rate_decimal: float = 0.001
+
+#! TODO: change API key
+BINANCE_API_KEY = (
+    "rjp1jPSMK1XSvFAv8HzhnpOoWFmyH9XmPQ6Rj3r1RB29VuPWGWy5uRhL4XysHoVw"
+)
+BINANCE_API_SECRET = (
+    "f5biQUiVqNhK33zPLkmJmn3bzVX7azrENNvWHPNuNyy2cX7XgwLCSq2ZTTc498Qj"
+)
 
 
 class BinanceSettings(BrokerSettings):

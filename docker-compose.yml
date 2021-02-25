@@ -60,9 +60,9 @@ services:
     links:
       - influxdb
     volumes:
-      - ./src/grafana/grafana.ini:/etc/grafana/grafana.ini
-      - ./src/grafana:/etc/grafana/provisioning/datasources
-      - ./src/grafana:/var/lib/grafana
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini
+      - ./grafana:/etc/grafana/provisioning/datasources
+      - ./grafana:/var/lib/grafana
     ports: 
       - '$GRAFANA_PORT:3000'
 
@@ -75,15 +75,15 @@ services:
 #    - influxdb
 
   nginx:
-    build: ./src/nginx/
+    build: nginx/
     env_file:
       - '.env'
     ports: 
       - '80:80'
     restart: unless-stopped
     volumes:
-      - ./src/content:/var/www/html
-      - ./src/nginx/sites/:/etc/nginx/conf.d
+      - ./nginx/content:/var/www/html
+      - ./nginx/sites/:/etc/nginx/conf.d
     
     depends_on:
     - influxdb

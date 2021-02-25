@@ -4,8 +4,8 @@
 """Some defaults parameters"""
 
 import sys
+from ..lib.utils.databases.sql.schemas import *
 
-from ..repositories.sql_app.schemas import *
 
 thismodule = sys.modules[__name__]
 broadcasters = Broadcasters()

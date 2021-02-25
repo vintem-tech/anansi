@@ -5,8 +5,9 @@ from typing import Union  # , Sequence, Optional, List
 
 from pydantic import BaseModel  # , validator
 
-from ..tools.formatting import text_in_lines_from_dict
-from ..tools.time_handlers import ParseDateTime
+from ..lib.tools.formatting import text_in_lines_from_dict
+from ..lib.tools.time_handlers import ParseDateTime
+
 
 class NotifierHeader:
     debug = """This is a debbug message. If you see this, debbug=True\n\n"""
