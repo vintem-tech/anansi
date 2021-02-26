@@ -8,34 +8,27 @@ import collections
 
 import sys
 import pandas as pd
-from environs import Env
 from influxdb import DataFrameClient  # Influxdb v1.8
+from .....config.settings import TimeSerieDatabaseEngines
+
+engines = TimeSerieDatabaseEngines()
 
 thismodule = sys.modules[__name__]
 
-env = Env()
-
-influxdb_params = dict(
-    host=env.str("INFLUXDB_HOST", default="localhost"),
-    port=env.int("INFLUXDB_PORT", default=8086),
-    username=env.str("INFLUXDB_USER", default="Anansi"),
-    password=env.str("INFLUXDB_USER_PASSWORD", default="anansi2020"),
-    gzip=env.bool("INFLUXDB_GZIP", default=True),
-)
-
 
 class InfluxDb:
-
     """For influxdb information:
     https://influxdb-python.readthedocs.io/en/latest/api-documentation.html#dataframeclient
     """
 
     __slots__ = [
+        "client",
         "database",
         "measurement",
     ]
 
     def __init__(self, database: str, measurement: str):
+        self.client = DataFrameClient(**engines.influx_db)
         self.database = database
         self.measurement = measurement
 
@@ -54,10 +47,9 @@ class InfluxDb:
         client.alter_retention_policy(name="short_duration",
         replication=1, duration='10d')
         """
-        client = DataFrameClient(**influxdb_params)
-        client.create_database(self.database)
+        self.client.create_database(self.database)
 
-        client.write_points(
+        self.client.write_points(
             dataframe=dataframe,
             measurement=self.measurement,
             tags=None,
@@ -70,17 +62,17 @@ class InfluxDb:
             protocol="line",
             numeric_precision=None,
         )
-        client.close()
+        self.client.close()
 
     def proceed(self, query_to_proceed) -> collections.defaultdict:
-        client = DataFrameClient(**influxdb_params)
-        query_result = client.query(query_to_proceed)
-        client.close()
+        query_result = self.client.query(query_to_proceed)
+        self.client.close()
         return query_result
 
 
-def instantiate_engine(engine_name:str):
+def instantiate_engine(engine_name: str):
     return getattr(thismodule, engine_name)
+
 
 # (influxdb:v2.0.2)
 
