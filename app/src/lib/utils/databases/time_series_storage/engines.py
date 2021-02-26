@@ -1,8 +1,10 @@
-"""Este módulo tem por objetivo lidar com o salvamento de coleções. 
-Inicialmente pensado para cobrir a tarefa de salvar klines, deve ser 
-capaz de ler/escrever coleções de/em arquivos e/ou banco de dados, 
-servindo como uma camada de implementação e provendo uma interface 
-para este fim"""
+# pylint: disable=E1120
+# pylint: disable=E1123
+
+"""This module deals with timeseries collections saving. Initially
+designed for saving klines, it must be able to read write timeseries
+collections from/to files and/or databases, abstracting the needed
+implementations."""
 
 import collections
 
