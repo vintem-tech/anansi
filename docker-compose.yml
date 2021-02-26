@@ -6,8 +6,8 @@ services:
     restart: unless-stopped
     env_file:
       - '.env'
-#    ports:
-#      - '$POSTGRES_PORT:5432'
+    ports:
+      - '$POSTGRES_PORT:5432'
     volumes:
       - postgres:/var/lib/postgresql/data
 
@@ -30,8 +30,8 @@ services:
     restart: unless-stopped
     env_file:
       - '.env'
-#    ports:
-#      - '$INFLUXDB_PORT:8086' 
+    ports:
+      - '$INFLUXDB_PORT:8086' 
     volumes:
       - influxdb-data:/var/lib/influxdb
       - influxdb-config:/etc/influxdb/
@@ -43,8 +43,8 @@ services:
     restart: unless-stopped
     volumes:
       - chronograf-storage:/var/lib/chronograf
-#    ports:
-#      - '$CHRONOGRAF_PORT:8888'
+    ports:
+      - '$CHRONOGRAF_PORT:8888'
     depends_on:
       - influxdb
     env_file:
@@ -63,8 +63,8 @@ services:
       - ./grafana/grafana.ini:/etc/grafana/grafana.ini
       - ./grafana:/etc/grafana/provisioning/datasources
       - ./grafana:/var/lib/grafana
-#    ports: 
-#      - '$GRAFANA_PORT:3000'
+    ports: 
+      - '$GRAFANA_PORT:3000'
 
 #  app:
 #    build: app/
