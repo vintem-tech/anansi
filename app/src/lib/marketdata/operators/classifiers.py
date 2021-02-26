@@ -3,7 +3,7 @@ import sys
 
 import pandas as pd
 
-from ....repositories.sql_app.schemas import (
+from ...utils.databases.sql.schemas import (
     BaseModel,
     ClassifierPayLoad,
     DateTimeType,
