@@ -7,15 +7,15 @@ engine = instantiate_engine("InfluxDb")
 
 class StorageKlines:
     __slots__ = [
+        "engine",
         "table",
         "database",
-        "agent",
     ]
 
-    def __init__(self, table: str, database: str):
-        self.table = table
+    def __init__(self, database: str, table: str):
+        self.engine = engine(database, table)
         self.database = database
-        self.agent = engine(database=database, measurement=table)
+        self.table = table
 
     def seconds_timestamp_of_oldest_record(self, time_frame: str) -> int:
         oldest_query = """
@@ -24,7 +24,7 @@ class StorageKlines:
             """.format(
             self.database, self.table, time_frame
         )
-        oldest = (self.agent.proceed(oldest_query))[self.table]
+        oldest = (self.engine.proceed(oldest_query))[self.table]
         return int(pd.Timestamp(oldest.index[0]).timestamp())
 
     def seconds_timestamp_of_newest_record(self, time_frame: str) -> int:
@@ -34,7 +34,7 @@ class StorageKlines:
             """.format(
             self.database, self.table, time_frame
         )
-        newest = (self.agent.proceed(newest_query))[self.table]
+        newest = (self.engine.proceed(newest_query))[self.table]
         return int(pd.Timestamp(newest.index[0]).timestamp())
 
     def append(self, klines: pd.core.frame.DataFrame):
@@ -42,7 +42,7 @@ class StorageKlines:
 
         work_klines.Open_time = pd.to_datetime(work_klines.Open_time, unit="s")
         work_klines.set_index("Open_time", inplace=True)
-        self.agent.append(work_klines)
+        self.engine.append(work_klines)
 
     def get_raw_klines(self, start_time: int, end_time: int, time_frame: str):
         const = 10 ** 9  # Coversion sec <--> nanosec
@@ -58,7 +58,7 @@ class StorageKlines:
             str(const * end_time),
             time_frame,
         )
-        return self.agent.proceed(klines_query)
+        return self.engine.proceed(klines_query)
 
     def get_klines(
         self, start_time: int, end_time: int, time_frame: str
@@ -76,15 +76,15 @@ class StorageKlines:
 
 class StorageResults:
     __slots__ = [
+        "engine",
         "table",
         "database",
-        "agent",
     ]
 
     def __init__(self, table: str, database: str):
+        self.engine = engine(database=database, measurement=table)
         self.table = table
         self.database = database
-        self.agent = engine(database=database, measurement=table)
 
     def oldest_record(self) -> int:
         oldest_query = """
@@ -93,7 +93,7 @@ class StorageResults:
             self.database,
             self.table,
         )
-        return (self.agent.proceed(oldest_query))[self.table]
+        return (self.engine.proceed(oldest_query))[self.table]
 
     def newest_record(self) -> int:
         newest_query = """
@@ -102,7 +102,7 @@ class StorageResults:
             self.database,
             self.table,
         )
-        return (self.agent.proceed(newest_query))[self.table]
+        return (self.engine.proceed(newest_query))[self.table]
 
     def append(self, result: pd.core.frame.DataFrame):
         work_result = result.copy()
@@ -113,7 +113,7 @@ class StorageResults:
 
         work_result.timestamp = pd.to_datetime(work_result.timestamp, unit="s")
         work_result.set_index("timestamp", inplace=True)
-        self.agent.append(work_result)
+        self.engine.append(work_result)
 
     def get_results(
         self, start_time: int, end_time: int
@@ -127,7 +127,7 @@ class StorageResults:
             str(const * start_time),
             str(const * end_time),
         )
-        _results = self.agent.proceed(results_query)
+        _results = self.engine.proceed(results_query)
         results = _results[self.table]
 
         results.reset_index(inplace=True)
