@@ -24,11 +24,21 @@ class PostgresDatabase(RelationalDatabase):
         super().__init__(
             provider="postgres",
             host=env.str("DB_HOST", default="localhost"),
-            port=env.int("POSTGRES_PORT",default=5432),
+            port=env.int("POSTGRES_PORT", default=5432),
             database=env.str("POSTGRES_DB", default="ANANSI"),
             user=env.str("POSTGRES_USER", default="anansi"),
             password=env.str("POSTGRES_PASSWORD", default="anansi"),
         )
+
+
+class TimeSerieDatabaseEngines:
+    influx_db = dict(
+        host=env.str("INFLUXDB_HOST", default="localhost"),
+        port=env.int("INFLUXDB_PORT", default=8086),
+        username=env.str("INFLUXDB_USER", default="Anansi"),
+        password=env.str("INFLUXDB_USER_PASSWORD", default="anansi2020"),
+        gzip=env.bool("INFLUXDB_GZIP", default=True),
+    )
 
 
 class BrokerSettings(BaseModel):
@@ -74,6 +84,7 @@ class BrokerSettings(BaseModel):
     ignore_opened_candle: bool = True
     show_only_desired_info: bool = True
     fee_rate_decimal: float = 0.001
+
 
 #! TODO: change API key
 BINANCE_API_KEY = (
