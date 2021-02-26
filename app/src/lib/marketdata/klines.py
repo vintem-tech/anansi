@@ -17,7 +17,7 @@ from ..tools.time_handlers import (
     time_frame_to_seconds,
 )
 from ..utils.databases.sql.schemas import DateTimeType, Market
-from ..utils.databases.time_series_storage import StorageKlines
+from ..utils.databases.time_series_storage.models import StorageKlines
 from .operators import indicators
 
 pd.options.mode.chained_assignment = None
