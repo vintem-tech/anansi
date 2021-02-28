@@ -34,36 +34,6 @@ services:
       - influxdb2_data:/var/lib/influxdb2
       - influxdb2_config:/etc/influxdb2
 
-  grafana:
-    image: grafana/grafana:latest
-    restart: unless-stopped
-    container_name: grafana
-    env_file:
-      - '.env'
-    user: "0"
-    links:
-      - influxdb
-    volumes:
-#      - ./grafana/grafana.ini:/etc/grafana/grafana.ini
-      - grafana:/etc/grafana/provisioning/datasources
-      - grafana:/var/lib/grafana
-    ports: 
-      - '$GRAFANA_PORT:3000'
-
-#  chronograf: # Some influxdb controllers
-#    image: chronograf:latest
-##    environment:
-##      - BASE_PATH=/chronograf
-#    restart: unless-stopped
-#    volumes:
-#      - chronograf-storage:/var/lib/chronograf
-#    ports:
-#      - '$CHRONOGRAF_PORT:8888'
-#    depends_on:
-#      - influxdb
-#    env_file:
-#      - '.env'
-
 #  app:
 #    build: app/
 #    restart: unless-stopped
@@ -103,11 +73,3 @@ volumes:
   influxdb2_config:
     driver: local
     name: influxdb2_config
-  
-  chronograf-storage:
-    driver: local
-    name: chronograf-storage
-  
-  grafana:
-    driver: local
-    name: grafana
