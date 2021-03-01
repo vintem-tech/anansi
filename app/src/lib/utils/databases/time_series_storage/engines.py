@@ -6,31 +6,33 @@ designed for saving klines, it must be able to read write timeseries
 collections from/to files and/or databases, abstracting the needed
 implementations."""
 
-#import collections
+# import collections
 
 import sys
 import pandas as pd
-
-# from influxdb import DataFrameClient  # Influxdb v1.8
 from influxdb_client import InfluxDBClient, WriteOptions
+from influxdb_client.client.exceptions import InfluxDBError
 from .....config.settings import InfluxDbSettings
-
-influx_settings = InfluxDbSettings()
 
 thismodule = sys.modules[__name__]
 
 
 class InfluxDb:
-    """For influxdb information:
+    """An interface layer on top of the influxdb python client,
+    useful for the rest of the system.
+
+    For influxdb information:
     https://github.com/influxdata/influxdb-client-python
     """
 
     __slots__ = [
+        "settings",
         "bucket",
         "measurement",
     ]
 
     def __init__(self, bucket: str, measurement: str):
+        self.settings = InfluxDbSettings()
         self.bucket = bucket
         self.measurement = measurement
 
@@ -41,9 +43,9 @@ class InfluxDb:
             dataframe (pd.core.frame.DataFrame): Timeseries dataframe
         """
 
-        client = InfluxDBClient(**influx_settings.credentials)
+        client = InfluxDBClient(**self.settings.credentials)
         write_client = client.write_api(
-            write_options=WriteOptions(**influx_settings.write_opts)
+            write_options=WriteOptions(**self.settings.write_opts)
         )
         write_client.write(
             bucket=self.bucket,
@@ -53,10 +55,52 @@ class InfluxDb:
         )
         client.close()
 
-    #    def proceed(self, query_to_proceed) -> collections.defaultdict:
-    #        query_result = self.client.query(query_to_proceed)
-    #        self.client.close()
-    #        return query_result
+    def _pos_process_dataframe(
+        self,
+        dataframe: pd.core.frame.DataFrame,
+    ) -> pd.core.frame.DataFrame:
+        returned_columns = list(dataframe.columns)
+        columns_to_drop = [
+            column
+            for column in returned_columns
+            if column in self.settings.system_columns
+        ]
+        return dataframe.drop(columns=columns_to_drop)
+
+    def dataframe_query(
+        self, query: str, pos_processdataframe=True
+    ) -> pd.core.frame.DataFrame:
+        """Dada uma query tratada*, no formato flux (influxdb v2),
+        retorna um dataframe com as informações obtidas.
+
+        Args:
+            query (str): flux query*
+            pos_processdataframe (bool, optional): Se True, elimina as
+            colunas geradas pelo influx. Defaults to True.
+
+        Returns:
+            pd.core.frame.DataFrame: Pandas dataframe, criado a partir
+            da measurement retornada do influx, seguindo a conversão:
+
+            [influx]                 -> [dataframe]
+            table.fields.values      -> columns
+            table.records.row.values -> row
+        """
+
+        client = InfluxDBClient(**self.settings.credentials)
+        query_api = client.query_api()
+
+        try:
+            dataframe = query_api.query_data_frame(query)
+            if pos_processdataframe:
+                dataframe = self._pos_process_dataframe(dataframe)
+
+            dataframe = dataframe.rename(columns={"_time": "Timestamp"})
+            dataframe.Timestamp = dataframe.Timestamp.astype("int64") // 10 ** 9
+            return dataframe
+        except InfluxDBError as error:
+            raise Exception.with_traceback(error) from InfluxDBError
+        return None
 
 
 def instantiate_engine(engine_name: str):
