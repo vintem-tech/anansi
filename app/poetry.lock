@@ -386,6 +386,8 @@ python-versions = ">=3.6"
 [package.dependencies]
 certifi = ">=14.05.14"
 ciso8601 = {version = ">=2.1.1", optional = true, markers = "extra == \"ciso\""}
+numpy = {version = "*", optional = true, markers = "extra == \"extra\""}
+pandas = {version = ">=0.25.3", optional = true, markers = "extra == \"extra\""}
 python-dateutil = ">=2.5.3"
 pytz = ">=2019.1"
 rx = ">=3.0.1"
@@ -1567,7 +1569,7 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "83db4838c561c6ad6223d4fb4fe528b2b9c9f29dab4767c257da47be26158a30"
+content-hash = "dc57422ed8bd572dbe9d6cc2e7af38ef80a8b0dc245473dac056c499dc83ba64"
 
 [metadata.files]
 appdirs = [
