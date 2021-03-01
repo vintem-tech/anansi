@@ -37,7 +37,6 @@ class InfluxDbSettings(BaseModel):
         token=env.str("DOCKER_INFLUXDB_INIT_ADMIN_TOKEN", default="Y7&>vj{N"),
         org=env.str("DOCKER_INFLUXDB_INIT_ORG", default="anansi"),
     )
-
     write_opts = dict(
         batch_size=5000,
         flush_interval=10_000,
@@ -47,6 +46,7 @@ class InfluxDbSettings(BaseModel):
         max_retry_delay=30_000,
         exponential_base=2,
     )
+    system_columns = ["result", "table", "_start", "_stop", "_measurement"]
 
 
 class BrokerSettings(BaseModel):
