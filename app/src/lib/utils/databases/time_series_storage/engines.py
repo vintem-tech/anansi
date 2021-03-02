@@ -4,7 +4,7 @@
 """This module deals with timeseries collections saving. Initially
 designed for saving klines, it must be able to read write timeseries
 collections from/to files and/or databases, abstracting the needed
-implementations."""
+implementations. For now, it just have influxdb implementation."""
 
 # import collections
 
@@ -55,7 +55,7 @@ class InfluxDb:
         )
         client.close()
 
-    def _pos_process_dataframe(
+    def _drop_influxdb_columns(
         self,
         dataframe: pd.core.frame.DataFrame,
     ) -> pd.core.frame.DataFrame:
@@ -68,19 +68,18 @@ class InfluxDb:
         return dataframe.drop(columns=columns_to_drop)
 
     def dataframe_query(
-        self, query: str, pos_processdataframe=True
+        self, query: str, drop_influxdb_columns=True
     ) -> pd.core.frame.DataFrame:
-        """Dada uma query tratada*, no formato flux (influxdb v2),
-        retorna um dataframe com as informações obtidas.
-
+        """Given a sanitized query*, (flux language format, influxdb v2),
+        returns the request measurement formated as a pandas dataframe.
         Args:
             query (str): flux query*
-            pos_processdataframe (bool, optional): Se True, elimina as
-            colunas geradas pelo influx. Defaults to True.
+            drop_influxdb_columns (bool, optional): If True, drops the
+            columns created by the influxdb. Defaults to True.
 
         Returns:
-            pd.core.frame.DataFrame: Pandas dataframe, criado a partir
-            da measurement retornada do influx, seguindo a conversão:
+            pd.core.frame.DataFrame: Pandas dataframe, created from the
+            returned influxdb measurement, following the conversion:
 
             [influx]                 -> [dataframe]
             table.fields.values      -> columns
@@ -92,15 +91,82 @@ class InfluxDb:
 
         try:
             dataframe = query_api.query_data_frame(query)
-            if pos_processdataframe:
-                dataframe = self._pos_process_dataframe(dataframe)
+            if not dataframe.empty:
+                dataframe = dataframe.rename(columns={"_time": "Timestamp"})
+                dataframe.Timestamp = (
+                    dataframe.Timestamp.astype("int64") // 10 ** 9
+                )
+                if drop_influxdb_columns:
+                    dataframe = self._drop_influxdb_columns(dataframe)
 
-            dataframe = dataframe.rename(columns={"_time": "Timestamp"})
-            dataframe.Timestamp = dataframe.Timestamp.astype("int64") // 10 ** 9
+            client.close()
             return dataframe
         except InfluxDBError as error:
             raise Exception.with_traceback(error) from InfluxDBError
         return None
+
+    def _get_by_range(self, start: int, stop: int) -> pd.core.frame.DataFrame:
+        query = """
+            from(bucket: "{}")
+            |> range(start: {}, stop: {})
+            |> filter(fn: (r) => r["_measurement"] == "{}")
+            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+            """.format(
+            self.bucket, start, stop, self.measurement
+        )
+        return self.dataframe_query(query)
+
+    def _get_by_start_n(self, start: int, n: int) -> pd.core.frame.DataFrame:
+        query = """
+            from(bucket: "{}")
+            |> range(start: {}, stop: now())
+            |> limit(n:{})
+            |> filter(fn: (r) => r["_measurement"] == "{}")
+            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+            """.format(
+            self.bucket, start, n, self.measurement
+        )
+        return self.dataframe_query(query)
+
+    def _get_by_stop_n(self, stop: int, n: int) -> pd.core.frame.DataFrame:
+        query = """
+            from(bucket: "{}")
+            |> range(start: 0, stop: {})
+            |> tail(n:{})
+            |> filter(fn: (r) => r["_measurement"] == "{}")
+            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+            """.format(
+            self.bucket, stop, n, self.measurement
+        )
+        return self.dataframe_query(query)
+
+    def get(self, **kwargs) -> pd.core.frame.DataFrame:
+        """Solves the request, if that contains at least 2 of these
+        3 arguments: "start", "stop", "n".
+
+        Returns:
+            pd.core.frame.DataFrame: Requested measurement range.
+        """
+        start: int = kwargs.get("start")
+        stop: int = kwargs.get("stop")
+        n: int = kwargs.get("n")
+
+        if start and stop:
+            dataframe = self._get_by_range(start, stop)
+            if n and n < len(dataframe):
+                dataframe = dataframe[:n]
+
+        elif start and n and not stop:
+            dataframe = self._get_by_start_n(start, n)
+
+        elif stop and n and not start:
+            dataframe = self._get_by_stop_n(stop, n)
+
+        else:
+            raise ValueError(
+                "At least 2 of 3 arguments (start, stop, n) must be passed"
+            )
+        return dataframe
 
 
 def instantiate_engine(engine_name: str):
