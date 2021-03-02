@@ -97,7 +97,7 @@ class KlinesFrom:
         raise NotImplementedError
 
     def _get_core(
-        self, start_time: int, end_time: int
+        self, since: int, until: int
     ) -> pd.core.frame.DataFrame:
         raise NotImplementedError
 
@@ -132,7 +132,7 @@ class KlinesFrom:
         since = self._calculate_since_from_until_and_n(
             until, number_of_candles
         )
-        _klines = self._get_core(start_time=since, end_time=until)
+        _klines = self._get_core(since, until)
         return _klines[_klines.Open_time <= until][-number_of_candles:]
 
     def _get_given_n_and_since(
@@ -141,13 +141,13 @@ class KlinesFrom:
         until = self._calculate_until_from_since_and_n(
             since, number_of_candles
         )
-        _klines = self._get_core(start_time=since, end_time=until)
+        _klines = self._get_core(since, until)
         return _klines[_klines.Open_time >= since][:number_of_candles]
 
     def _get_given_since_and_until(
         self, since: int, until: int
     ) -> pd.core.frame.DataFrame:
-        _klines = self._get_core(start_time=since, end_time=until)
+        _klines = self._get_core(since, until)
         return _klines[_klines.Open_time <= until]
 
     def get(self, **kwargs) -> pd.core.frame.DataFrame:
@@ -248,11 +248,11 @@ class FromBroker(KlinesFrom):
         return n_per_req * time_frame_to_seconds(self.time_frame)
 
     def _get_core(
-        self, start_time: int, end_time: int
+        self, since: int, until: int
     ) -> pd.core.frame.DataFrame:
 
         klines = pd.DataFrame()
-        for timestamp in range(start_time, end_time + 1, self._request_step()):
+        for timestamp in range(since, until + 1, self._request_step()):
             while True:
                 try:
                     _klines = self._broker.get_klines(
@@ -264,7 +264,7 @@ class FromBroker(KlinesFrom):
                 except Exception as e:  # Usually connection issues.
                     # TODO: To logger instead print
                     print("Fail, due the error: ", e)
-                    time.sleep(5)  # 60 sec cooldown time.
+                    time.sleep(5)  # 5 sec cooldown time.
 
             if self._append_to_storage:
                 table = "{}_{}".format(
@@ -302,20 +302,18 @@ class FromStorage(KlinesFrom):
         self.storage = StorageKlines(table=table, database=storage_name)
         super().__init__(market, time_frame)
 
-    def oldest_open_time(self) -> int:
+    def oldest_open_time(self) -> int: #! Refactor this?
         return self.storage.seconds_timestamp_of_oldest_record(self.time_frame)
 
     def newest_open_time(self) -> int:
         return self.storage.seconds_timestamp_of_newest_record(self.time_frame)
 
     def _get_core(
-        self, start_time: int, end_time: int
+        self, since: int, until: int
     ) -> pd.core.frame.DataFrame:
 
         try:
-            return self.storage.get_klines(
-                start_time, end_time, self.time_frame
-            )
+            return self.storage.get(since, until, self.time_frame)
 
         except Exception as e:  #!TODO: Log instead print
             print("Fail to get klines from storage due to {}".format(e))
@@ -335,10 +333,10 @@ class ToStorage:
     def create_largest_refined_backtesting(self):
         self.klines_getter.storage_name = "backtesting_klines"
 
-        start_time = self.klines_getter.oldest_open_time()
-        end_time = self.klines_getter.newest_open_time()
+        since = self.klines_getter.oldest_open_time()
+        until = self.klines_getter.newest_open_time()
 
-        raw_klines = self.klines_getter.get(since=start_time, until=end_time)
+        raw_klines = self.klines_getter.get(since=since, until=until)
         return raw_klines
 
 
