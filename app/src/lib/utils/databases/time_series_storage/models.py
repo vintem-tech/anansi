@@ -1,136 +1,132 @@
-import numpy as np
+# import numpy as np
+import pandas as pd
 
-from .engines import instantiate_engine, pd
+from .engines import InfluxDb
+from ....tools.time_handlers import time_frame_to_seconds
 
-engine = instantiate_engine("InfluxDb")
+
+class Storage:
+    def __init__(self, repository_name: str, table_name: str):
+        self.repository_name = repository_name
+        self.table_name = table_name
+        self.engine = InfluxDb(bucket=repository_name, measurement=table_name)
+
+    def append(self, dataframe: pd.core.frame.DataFrame):
+        self.engine.append(dataframe)
+
+    def get(self, **kwargs):
+        return self.engine.get(**kwargs)
+
+    def oldest(self, n=1):
+        raise NotImplementedError
+
+    def newest(self, n=1):
+        raise NotImplementedError
 
 
-class StorageKlines:
-    __slots__ = [
-        "engine",
-        "table",
-        "database",
-    ]
+class Results(Storage):
+    def __init__(self, _id: str):
+        super().__init__(repository_name="results", table_name=_id)
 
-    def __init__(self, database: str, table: str):
-        self.engine = engine(database, table)
-        self.database = database
-        self.table = table
+    def oldest(self, n=1):
+        return self.engine.get(start=0, n=n)
 
-    def seconds_timestamp_of_oldest_record(self, time_frame: str) -> int:
-        oldest_query = """
-            SELECT first("Open") AS "Open" FROM "{}"."autogen"."{}" GROUP BY
-            time({}) FILL(linear) ORDER BY ASC LIMIT 1
-            """.format(
-            self.database, self.table, time_frame
+    def newest(self, n=1):
+        return self.engine.get(stop="now()", n=n)
+
+
+class KlinesQueryBuilder:
+    """Responsible for transforming the klines aggregating
+    logic into a query for influxdb"""
+
+    def __init__(self, bucket, start, stop, measurement, time_frame):
+        self.time_frame = time_frame
+        self.header_query = """
+              from(bucket: "{}")
+              |> range(start: {}, stop: {})
+              |> filter(fn: (r) => r["_measurement"] == "{}")
+              """.format(
+            bucket, start, stop, measurement
         )
-        oldest = (self.engine.proceed(oldest_query))[self.table]
-        return int(pd.Timestamp(oldest.index[0]).timestamp())
+        self.function_filter = {
+            "Open": "first",
+            "High": "max",
+            "Low": "min",
+            "Close": "last",
+            "Volume": "sum",
+        }
 
-    def seconds_timestamp_of_newest_record(self, time_frame: str) -> int:
-        newest_query = """
-            SELECT first("Open") AS "Open" FROM "{}"."autogen"."{}" GROUP BY
-            time({}) FILL(linear) ORDER BY DESC LIMIT 1
-            """.format(
-            self.database, self.table, time_frame
-        )
-        newest = (self.engine.proceed(newest_query))[self.table]
-        return int(pd.Timestamp(newest.index[0]).timestamp())
-
-    def append(self, klines: pd.core.frame.DataFrame):
-        work_klines = klines.copy()
-
-        work_klines.Open_time = pd.to_datetime(work_klines.Open_time, unit="s")
-        work_klines.set_index("Open_time", inplace=True)
-        self.engine.append(work_klines)
-
-    def get_raw_klines(self, start_time: int, end_time: int, time_frame: str):
-        const = 10 ** 9  # Coversion sec <--> nanosec
-        klines_query = """
-        SELECT first("Open") AS "Open", max("High") AS "High", min("Low") AS 
-        "Low", last("Close") AS "Close", sum("Volume") AS "Volume" FROM 
-        "{}"."autogen"."{}" WHERE time >= {} AND 
-        time <= {} GROUP BY time({}) FILL(linear)
+    def _table(self, field: str) -> str:
+        table_query = """
+          |> filter(fn: (r) => r["_field"] == "{}")
+          |> aggregateWindow(every: {}, fn: {}, createEmpty: true)
+          |> pivot(rowKey:["_time","_start", "_stop", "_measurement"], 
+          columnKey: ["_field"], valueColumn: "_value")
+          |> keep(columns: ["_time","{}"])
         """.format(
-            self.database,
-            self.table,
-            str(const * start_time),
-            str(const * end_time),
-            time_frame,
+            field, self.time_frame, self.function_filter[field], field
         )
-        return self.engine.proceed(klines_query)
+        return self.header_query + table_query
 
-    def get_klines(
-        self, start_time: int, end_time: int, time_frame: str
-    ) -> pd.core.frame.DataFrame:
-        const = 10 ** 9  # Coversion sec <--> nanosec
+    @staticmethod
+    def _joint(tab1: str, tab2: str) -> str:
+        return (
+            """join(tables: {}tab1: {}, tab2: {}{}, on: ["_time"])""".format(
+                "{", tab1, tab2, "}"
+            )
+        )
 
-        _klines = self.get_raw_klines(start_time, end_time, time_frame)
-        klines = _klines[self.table]
+    def build(self) -> str:
+        """Pipes the joints of two tables by round.
 
-        klines.reset_index(inplace=True)
-        klines = klines.rename(columns={"index": "Open_time"})
-        klines.Open_time = klines.Open_time.values.astype(np.int64) // const
+        Returns:
+            str: Query formatted in flux language
+        """
+        query = self._table("Open")
+        for field in ["High", "Low", "Close", "Volume"]:
+            query = self._joint(query, self._table(field))
+
+        return query
+
+
+class Klines(Storage):
+    def __init__(self, _id: str, time_frame: str):
+        super().__init__(repository_name="klines", table_name=_id)
+        self.time_frame = time_frame
+
+    def get(self, **kwargs) -> pd.core.frame.DataFrame:
+        query = KlinesQueryBuilder(
+            bucket=self.repository_name,
+            start=kwargs["since"],
+            stop=kwargs["until"],
+            measurement=self.table_name,
+            time_frame=self.time_frame,
+        ).build()
+        klines = self.engine.dataframe_query(query)
+        klines = klines.rename(columns={"Timestamp": "Open_time"})
+
         return klines
 
+    def _minimal_n(self):
+        return time_frame_to_seconds(self.time_frame) / 60 + 2
 
-class StorageResults:
-    __slots__ = [
-        "engine",
-        "table",
-        "database",
-    ]
+    def _fake_until(self, fake_since, n):
+        return fake_since + (n + self._minimal_n()) * 60
 
-    def __init__(self, table: str, database: str):
-        self.engine = engine(database=database, measurement=table)
-        self.table = table
-        self.database = database
+    def _fake_since(self, fake_until, n):
+        _since = fake_until - (n + self._minimal_n()) * 60
+        return _since if _since > 0 else 0
 
-    def oldest_record(self) -> int:
-        oldest_query = """
-            SELECT * FROM "{}"."autogen"."{}" GROUP BY * ORDER BY ASC LIMIT 1
-            """.format(
-            self.database,
-            self.table,
-        )
-        return (self.engine.proceed(oldest_query))[self.table]
+    def oldest(self, n=1):
+        _oldest = self.engine.get(start=0, n=1)
+        fake_since = _oldest.Timestamp.item()
+        fake_until = self._fake_until(fake_since, n)
+        klines = self.get(since=fake_since, until=fake_until)
+        return klines[:n]
 
-    def newest_record(self) -> int:
-        newest_query = """
-            SELECT * FROM "{}"."autogen"."{}" GROUP BY * ORDER BY DESC LIMIT 1
-            """.format(
-            self.database,
-            self.table,
-        )
-        return (self.engine.proceed(newest_query))[self.table]
-
-    def append(self, result: pd.core.frame.DataFrame):
-        work_result = result.copy()
-
-        # work_result.KlinesDateTime.from_human_readable_to_timestamp()
-        # work_result.Open_time = pd.to_datetime(work_result.Open_time, unit="s")
-        # work_result.set_index("Open_time", inplace=True)
-
-        work_result.timestamp = pd.to_datetime(work_result.timestamp, unit="s")
-        work_result.set_index("timestamp", inplace=True)
-        self.engine.append(work_result)
-
-    def get_results(
-        self, start_time: int, end_time: int
-    ) -> pd.core.frame.DataFrame:
-        const = 10 ** 9  # Coversion sec <-> nanosec
-
-        results_query = """SELECT * FROM "{}"."autogen"."{}" WHERE time >= {}
-        AND time <= {} FILL(linear)""".format(
-            self.database,
-            self.table,
-            str(const * start_time),
-            str(const * end_time),
-        )
-        _results = self.engine.proceed(results_query)
-        results = _results[self.table]
-
-        results.reset_index(inplace=True)
-        results = results.rename(columns={"index": "timestamp"})
-        results.timestamp = results.timestamp.values.astype(np.int64) // const
-        return results
+    def newest(self, n=1):
+        _newest = self.engine.get(stop="now()", n=1)
+        fake_until = _newest.Timestamp.item()
+        fake_since = self._fake_since(fake_until, n)
+        klines = self.get(since=fake_since, until=fake_until)
+        return klines[-n:]
