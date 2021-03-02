@@ -6,15 +6,10 @@ designed for saving klines, it must be able to read write timeseries
 collections from/to files and/or databases, abstracting the needed
 implementations. For now, it just have influxdb implementation."""
 
-# import collections
-
-import sys
 import pandas as pd
 from influxdb_client import InfluxDBClient, WriteOptions
 from influxdb_client.client.exceptions import InfluxDBError
 from .....config.settings import InfluxDbSettings
-
-thismodule = sys.modules[__name__]
 
 
 class InfluxDb:
@@ -151,7 +146,7 @@ class InfluxDb:
         stop: int = kwargs.get("stop")
         n: int = kwargs.get("n")
 
-        if start and n: # This cover the scenario "start and stop and n"
+        if start and n:  # This cover the scenario "start and stop and n"
             dataframe = self._get_by_start_n(start, n)
 
         elif start and stop and not n:
@@ -159,13 +154,9 @@ class InfluxDb:
 
         elif stop and n and not start:
             dataframe = self._get_by_stop_n(stop, n)
-        
+
         else:
             raise ValueError(
                 "At least 2 of 3 arguments (start, stop, n) must be passed"
             )
         return dataframe
-
-
-def instantiate_engine(engine_name: str):
-    return getattr(thismodule, engine_name)
