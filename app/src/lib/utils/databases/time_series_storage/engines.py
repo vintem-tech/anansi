@@ -151,17 +151,15 @@ class InfluxDb:
         stop: int = kwargs.get("stop")
         n: int = kwargs.get("n")
 
-        if start and stop:
-            dataframe = self._get_by_range(start, stop)
-            if n and n < len(dataframe):
-                dataframe = dataframe[:n]
-
-        elif start and n and not stop:
+        if start and n: # This cover the scenario "start and stop and n"
             dataframe = self._get_by_start_n(start, n)
+
+        elif start and stop and not n:
+            dataframe = self._get_by_range(start, stop)
 
         elif stop and n and not start:
             dataframe = self._get_by_stop_n(stop, n)
-
+        
         else:
             raise ValueError(
                 "At least 2 of 3 arguments (start, stop, n) must be passed"
