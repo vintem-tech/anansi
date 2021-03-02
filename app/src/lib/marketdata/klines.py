@@ -151,6 +151,12 @@ class KlinesFrom:
         return _klines[_klines.Open_time <= until]
 
     def get(self, **kwargs) -> pd.core.frame.DataFrame:
+        """Solves the request, if that contains at least 2 of these
+        3 arguments: "since", "until", "number_of_candles".
+
+        Returns:
+            pd.core.frame.DataFrame: Requested klines range.
+        """
         since = kwargs.get("since")
         until = kwargs.get("until")
         number_of_candles: int = kwargs.get("number_of_candles")
