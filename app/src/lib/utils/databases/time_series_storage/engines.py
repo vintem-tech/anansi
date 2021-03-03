@@ -38,6 +38,9 @@ class InfluxDb:
             dataframe (pd.core.frame.DataFrame): Timeseries dataframe
         """
 
+        dataframe.Timestamp = pd.to_datetime(dataframe.Timestamp, unit="s")
+        dataframe.set_index("Timestamp", inplace=True)
+
         client = InfluxDBClient(**self.settings.credentials)
         write_client = client.write_api(
             write_options=WriteOptions(**self.settings.write_opts)
@@ -142,9 +145,10 @@ class InfluxDb:
         Returns:
             pd.core.frame.DataFrame: Requested measurement range.
         """
-        start: int = kwargs.get("start")
-        stop: int = kwargs.get("stop")
-        n: int = kwargs.get("n")
+
+        start = kwargs.get("start")
+        stop = kwargs.get("stop")
+        n = kwargs.get("n")
 
         if start and n:  # This cover the scenario "start and stop and n"
             dataframe = self._get_by_start_n(start, n)
@@ -156,7 +160,18 @@ class InfluxDb:
             dataframe = self._get_by_stop_n(stop, n)
 
         else:
+            dataframe = pd.DataFrame()
             raise ValueError(
                 "At least 2 of 3 arguments (start, stop, n) must be passed"
             )
         return dataframe
+
+    def oldest(self, n=1):
+        _dataframe = self.get(start="0", n=n)
+        _len = min(n, len(_dataframe))
+        return _dataframe[:_len]
+
+    def newest(self, n=1):
+        _dataframe = self.get(stop="now()", n=n)
+        _len = min(n, len(_dataframe))
+        return _dataframe[-_len:]
