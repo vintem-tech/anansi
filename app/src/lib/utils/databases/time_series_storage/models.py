@@ -1,8 +1,8 @@
-# import numpy as np
 import pandas as pd
+import pendulum
 
-from .engines import InfluxDb
 from ....tools.time_handlers import time_frame_to_seconds
+from .engines import InfluxDb
 
 
 class Storage:
@@ -11,28 +11,22 @@ class Storage:
         self.table_name = table_name
         self.engine = InfluxDb(bucket=repository_name, measurement=table_name)
 
-    def append(self, dataframe: pd.core.frame.DataFrame):
-        self.engine.append(dataframe)
-
     def get(self, **kwargs):
         return self.engine.get(**kwargs)
 
+    def append(self, dataframe: pd.core.frame.DataFrame):
+        self.engine.append(dataframe)
+
     def oldest(self, n=1):
-        raise NotImplementedError
+        return self.engine.oldest(n)
 
     def newest(self, n=1):
-        raise NotImplementedError
+        return self.engine.oldest(n)
 
 
 class Results(Storage):
     def __init__(self, _id: str):
         super().__init__(repository_name="results", table_name=_id)
-
-    def oldest(self, n=1):
-        return self.engine.get(start=0, n=n)
-
-    def newest(self, n=1):
-        return self.engine.get(stop="now()", n=n)
 
 
 class KlinesQueryBuilder:
@@ -58,13 +52,13 @@ class KlinesQueryBuilder:
 
     def _table(self, field: str) -> str:
         table_query = """
-          |> filter(fn: (r) => r["_field"] == "{}")
-          |> aggregateWindow(every: {}, fn: {}, createEmpty: true)
+          |> filter(fn: (r) => r["_field"] == "{f}")
+          |> aggregateWindow(every: {tf}, fn: {func}, createEmpty: true)
           |> pivot(rowKey:["_time","_start", "_stop", "_measurement"], 
           columnKey: ["_field"], valueColumn: "_value")
-          |> keep(columns: ["_time","{}"])
+          |> keep(columns: ["_time","{f}"])
         """.format(
-            field, self.time_frame, self.function_filter[field], field
+            f=field, tf=self.time_frame, func=self.function_filter[field]
         )
         return self.header_query + table_query
 
@@ -89,10 +83,11 @@ class KlinesQueryBuilder:
         return query
 
 
-class Klines(Storage):
+class StorageKlines(Storage):
     def __init__(self, _id: str, time_frame: str):
         super().__init__(repository_name="klines", table_name=_id)
         self.time_frame = time_frame
+        self.columns = ["Open_time", "Open", "High", "Low", "Close", "Volume"]
 
     def get(self, **kwargs) -> pd.core.frame.DataFrame:
         query = KlinesQueryBuilder(
@@ -105,28 +100,43 @@ class Klines(Storage):
         klines = self.engine.dataframe_query(query)
         klines = klines.rename(columns={"Timestamp": "Open_time"})
 
-        return klines
+        return klines[self.columns]
 
-    def _minimal_n(self):
-        return time_frame_to_seconds(self.time_frame) / 60 + 2
+    def append(self, dataframe: pd.core.frame.DataFrame) -> None:
+        klines = dataframe.copy()
+        self.engine.append(
+            dataframe=klines.rename(columns={"Open_time": "Timestamp"})
+        )
 
-    def _fake_until(self, fake_since, n):
-        return fake_since + (n + self._minimal_n()) * 60
+    def _timestamp_delta(self, n: int) -> int:
+        tf_sec = time_frame_to_seconds(self.time_frame)
+        _minimal_n = tf_sec / 60
+        _raw_n = _minimal_n + n + 2  # +2 for a safety margin.
+        return int(tf_sec * _raw_n)
 
-    def _fake_since(self, fake_until, n):
-        _since = fake_until - (n + self._minimal_n()) * 60
-        return _since if _since > 0 else 0
+    def _until(self, since: int, n: int) -> int:
+        until = since + self._timestamp_delta(n)
+        now = pendulum.now("UTC").int_timestamp
+        return until if until < now else now
 
-    def oldest(self, n=1):
-        _oldest = self.engine.get(start=0, n=1)
-        fake_since = _oldest.Timestamp.item()
-        fake_until = self._fake_until(fake_since, n)
-        klines = self.get(since=fake_since, until=fake_until)
-        return klines[:n]
+    def _since(self, until: int, n: int) -> int:
+        since = until - self._timestamp_delta(n)
+        return since if since > 0 else 0
 
-    def newest(self, n=1):
+    def oldest(self, n: int = 1) -> pd.core.frame.DataFrame:
+        _oldest = self.engine.get(start="0", n=1)
+        since = _oldest.Timestamp.item()
+        klines = self.get(since=str(since), until=str(self._until(since, n)))
+        _len = min(n, len(klines))
+        return klines[:_len]
+
+    def newest(self, n: int = 1) -> pd.core.frame.DataFrame:
+        klines = pd.DataFrame()
+
         _newest = self.engine.get(stop="now()", n=1)
-        fake_until = _newest.Timestamp.item()
-        fake_since = self._fake_since(fake_until, n)
-        klines = self.get(since=fake_since, until=fake_until)
-        return klines[-n:]
+        until = _newest.Timestamp.item()
+        _klines = self.get(since=str(self._since(until, n)), until=str(until))
+        _len = min(n, len(_klines))
+
+        klines = klines.append(_klines[-_len:], ignore_index=True)
+        return klines
