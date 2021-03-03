@@ -84,111 +84,101 @@ class KlinesFrom:
     __slots__ = [
         "market",
         "time_frame",
+        "oldest_open_time",
+        "newest_open_time",
     ]
 
     def __init__(self, market: Market, time_frame: str):
         self.market = market
         self.time_frame = time_frame
+        self.oldest_open_time: int = self._oldest_open_time()
+        self.newest_open_time:int = self._newest_open_time()
 
-    def oldest_open_time(self) -> int:
+    def _oldest_open_time(self) -> int:
         raise NotImplementedError
 
-    def newest_open_time(self) -> int:
+    def _newest_open_time(self) -> int:
         raise NotImplementedError
 
-    def _get_core(
-        self, since: int, until: int
-    ) -> pd.core.frame.DataFrame:
+    def _get_core(self, since: int, until: int) -> pd.core.frame.DataFrame:
         raise NotImplementedError
 
-    # TODO: Sanitize since/until to avoid ValueError until < since
-    def _calculate_until_from_since_and_n(
-        self, since: int, number_of_candles: int
-    ) -> int:
-        until = (number_of_candles + 1) * time_frame_to_seconds(
-            self.time_frame
-        ) + since
+    def _timestamp_delta(self, n: int) -> int:
+        return int(time_frame_to_seconds(self.time_frame) * (n + 1))
+
+    def _until(self, since: int, n: int) -> int:
+        until = since + self._timestamp_delta(n)
         return (
-            until
-            if until <= self.newest_open_time()
-            else self.newest_open_time()
+            until if until < self.newest_open_time else self.newest_open_time
         )
 
-    def _calculate_since_from_until_and_n(
-        self, until: int, number_of_candles: int
-    ) -> int:
-        since = until - (number_of_candles + 1) * time_frame_to_seconds(
-            self.time_frame
-        )
+    def _since(self, until: int, n: int) -> int:
+        since = until - self._timestamp_delta(n)
         return (
-            since
-            if since >= self.oldest_open_time()
-            else self.oldest_open_time()
+            since if since > self.oldest_open_time else self.oldest_open_time
         )
 
-    def _get_given_n_and_until(
-        self, number_of_candles: int, until: int
-    ) -> pd.core.frame.DataFrame:
-        since = self._calculate_since_from_until_and_n(
-            until, number_of_candles
-        )
-        _klines = self._get_core(since, until)
-        return _klines[_klines.Open_time <= until][-number_of_candles:]
+    def _sanitize_get_input(self, **kwargs) -> tuple:
+        since = kwargs.get("since")
+        until = kwargs.get("until")
+        number_samples: int = kwargs.get("number_samples")
 
-    def _get_given_n_and_since(
-        self, number_of_candles: int, since: int
-    ) -> pd.core.frame.DataFrame:
-        until = self._calculate_until_from_since_and_n(
-            since, number_of_candles
-        )
-        _klines = self._get_core(since, until)
-        return _klines[_klines.Open_time >= since][:number_of_candles]
+        if since:
+            since = sanitize_input_datetime(since)
+            since = (
+                since
+                if since > self.oldest_open_time
+                else self.oldest_open_time
+            )
+        if until:
+            until = sanitize_input_datetime(until)
+            until = (
+                until
+                if until < self.newest_open_time
+                else self.newest_open_time
+            )
 
-    def _get_given_since_and_until(
-        self, since: int, until: int
-    ) -> pd.core.frame.DataFrame:
-        _klines = self._get_core(since, until)
-        return _klines[_klines.Open_time <= until]
+        if since and until:  # This cover the scenario "start and stop and n"
+            time_range = since, until
+            if since > until:
+                time_range = until, since
 
-    def get(self, **kwargs) -> pd.core.frame.DataFrame:
+        elif number_samples and since and not until:
+            time_range = since, self._until(since, number_samples)
+
+        elif number_samples and until and not since:
+            time_range = self._since(until, number_samples), until
+
+        else:
+            raise ValueError(
+                "At least 2 of 3 arguments (since, until, number_samples) must be passed"
+            )
+        return time_range
+
+    def get(self, human_readable=True, **kwargs) -> pd.core.frame.DataFrame:
         """Solves the request, if that contains at least 2 of these
-        3 arguments: "since", "until", "number_of_candles".
+        3 arguments: "since", "until", "number_samples".
 
         Returns:
             pd.core.frame.DataFrame: Requested klines range.
         """
-        since = kwargs.get("since")
-        until = kwargs.get("until")
-        number_of_candles: int = kwargs.get("number_of_candles")
 
-        if since:
-            since = sanitize_input_datetime(since)
-        if until:
-            until = sanitize_input_datetime(until)
-
-        klines = (
-            self._get_given_since_and_until(since, until)
-            if since and until and not number_of_candles
-            else self._get_given_n_and_since(number_of_candles, since)
-            if number_of_candles and since and not until
-            else self._get_given_n_and_until(number_of_candles, until)
-            if number_of_candles and until and not since
-            else pd.DataFrame()
-        )  # Errors imply an empty dataframe
-
-        klines.KlinesDateTime.from_timestamp_to_human_readable()
+        since, until = self._sanitize_get_input(**kwargs)
+        klines = self._get_core(since, until)
+        klines = klines[until >= klines.Open_time >= since]
+        if human_readable:
+            klines.KlinesDateTime.from_timestamp_to_human_readable()
         return klines
 
-    def oldest(self, number_of_candles=1) -> pd.core.frame.DataFrame:
-        return self.get(
-            number_of_candles=number_of_candles, since=self.oldest_open_time()
-        )
+    def oldest(self, number_samples=1) -> pd.core.frame.DataFrame:
+        klines = self.get(number_samples=number_samples, since=self.oldest_open_time)
+        _len = min(number_samples, len(klines))
+        return klines[:_len]
 
-    def newest(self, number_of_candles=1) -> pd.core.frame.DataFrame:
-        return self.get(
-            number_of_candles=number_of_candles, until=self.newest_open_time()
-        )
-
+    def newest(self, number_samples=1) -> pd.core.frame.DataFrame:
+        klines = self.get(number_samples=number_samples, until=self.newest_open_time)
+        _len = min(number_samples, len(klines))
+        return klines[-_len:]
 
 class FromBroker(KlinesFrom):
     """Aims to serve as a queue for requesting klines (OHLC) through brokers
@@ -236,7 +226,7 @@ class FromBroker(KlinesFrom):
             ticker_symbol=self.market.ticker_symbol,
             time_frame=self._time_frame,
             since=1,
-            number_of_candles=1,
+            number_samples=1,
         )
         return oldest_candle.Open_time.item()
 
@@ -247,9 +237,7 @@ class FromBroker(KlinesFrom):
         n_per_req = self._broker.settings.records_per_request
         return n_per_req * time_frame_to_seconds(self.time_frame)
 
-    def _get_core(
-        self, since: int, until: int
-    ) -> pd.core.frame.DataFrame:
+    def _get_core(self, since: int, until: int) -> pd.core.frame.DataFrame:
 
         klines = pd.DataFrame()
         for timestamp in range(since, until + 1, self._request_step()):
@@ -302,15 +290,13 @@ class FromStorage(KlinesFrom):
         self.storage = StorageKlines(table=table, database=storage_name)
         super().__init__(market, time_frame)
 
-    def oldest_open_time(self) -> int: #! Refactor this?
+    def oldest_open_time(self) -> int:  #! Refactor this?
         return self.storage.seconds_timestamp_of_oldest_record(self.time_frame)
 
     def newest_open_time(self) -> int:
         return self.storage.seconds_timestamp_of_newest_record(self.time_frame)
 
-    def _get_core(
-        self, since: int, until: int
-    ) -> pd.core.frame.DataFrame:
+    def _get_core(self, since: int, until: int) -> pd.core.frame.DataFrame:
 
         try:
             return self.storage.get(since, until, self.time_frame)
