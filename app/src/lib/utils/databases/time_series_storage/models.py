@@ -11,11 +11,11 @@ class Storage:
         self.table_name = table_name
         self.engine = InfluxDb(bucket=repository_name, measurement=table_name)
 
-    def get(self, **kwargs):
-        return self.engine.get(**kwargs)
-
     def append(self, dataframe: pd.core.frame.DataFrame):
         self.engine.append(dataframe)
+
+    def get(self, **kwargs):
+        return self.engine.get(**kwargs)
 
     def oldest(self, n=1):
         return self.engine.oldest(n)
@@ -89,19 +89,6 @@ class StorageKlines(Storage):
         self.time_frame = time_frame
         self.columns = ["Open_time", "Open", "High", "Low", "Close", "Volume"]
 
-    def get(self, **kwargs) -> pd.core.frame.DataFrame:
-        query = KlinesQueryBuilder(
-            bucket=self.repository_name,
-            start=kwargs["since"],
-            stop=kwargs["until"],
-            measurement=self.table_name,
-            time_frame=self.time_frame,
-        ).build()
-        klines = self.engine.dataframe_query(query)
-        klines = klines.rename(columns={"Timestamp": "Open_time"})
-
-        return klines[self.columns]
-
     def append(self, dataframe: pd.core.frame.DataFrame) -> None:
         klines = dataframe.copy()
         self.engine.append(
@@ -122,6 +109,19 @@ class StorageKlines(Storage):
     def _since(self, until: int, n: int) -> int:
         since = until - self._timestamp_delta(n)
         return since if since > 0 else 0
+
+    def get(self, **kwargs) -> pd.core.frame.DataFrame:
+        query = KlinesQueryBuilder(
+            bucket=self.repository_name,
+            start=kwargs["since"],
+            stop=kwargs["until"],
+            measurement=self.table_name,
+            time_frame=self.time_frame,
+        ).build()
+        klines = self.engine.dataframe_query(query)
+        klines = klines.rename(columns={"Timestamp": "Open_time"})
+
+        return klines[self.columns]
 
     def oldest(self, n: int = 1) -> pd.core.frame.DataFrame:
         _oldest = self.engine.get(start="0", n=1)
