@@ -51,6 +51,35 @@ class ParseDateTime:
             ) from err
 
 
+@pd.api.extensions.register_dataframe_accessor("apply_datetime_conversion")
+class DataFrameDateTimeconversion:
+    """Apply timestamp/human readable datetime conversion over
+    dataframe columns items."""
+
+    __slots__ = ["_dataframe"]
+
+    def __init__(self, dataframe: pd.core.frame.DataFrame):
+        self._dataframe = dataframe
+
+    def _convert(self, column: str, conversion: str) -> None:
+        self._dataframe.loc[:, column] = self._dataframe.apply(
+            lambda func: getattr(ParseDateTime(func[column]), conversion)(),
+            axis=1,
+        )
+
+    def from_human_readable_to_timestamp(self, target_columns: List[str]):
+        """If human readable str, returns associated int timestamp."""
+
+        for column in target_columns:
+            self._convert(column, "from_human_readable_to_timestamp")
+
+    def from_timestamp_to_human_readable(self, target_columns: List[str]):
+        """If int timestamp, returns associated human readable str."""
+
+        for column in target_columns:
+            self._convert(column, "from_timestamp_to_human_readable")
+
+
 def datetime_as_integer_timestamp(datetime: DateTimeType) -> int:
     """Try to return an integer timestamp given a datetime."""
 
