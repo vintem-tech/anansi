@@ -3,3 +3,9 @@ class TraderError(Exception):
 
 class TimeFormatError(Exception):
     pass
+
+class BrokerError(Exception):
+    pass
+
+class StorageError(Exception):
+    pass
