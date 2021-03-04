@@ -13,7 +13,7 @@ import pendulum
 from ..brokers.engines import get_broker
 from ..tools.time_handlers import (
     ParseDateTime,
-    sanitize_input_datetime,
+    datetime_as_integer_timestamp,
     time_frame_to_seconds,
 )
 from ..utils.databases.sql.schemas import DateTimeType, Market
@@ -124,14 +124,14 @@ class KlinesFrom:
         number_samples: int = kwargs.get("number_samples")
 
         if since:
-            since = sanitize_input_datetime(since)
+            since = datetime_as_integer_timestamp(since)
             since = (
                 since
                 if since > self.oldest_open_time
                 else self.oldest_open_time
             )
         if until:
-            until = sanitize_input_datetime(until)
+            until = datetime_as_integer_timestamp(until)
             until = (
                 until
                 if until < self.newest_open_time
@@ -334,7 +334,7 @@ class PriceFromStorage:
         self.price_metrics = price_metrics
 
     def get_price_at(self, desired_datetime: DateTimeType) -> float:
-        desired_datetime = sanitize_input_datetime(desired_datetime)
+        desired_datetime = datetime_as_integer_timestamp(desired_datetime)
 
         klines = self.klines_getter.get(
             since=desired_datetime - 60000, until=desired_datetime + 60000
