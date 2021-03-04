@@ -83,10 +83,10 @@ class DataFrameDateTimeconversion:
 def datetime_as_integer_timestamp(datetime: DateTimeType) -> int:
     """Try to return an integer timestamp given a datetime."""
 
-    try:
-        return int(datetime)  # Already int or str timestamp (SECONDS), or ...
-    except ValueError:  # ... maybe a human readable datetime, or ...
-        try:
+    try: # Already int or str timestamp (SECONDS), or ...
+        return int(datetime)
+    except ValueError:
+        try:  # ... maybe a human readable datetime, or ...
             return ParseDateTime(datetime).from_human_readable_to_timestamp()
         except ValueError as err:  # ... an invalid input.
             raise TimeFormatError.with_traceback(err)
