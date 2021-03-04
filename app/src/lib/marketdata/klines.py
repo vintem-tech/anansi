@@ -18,6 +18,7 @@ from ..tools.time_handlers import (
 )
 from ..utils.databases.sql.schemas import DateTimeType, Market
 from ..utils.databases.time_series_storage.models import StorageKlines
+from ..utils.exceptions import BrokerError, StorageError
 from .operators import indicators
 
 pd.options.mode.chained_assignment = None
@@ -86,13 +87,21 @@ class KlinesFrom:
         "time_frame",
         "oldest_open_time",
         "newest_open_time",
+        "storage",
     ]
 
     def __init__(self, market: Market, time_frame: str):
         self.market = market
         self.time_frame = time_frame
         self.oldest_open_time: int = self._oldest_open_time()
-        self.newest_open_time:int = self._newest_open_time()
+        self.newest_open_time: int = self._newest_open_time()
+        self.storage = StorageKlines(
+            _id="{}_{}".format(
+                market.broker_name,
+                market.ticker_symbol.lower(),
+            ),
+            time_frame=time_frame,
+        )
 
     def _oldest_open_time(self) -> int:
         raise NotImplementedError
@@ -171,14 +180,19 @@ class KlinesFrom:
         return klines
 
     def oldest(self, number_samples=1) -> pd.core.frame.DataFrame:
-        klines = self.get(number_samples=number_samples, since=self.oldest_open_time)
+        klines = self.get(
+            number_samples=number_samples, since=self.oldest_open_time
+        )
         _len = min(number_samples, len(klines))
         return klines[:_len]
 
     def newest(self, number_samples=1) -> pd.core.frame.DataFrame:
-        klines = self.get(number_samples=number_samples, until=self.newest_open_time)
+        klines = self.get(
+            number_samples=number_samples, until=self.newest_open_time
+        )
         _len = min(number_samples, len(klines))
         return klines[-_len:]
+
 
 class FromBroker(KlinesFrom):
     """Aims to serve as a queue for requesting klines (OHLC) through brokers
@@ -193,15 +207,14 @@ class FromBroker(KlinesFrom):
         "_broker",
         "_time_frame",
         "_append_to_storage",
-        "storage_name",
+        "storage_id",
     ]
 
     def __init__(self, market: Market, time_frame: str = str()):
         self._broker = get_broker(market)
-        super().__init__(market, time_frame)
         self._time_frame = self._validate_tf(time_frame)
+        super().__init__(market, self.time_frame)
         self._append_to_storage: bool = False
-        self.storage_name: str = str()
 
     def _validate_tf(self, timeframe: str):
         tf_list = self._broker.settings.possible_time_frames
@@ -218,10 +231,9 @@ class FromBroker(KlinesFrom):
 
     @time_frame.setter
     def time_frame(self, time_frame_to_set):
-        tf = self._validate_tf(time_frame_to_set)
-        self._time_frame = tf
+        self._time_frame = self._validate_tf(time_frame_to_set)
 
-    def oldest_open_time(self) -> int:
+    def _oldest_open_time(self) -> int:
         oldest_candle = self._broker.get_klines(
             ticker_symbol=self.market.ticker_symbol,
             time_frame=self._time_frame,
@@ -230,7 +242,7 @@ class FromBroker(KlinesFrom):
         )
         return oldest_candle.Open_time.item()
 
-    def newest_open_time(self) -> int:
+    def _newest_open_time(self) -> int:
         return (pendulum.now(tz="UTC")).int_timestamp
 
     def _request_step(self) -> int:
@@ -238,7 +250,6 @@ class FromBroker(KlinesFrom):
         return n_per_req * time_frame_to_seconds(self.time_frame)
 
     def _get_core(self, since: int, until: int) -> pd.core.frame.DataFrame:
-
         klines = pd.DataFrame()
         for timestamp in range(since, until + 1, self._request_step()):
             while True:
@@ -249,20 +260,13 @@ class FromBroker(KlinesFrom):
                     klines = klines.append(_klines, ignore_index=True)
                     break
 
-                except Exception as e:  # Usually connection issues.
+                except BrokerError as err:  # Usually connection issues.
                     # TODO: To logger instead print
-                    print("Fail, due the error: ", e)
+                    print("Fail, due the error: ", err)
                     time.sleep(5)  # 5 sec cooldown time.
 
             if self._append_to_storage:
-                table = "{}_{}".format(
-                    self.market.broker_name,
-                    self.market.ticker_symbol.lower(),
-                )
-                storage = StorageKlines(
-                    table=table, database=self.storage_name
-                )
-                storage.append(_klines)
+                self.storage.append(_klines)
 
             if self._broker.was_request_limit_reached():
                 time.sleep(10)  # 10 sec cooldown time.
@@ -279,32 +283,17 @@ class FromStorage(KlinesFrom):
     influxdb
     """
 
-    __slots__ = [
-        "storage",
-    ]
+    def _oldest_open_time(self) -> int:
+        return self.storage.oldest().Open_time.item()
 
-    def __init__(self, market: Market, time_frame: str, storage_name: str):
-        table = "{}_{}".format(
-            market.broker_name.capitalize(), (market.ticker_symbol).lower()
-        )
-        self.storage = StorageKlines(table=table, database=storage_name)
-        super().__init__(market, time_frame)
-
-    def oldest_open_time(self) -> int:  #! Refactor this?
-        return self.storage.seconds_timestamp_of_oldest_record(self.time_frame)
-
-    def newest_open_time(self) -> int:
-        return self.storage.seconds_timestamp_of_newest_record(self.time_frame)
+    def _newest_open_time(self) -> int:
+        return self.storage.newest().Open_time.item()
 
     def _get_core(self, since: int, until: int) -> pd.core.frame.DataFrame:
-
         try:
-            return self.storage.get(since, until, self.time_frame)
-
-        except Exception as e:  #!TODO: Log instead print
-            print("Fail to get klines from storage due to {}".format(e))
-            return pd.DataFrame()
-
+            return self.storage.get(since=since, until=until)
+        except StorageError as err:
+            raise Exception.with_traceback(err) from StorageError
 
 class ToStorage:
     __slots__ = [
@@ -317,7 +306,7 @@ class ToStorage:
         self.klines_getter._append_to_storage = True
 
     def create_largest_refined_backtesting(self):
-        self.klines_getter.storage_name = "backtesting_klines"
+        self.klines_getter.storage_id = "backtesting_klines"
 
         since = self.klines_getter.oldest_open_time()
         until = self.klines_getter.newest_open_time()
