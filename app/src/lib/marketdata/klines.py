@@ -197,10 +197,9 @@ class KlinesFrom:
 class FromBroker(KlinesFrom):
     """Aims to serve as a queue for requesting klines (OHLC) through brokers
     endpoints, spliting the requests, in order to respect broker established
-    limits.
-    If a request limit is close to being reached, will pause the queue,
-    until cooldown time pass.
-    Returns sanitized klines to the client, formatted as pandas DataFrame.
+    limits. If a request limit is close to being reached, will pause the queue,
+    until cooldown time pass. Returns sanitized klines to the client, formatted 
+    as pandas DataFrame.
     """
 
     __slots__ = [
