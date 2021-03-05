@@ -1,5 +1,6 @@
 """Usefull tools for time and datetime issues."""
 
+import math
 from typing import List
 
 import pandas as pd
@@ -7,7 +8,6 @@ import pendulum
 from pendulum.exceptions import PendulumException
 
 from ..utils.databases.sql.schemas import DateTimeType
-
 from ..utils.exceptions import TimeFormatError
 
 pd.options.mode.chained_assignment = None
@@ -83,7 +83,7 @@ class DataFrameDateTimeconversion:
 def datetime_as_integer_timestamp(datetime: DateTimeType) -> int:
     """Try to return an integer timestamp given a datetime."""
 
-    try: # Already int or str timestamp (SECONDS), or ...
+    try:  # Already int or str timestamp (SECONDS), or ...
         return int(datetime)
     except ValueError:
         try:  # ... maybe a human readable datetime, or ...
@@ -101,34 +101,49 @@ def time_frame_to_seconds(time_frame: str) -> int:
     return time_amount * conversor[scale_unit]
 
 
+def cooldown_time(attempt: int, max_cooldown_time="1h"):
+    """Returns a cooldown time which is exponentially depending to
+    the number of attempts and rises asymptotically to the defined
+    max_cooldown_time.
+
+    Args:
+        attempt ([type]): Index of the attempt('round').
+        max_cooldown_time (str, optional): like timestamp
+        <amount><scale_unit> e.g. '1m', '2h'. Defaults to "1h".
+
+    Returns:
+        [type]: [description]
+    """
+    time_0 = 2  # To seconds minimum cooldown time
+    max_time = time_frame_to_seconds(max_cooldown_time)
+    ref = 1000  # attempt index that implies t = ~0.63*max_cooldown_time
+    power = -((attempt - 1) / ref)
+    return int(max_time * (1 - math.exp(power)) + time_0)
+
+
 def next_closed_candle_seconds_delay(
     time_frame: str, open_time: DateTimeType, **kwargs
 ) -> int:
     """Given a current open time and a time_frame, returns the amount
-    of seconds delay between now and the next closed candle
+    of seconds delay between now and the next closed candle.
 
     Args:
-        time_frame (str): '5m', '2h', '1w', etc.
+        time_frame (str): <amount><scale_unit> e.g. '1m', '2h'
         open_time (DateTimeType): Current candle Open_time
 
     Returns:
         int: seconds delay between now and the next closed candle
     """
 
-    _now = kwargs.get("now")
-
-    now = (
-        datetime_as_integer_timestamp(_now)
-        if _now
-        else pendulum.now("UTC").int_timestamp
-    )
+    now = kwargs.get("now", pendulum.now("UTC").int_timestamp)
 
     timestamp_open_time = datetime_as_integer_timestamp(open_time)
     step = time_frame_to_seconds(time_frame)
     next_close_time = timestamp_open_time + (2 * step)
     _time_until_next_closed_candle = next_close_time - now
 
-    if _time_until_next_closed_candle <= 0:
-        _time_until_next_closed_candle = int(step / 10)
-
-    return _time_until_next_closed_candle + 3  # A 3 sec delay
+    return (
+        _time_until_next_closed_candle + 3  # A 3 sec delay
+        if _time_until_next_closed_candle <= 0
+        else int(step / 10)
+    )
