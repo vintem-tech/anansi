@@ -9,3 +9,6 @@ class BrokerError(Exception):
 
 class StorageError(Exception):
     pass
+
+class KlinesError(Exception):
+    pass
