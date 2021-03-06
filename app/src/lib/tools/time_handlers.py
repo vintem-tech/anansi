@@ -83,7 +83,7 @@ class DataFrameDateTimeconversion:
 def datetime_as_integer_timestamp(datetime: DateTimeType) -> int:
     """Try to return an integer timestamp given a datetime."""
 
-    try:  # Already int or str timestamp (SECONDS), or ...
+    try: # Already int or str timestamp (SECONDS), or ...
         return int(datetime)
     except ValueError:
         try:  # ... maybe a human readable datetime, or ...
@@ -100,8 +100,7 @@ def time_frame_to_seconds(time_frame: str) -> int:
     time_amount = int(time_frame.split(scale_unit)[0])
     return time_amount * conversor[scale_unit]
 
-
-def cooldown_time(attempt: int, max_cooldown_time="1h"):
+def cooldown_time(attempt:int, max_cooldown_time="1h"):
     """Returns a cooldown time which is exponentially depending to
     the number of attempts and rises asymptotically to the defined
     max_cooldown_time.
@@ -114,12 +113,11 @@ def cooldown_time(attempt: int, max_cooldown_time="1h"):
     Returns:
         [type]: [description]
     """
-    time_0 = 2  # To seconds minimum cooldown time
+    time_0 = 2 # To seconds minimum cooldown time
     max_time = time_frame_to_seconds(max_cooldown_time)
-    ref = 1000  # attempt index that implies t = ~0.63*max_cooldown_time
-    power = -((attempt - 1) / ref)
-    return int(max_time * (1 - math.exp(power)) + time_0)
-
+    ref = 1000 # attempt index that implies t = ~0.63*max_cooldown_time
+    power = -((attempt - 1)/ref)
+    return int(max_time*(1 - math.exp(power)) + time_0)
 
 def next_closed_candle_seconds_delay(
     time_frame: str, open_time: DateTimeType, **kwargs
@@ -142,8 +140,7 @@ def next_closed_candle_seconds_delay(
     next_close_time = timestamp_open_time + (2 * step)
     _time_until_next_closed_candle = next_close_time - now
 
-    return (
-        _time_until_next_closed_candle + 3  # A 3 sec delay
-        if _time_until_next_closed_candle <= 0
-        else int(step / 10)
+    return (_time_until_next_closed_candle + 3  # A 3 sec delay
+    if _time_until_next_closed_candle <= 0
+    else int(step / 10)
     )
