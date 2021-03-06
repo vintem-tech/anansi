@@ -1,3 +1,5 @@
+# pylint: disable=too-few-public-methods
+
 """Deals specifically with klines, delivering them formatted as pandas
 dataframes, with some extra methods, such as market indicators. This
 module also acts as a queue for requesting klines from the brokers, in
@@ -22,51 +24,6 @@ from ..utils.databases.time_series_storage.models import StorageKlines
 from ..utils.exceptions import BrokerError, KlinesError, StorageError
 from .operators import indicators
 
-pd.options.mode.chained_assignment = None
-
-
-@pd.api.extensions.register_dataframe_accessor("KlinesDateTime")
-class KlinesDateTime:
-    """Converts 'Open_time' and/or 'Close_time' columns items to/from
-    timestamp/human readable."""
-
-    def __init__(self, klines: pd.core.frame.DataFrame):
-        self._klines = klines
-
-    def from_human_readable_to_timestamp(self):
-        """If human readable str, returns associated int timestamp."""
-        self._klines.loc[:, "Open_time"] = self._klines.apply(
-            lambda date_time: ParseDateTime(
-                date_time["Open_time"]
-            ).from_human_readable_to_timestamp(),
-            axis=1,
-        )
-
-        if "Close_time" in self._klines:
-            self._klines.loc[:, "Close_time"] = self._klines.apply(
-                lambda date_time: ParseDateTime(
-                    date_time["Close_time"]
-                ).from_human_readable_to_timestamp(),
-                axis=1,
-            )
-
-    def from_timestamp_to_human_readable(self):
-        """If int timestamp, returns associated human readable str."""
-        self._klines.loc[:, "Open_time"] = self._klines.apply(
-            lambda date_time: ParseDateTime(
-                date_time["Open_time"]
-            ).from_timestamp_to_human_readable(),
-            axis=1,
-        )
-
-        if "Close_time" in self._klines:
-            self._klines.loc[:, "Close_time"] = self._klines.apply(
-                lambda date_time: ParseDateTime(
-                    date_time["Close_time"]
-                ).from_timestamp_to_human_readable(),
-                axis=1,
-            )
-
 
 @pd.api.extensions.register_dataframe_accessor("apply_indicator")
 class ApplyIndicator:
@@ -80,6 +37,27 @@ class ApplyIndicator:
         self.volume = indicators.Volume(self._klines)
 
 
+def remove_last_kline_if_unclosed(
+    klines: pd.DataFrame, time_frame: str
+) -> pd.DataFrame:
+    """If the last candle are not yet closed, it'll be elimated.
+
+    Args:
+        klines (pd.DataFrame): Candlesticks of the desired period Dataframe.
+
+    Returns:
+        pd.DataFrame: Adjusted Dataframe.
+    """
+
+    last_open_time = klines[-1:].Open_time.item()
+    delta_time = (pendulum.now(tz="UTC")).int_timestamp - last_open_time
+    unclosed = bool(delta_time < time_frame_to_seconds(time_frame))
+
+    if unclosed:
+        return klines[:-1]
+    return klines
+
+
 class KlinesFrom:
     """Parent class of FromBroker and Fromstorage"""
 
@@ -87,15 +65,15 @@ class KlinesFrom:
         "market",
         "time_frame",
         "oldest_open_time",
-        "newest_open_time",
         "storage",
+        "return_as_human_readable",
+        "ignore_unclosed_kline",
     ]
 
     def __init__(self, market: Market, time_frame: str = str()):
         self.market = market
         self.time_frame = time_frame
-        self.oldest_open_time: int = self._oldest_open_time()
-        self.newest_open_time: int = self._newest_open_time()
+        self.oldest_open_time = self._oldest_open_time()
         self.storage = StorageKlines(
             _id="{}_{}".format(
                 market.broker_name,
@@ -103,11 +81,14 @@ class KlinesFrom:
             ),
             time_frame=time_frame,
         )
+        self.return_as_human_readable = True
+        self.ignore_unclosed_kline = True
 
     def _oldest_open_time(self) -> int:
         raise NotImplementedError
 
-    def _newest_open_time(self) -> int:
+    def newest_open_time(self) -> int:
+        """The newest avaliable open time (integer timestamp)"""
         raise NotImplementedError
 
     def _get_core(self, since: int, until: int) -> pd.core.frame.DataFrame:
@@ -120,13 +101,15 @@ class KlinesFrom:
 
     def _until(self, since: int, number_samples: int) -> int:
         until = since + self._timestamp_delta(number_samples)
-        return (
-            until if until < self.newest_open_time else self.newest_open_time
+        return int(
+            until
+            if until < self.newest_open_time()
+            else self.newest_open_time()
         )
 
     def _since(self, until: int, number_samples: int) -> int:
         since = until - self._timestamp_delta(number_samples)
-        return (
+        return int(
             since if since > self.oldest_open_time else self.oldest_open_time
         )
 
@@ -146,8 +129,8 @@ class KlinesFrom:
             until = datetime_as_integer_timestamp(until)
             until = (
                 until
-                if until < self.newest_open_time
-                else self.newest_open_time
+                if until < self.newest_open_time()
+                else self.newest_open_time()
             )
 
         if since and until:  # This cover the scenario "start and stop and n"
@@ -166,9 +149,9 @@ class KlinesFrom:
                 """At least 2 of 3 arguments must be passed:
                 'since=', 'until=', 'number_samples='"""
             )
-        return time_range
+        return (*(int(timestamp) for timestamp in time_range),)
 
-    def get(self, human_readable=True, **kwargs) -> pd.core.frame.DataFrame:
+    def get(self, **kwargs) -> pd.core.frame.DataFrame:
         """Solves the request, if that contains at least 2 of these 3
         arguments: "since", "until", "number_samples".
 
@@ -177,9 +160,12 @@ class KlinesFrom:
 
         since, until = self._sanitize_get_input(**kwargs)
         klines = self._get_core(since, until)
-        klines = klines[until >= klines.Open_time >= since]
-        if human_readable:
-            klines.KlinesDateTime.from_timestamp_to_human_readable()
+        klines.set_index("Open_time").loc[since:until].reset_index()
+
+        if self.return_as_human_readable:
+            klines.apply_datetime_conversion.from_timestamp_to_human_readable(
+                target_columns=["Open_time"]
+            )
         return klines
 
     def oldest(self, number_samples=1) -> pd.core.frame.DataFrame:
@@ -209,7 +195,7 @@ class KlinesFrom:
             pd.core.frame.DataFrame: klines, dataframe with extra methods.
         """
         klines = self.get(
-            number_samples=number_samples, until=self.newest_open_time
+            number_samples=number_samples, until=self.newest_open_time()
         )
         _len = min(number_samples, len(klines))
         return klines[-_len:]
@@ -225,8 +211,8 @@ class FromBroker(KlinesFrom):
     __slots__ = [
         "_broker",
         "_time_frame",
-        "min_tf",
-        "append_to_storage",
+        "minimum_time_frame",
+        "store_klines_by_round",
         "infinite_attempts",
         "_request_step",
     ]
@@ -235,8 +221,8 @@ class FromBroker(KlinesFrom):
         self._broker = get_broker(market)
         self._time_frame = self._validate_tf(time_frame)
         super().__init__(market, self.time_frame)
-        self.min_tf = self._broker.settings.possible_time_frames[0]
-        self.append_to_storage: bool = False
+        self.minimum_time_frame = self._broker.settings.possible_time_frames[0]
+        self.store_klines_by_round: bool = False
         self.infinite_attempts: bool = False
         self._request_step = self.__request_step()
 
@@ -246,7 +232,7 @@ class FromBroker(KlinesFrom):
             if timeframe not in tf_list:
                 raise ValueError("Time frame must be in {}".format(tf_list))
         else:
-            timeframe = self.min_tf
+            timeframe = self.minimum_time_frame
         return timeframe
 
     @property
@@ -259,15 +245,9 @@ class FromBroker(KlinesFrom):
         self._time_frame = self._validate_tf(time_frame_to_set)
 
     def _oldest_open_time(self) -> int:
-        oldest_candle = self._broker.get_klines(
-            ticker_symbol=self.market.ticker_symbol,
-            time_frame=self._time_frame,
-            since=1,
-            number_samples=1,
-        )
-        return oldest_candle.Open_time.item()
+        return self._broker.oldest_kline(self.time_frame).Open_time.item()
 
-    def _newest_open_time(self) -> int:
+    def newest_open_time(self) -> int:
         return (pendulum.now(tz="UTC")).int_timestamp
 
     def __request_step(self) -> int:
@@ -281,13 +261,16 @@ class FromBroker(KlinesFrom):
         for timestamp in range(since, until + 1, self._request_step):
             attempt = 0
             while True:
-                if not self._broker.was_request_limit_reached():
+                if not self._broker.max_requests_limit_hit():
                     attempt += 1
                     try:
                         _klines = self._broker.get_klines(
-                            self._time_frame, since=timestamp
+                            time_frame=self._time_frame,
+                            since=timestamp,
                         )
                         klines = klines.append(_klines, ignore_index=True)
+                        if self.store_klines_by_round:
+                            self.storage.append(_klines)
                         break
 
                     except BrokerError as err:  # Usually connection issues.
@@ -301,8 +284,8 @@ class FromBroker(KlinesFrom):
                 else:
                     time.sleep(10)
 
-            if self.append_to_storage:  # timestamp (instead of human readable)
-                self.storage.append(_klines)
+        if self.ignore_unclosed_kline:
+            klines = remove_last_kline_if_unclosed(klines, self.time_frame)
         return klines
 
 
@@ -312,7 +295,7 @@ class FromStorage(KlinesFrom):
     def _oldest_open_time(self) -> int:
         return self.storage.oldest().Open_time.item()
 
-    def _newest_open_time(self) -> int:
+    def newest_open_time(self) -> int:
         return self.storage.newest().Open_time.item()
 
     def _get_core(self, since: int, until: int) -> pd.core.frame.DataFrame:
@@ -329,7 +312,7 @@ class ToStorage:
 
     def __init__(self, market: Market):
         self.klines = FromBroker(market)
-        self.klines.append_to_storage = True
+        self.klines.store_klines_by_round = True
         self.klines.infinite_attempts = True
 
     def create_backtesting(self, **kwargs) -> pd.core.frame.DataFrame:
@@ -345,7 +328,9 @@ class ToStorage:
             (klines) dataframe
         """
 
-        self.klines.time_frame = kwargs.get("time_frame", self.klines.min_tf)
+        self.klines.time_frame = kwargs.get(
+            "time_frame", self.klines.minimum_time_frame
+        )
         return self.klines.get(
             since=kwargs.get("since", self.klines.oldest_open_time),
             until=kwargs.get("until", self.klines.newest_open_time),
@@ -365,7 +350,7 @@ class PriceFromStorage:
         self.price_metrics = price_metrics
 
     def _valid_timestamp(self, timestamp: int) -> bool:
-        return bool(timestamp <= self.klines_getter.newest_open_time)
+        return bool(timestamp <= self.klines_getter.newest_open_time())
 
     def get_price_at(self, desired_datetime: DateTimeType) -> float:
         """A 'fake' past ticker price"""
@@ -378,15 +363,19 @@ class PriceFromStorage:
             try:
                 klines = self.klines_getter.get(
                     since=desired_datetime - 60000,
-                    until=_until
-                    if self._valid_timestamp(_until)
-                    else desired_datetime,
+                    until=(
+                        _until
+                        if self._valid_timestamp(_until)
+                        else desired_datetime
+                    ),
                 )
                 klines.apply_indicator.trend.price_from_kline(
                     self.price_metrics
                 )
-                klines.KlinesDateTime.from_human_readable_to_timestamp()
-                desired_kline = klines.loc[
+                klines.apply_datetime_conversion.from_human_readable_to_timestamp(
+                    target_columns=["Open_time"]
+                )
+                desired_kline = klines.loc[  #!TODO: Revisar isto
                     klines.Open_time == desired_datetime
                 ]
                 price = getattr(
@@ -401,7 +390,7 @@ class PriceFromStorage:
             raise ValueError(
                 "desired_datetime > newest stored datetime ({})!".format(
                     ParseDateTime(
-                        self.klines_getter.newest_open_time
+                        self.klines_getter.newest_open_time()
                     ).from_timestamp_to_human_readable()
                 )
             )
