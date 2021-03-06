@@ -7,7 +7,6 @@ from decimal import Decimal
 from typing import Union
 
 import pandas as pd
-import pendulum
 import requests
 from binance.client import Client as BinanceClient
 from binance.exceptions import BinanceOrderException
@@ -32,24 +31,6 @@ def get_response(endpoint: str) -> Union[requests.models.Response, None]:
     return None
 
 
-def remove_last_candle_if_unclosed(klines: pd.DataFrame) -> pd.DataFrame:
-    """If the last candle are not yet closed, it'll be elimated.
-
-    Args:
-        klines (pd.DataFrame): Candlesticks of the desired period Dataframe.
-
-    Returns:
-        pd.DataFrame: Adjusted Dataframe.
-    """
-    last_open_time = klines[-1:].Open_time.item()
-    delta_time = (pendulum.now(tz="UTC")).int_timestamp - last_open_time
-    unclosed = bool(delta_time < klines.attrs["SecondsTimeFrame"])
-
-    if unclosed:
-        return klines[:-1]
-    return klines
-
-
 class Broker:
     """Must be a model that groups broker needed low level functions"""
 
@@ -66,39 +47,46 @@ class Broker:
         """
         raise NotImplementedError
 
-    def was_request_limit_reached(self) -> bool:
-        """Boolean test to verify if the request limit, in the current
-        minute (for a given IP), has been reached.
+    def max_requests_limit_hit(self) -> bool:
+        """Boolean test to verify if the limit of broker requests,
+        on current minute (for a given IP), was hit.
 
         Returns (bool): Hit the limit?
         """
         raise NotImplementedError
 
-    def get_klines(
-        self, time_frame: str, ignore_opened_candle=True, **kwargs
-    ) -> pd.DataFrame:
+    def get_klines(self, time_frame: str, **kwargs) -> pd.core.frame.DataFrame:
         """Historical market data (candlesticks, OHLCV).
-
-        Returns (pd.DataFrame): N lines DataFrame, where 'N' is the number of
-        candlesticks returned by broker, which must be less than or equal to
-        the 'LIMIT_PER_REQUEST' parameter, defined in the broker's settings
-        (settings module). The dataframe columns represents the information
-        provided by the broker, declared by the parameter 'kline_information'
-        (settings, on the broker settings class).
 
         Args:
             time_frame (str): '1m', '2h', '1d'...
 
         **kwargs:
-            number_of_candles (int): Number or desired candelesticks
-            for request; must to respect the broker limits.
+            number_of_candles (int): Number or desired candelesticks for
+            request; must to respect the broker limits.
 
             It's possible to pass timestamps (seconds):
-            since (int): Open_time of the first candlestick on desired series
-            until (int): Open_time of the last candlestick on desired series
+            since (int): Open_time of the first kline
+            until (int): Open_time of the last kline
+
+        Returns (DataFrame):
+            N lines DataFrame, where 'N' is the number of candlesticks
+            returned by broker, which must be less than or equal to the
+            'LIMIT_PER_REQUEST' parameter, defined in the broker's
+            settings (settings module). The dataframe columns represents
+            the information provided by the broker, declared by the
+            parameter 'kline_information' (settings, on the broker
+            settings class).
         """
 
         raise NotImplementedError
+
+    def oldest_kline(self, time_frame: str) -> pd.core.frame.DataFrame:
+        """Oldest avaliable kline of this time frame"""
+
+        return self.get_klines(
+            time_frame=time_frame, since=1, number_samples=1
+        ).iloc[0]
 
     def get_price(self, **kwargs) -> float:
         """Instant average trading price"""
@@ -138,7 +126,7 @@ class Binance(Broker):
         return int(float(time_str) / 1000)
 
     @DocInherit
-    def was_request_limit_reached(self) -> bool:
+    def max_requests_limit_hit(self) -> bool:
         ping_endpoint = self.settings.ping_endpoint
         request_weight_per_minute = self.settings.request_weight_per_minute
         requests_on_current_minute = int(
@@ -149,9 +137,7 @@ class Binance(Broker):
         return False
 
     @DocInherit
-    def get_klines(
-        self, time_frame: str, ignore_opened_candle=True, **kwargs
-    ) -> pd.DataFrame:
+    def get_klines(self, time_frame: str, **kwargs) -> pd.DataFrame:
         since: int = kwargs.get("since")
         until: int = kwargs.get("until")
         number_of_candles: int = kwargs.get("number_of_candles")
@@ -174,9 +160,6 @@ class Binance(Broker):
             datetime_unit=self.settings.datetime_unit,
             columns=self.settings.kline_information,
         ).to_dataframe()
-
-        if ignore_opened_candle:
-            klines = remove_last_candle_if_unclosed(klines)
 
         if self.settings.show_only_desired_info:
             return klines[self.settings.klines_desired_informations]
