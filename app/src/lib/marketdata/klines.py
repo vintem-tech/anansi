@@ -119,17 +119,17 @@ class KlinesFrom:
         number_samples: int = kwargs.get("number_samples")
 
         if since:
-            since = datetime_as_integer_timestamp(since)
+            _since = datetime_as_integer_timestamp(since)
             since = (
-                since
-                if since > self.oldest_open_time
+                _since
+                if _since > self.oldest_open_time
                 else self.oldest_open_time
             )
         if until:
-            until = datetime_as_integer_timestamp(until)
+            _until = datetime_as_integer_timestamp(until)
             until = (
-                until
-                if until < self.newest_open_time()
+                _until
+                if _until < self.newest_open_time()
                 else self.newest_open_time()
             )
 
@@ -160,7 +160,7 @@ class KlinesFrom:
 
         since, until = self._sanitize_get_input(**kwargs)
         klines = self._get_core(since, until)
-        klines.set_index("Open_time").loc[since:until].reset_index()
+        klines = klines.set_index("Open_time").loc[since:until].reset_index()
 
         if self.return_as_human_readable:
             klines.apply_datetime_conversion.from_timestamp_to_human_readable(
@@ -333,7 +333,7 @@ class ToStorage:
         )
         return self.klines.get(
             since=kwargs.get("since", self.klines.oldest_open_time),
-            until=kwargs.get("until", self.klines.newest_open_time),
+            until=kwargs.get("until", self.klines.newest_open_time()),
         )
 
 
