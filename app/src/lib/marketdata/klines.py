@@ -160,9 +160,11 @@ class KlinesFrom:
 
         since, until = self._sanitize_get_input(**kwargs)
         _klines = self._get_core(since, until)
-        
+
         try:
-            klines = _klines.set_index("Open_time").loc[since:until].reset_index()
+            klines = (
+                _klines.set_index("Open_time").loc[since:until].reset_index()
+            )
         except KeyError:
             klines = _klines
 
@@ -262,38 +264,29 @@ class FromBroker(KlinesFrom):
 
     def _get_core(self, since: int, until: int) -> pd.core.frame.DataFrame:
         klines = pd.DataFrame()
-        _round = 0
         for timestamp in range(since, until + 1, self._request_step):
-            _round+=1
             attempt = 0
             while True:
-                if not self._broker.max_requests_limit_hit():
-                    attempt += 1
-                    try:
+                try:
+                    if self._broker.max_requests_limit_hit():
+                        time.sleep(10)
+                    else:
+                        attempt += 1
                         _klines = self._broker.get_klines(
                             time_frame=self._time_frame,
                             since=timestamp,
                         )
                         klines = klines.append(_klines, ignore_index=True)
                         if self.store_klines_by_round:
-                            print("round {}".format(_round))
-                            try:
-                                self.storage.append(_klines)
-                                #time.sleep(10)
-                            except StorageError as err:
-                                raise Exception.with_traceback(err) from StorageError
+                            self.storage.append(_klines)
                         break
 
-                    except BrokerError as err:  # Usually connection issues.
-                        if self.infinite_attempts:
-                            print("Fail, due the error: ", err)
-                            time.sleep(cooldown_time(attempt))
-                        else:
-                            raise Exception.with_traceback(
-                                err
-                            ) from BrokerError
-                else:
-                    time.sleep(10)
+                except (BrokerError, StorageError) as err:
+                    if self.infinite_attempts:
+                        print("Fail, due the error: ", err)
+                        time.sleep(cooldown_time(attempt))
+                    else:
+                        raise Exception.with_traceback(err) from BrokerError
 
         if self.ignore_unclosed_kline:
             klines = remove_last_kline_if_unclosed(klines, self.time_frame)
@@ -344,10 +337,9 @@ class ToStorage:
         )
         _since = kwargs.get("since", self.klines.oldest_open_time)
         _until = kwargs.get("until", self.klines.newest_open_time())
-        
-        #return _since, _until
-        
-        
+
+        # return _since, _until
+
         return self.klines.get(
             since=kwargs.get("since", self.klines.oldest_open_time),
             until=kwargs.get("until", self.klines.newest_open_time()),
