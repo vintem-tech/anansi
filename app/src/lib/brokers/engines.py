@@ -23,9 +23,9 @@ DocInherit = documentation.DocInherit
 def get_response(endpoint: str) -> Union[requests.models.Response, None]:
     """A try/cath to handler with request/response."""
     try:
-        with requests.get(endpoint) as response:
-            if response.status_code == 200:
-                return response
+        response = requests.get(endpoint)
+        if response.status_code == 200:
+            return response
     except ConnectionError as error:
         raise Exception.with_traceback(error) from ConnectionError
     return None
