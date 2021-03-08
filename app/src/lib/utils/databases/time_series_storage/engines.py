@@ -8,6 +8,7 @@ implementations. For now, it just have influxdb implementation."""
 
 import pandas as pd
 from influxdb_client import InfluxDBClient, WriteOptions
+from influxdb_client.client.write_api import ASYNCHRONOUS, SYNCHRONOUS
 from influxdb_client.client.exceptions import InfluxDBError
 from .....config.settings import InfluxDbSettings
 
@@ -43,7 +44,8 @@ class InfluxDb:
 
         client = InfluxDBClient(**self.settings.credentials)
         write_client = client.write_api(
-            write_options=WriteOptions(**self.settings.write_opts)
+            #write_options=WriteOptions(**self.settings.write_opts),
+            write_options=ASYNCHRONOUS,
         )
         write_client.write(
             bucket=self.bucket,
