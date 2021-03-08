@@ -229,7 +229,7 @@ class FromBroker(KlinesFrom):
         self._time_frame = self._validate_tf(time_frame)
         super().__init__(market, self.time_frame)
         self.store_klines_by_round: bool = False
-        self.infinite_attempts: bool = False
+        self.infinite_attempts: bool = True
         self._request_step = self.__request_step()
 
     def _validate_tf(self, timeframe: str):
@@ -317,7 +317,6 @@ class ToStorage:
     def __init__(self, market: Market):
         self.klines = FromBroker(market)
         self.klines.store_klines_by_round = True
-        self.klines.infinite_attempts = True
 
     def create_backtesting(self, **kwargs) -> pd.core.frame.DataFrame:
         """Any (valid!) timeframe klines, on interval [since, until].
