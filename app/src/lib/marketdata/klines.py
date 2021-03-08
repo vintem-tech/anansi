@@ -159,8 +159,12 @@ class KlinesFrom:
             pd.core.frame.DataFrame: Requested klines range."""
 
         since, until = self._sanitize_get_input(**kwargs)
-        klines = self._get_core(since, until)
-        klines = klines.set_index("Open_time").loc[since:until].reset_index()
+        _klines = self._get_core(since, until)
+        
+        try:
+            klines = _klines.set_index("Open_time").loc[since:until].reset_index()
+        except KeyError:
+            klines = _klines
 
         if self.return_as_human_readable:
             klines.apply_datetime_conversion.from_timestamp_to_human_readable(
@@ -210,8 +214,8 @@ class FromBroker(KlinesFrom):
 
     __slots__ = [
         "_broker",
-        "_time_frame",
         "minimum_time_frame",
+        "_time_frame",
         "store_klines_by_round",
         "infinite_attempts",
         "_request_step",
@@ -219,9 +223,9 @@ class FromBroker(KlinesFrom):
 
     def __init__(self, market: Market, time_frame: str = str()):
         self._broker = get_broker(market)
+        self.minimum_time_frame = self._broker.settings.possible_time_frames[0]
         self._time_frame = self._validate_tf(time_frame)
         super().__init__(market, self.time_frame)
-        self.minimum_time_frame = self._broker.settings.possible_time_frames[0]
         self.store_klines_by_round: bool = False
         self.infinite_attempts: bool = False
         self._request_step = self.__request_step()
@@ -258,7 +262,9 @@ class FromBroker(KlinesFrom):
 
     def _get_core(self, since: int, until: int) -> pd.core.frame.DataFrame:
         klines = pd.DataFrame()
+        _round = 0
         for timestamp in range(since, until + 1, self._request_step):
+            _round+=1
             attempt = 0
             while True:
                 if not self._broker.max_requests_limit_hit():
@@ -270,7 +276,12 @@ class FromBroker(KlinesFrom):
                         )
                         klines = klines.append(_klines, ignore_index=True)
                         if self.store_klines_by_round:
-                            self.storage.append(_klines)
+                            print("round {}".format(_round))
+                            try:
+                                self.storage.append(_klines)
+                                #time.sleep(10)
+                            except StorageError as err:
+                                raise Exception.with_traceback(err) from StorageError
                         break
 
                     except BrokerError as err:  # Usually connection issues.
@@ -331,6 +342,12 @@ class ToStorage:
         self.klines.time_frame = kwargs.get(
             "time_frame", self.klines.minimum_time_frame
         )
+        _since = kwargs.get("since", self.klines.oldest_open_time)
+        _until = kwargs.get("until", self.klines.newest_open_time())
+        
+        #return _since, _until
+        
+        
         return self.klines.get(
             since=kwargs.get("since", self.klines.oldest_open_time),
             until=kwargs.get("until", self.klines.newest_open_time()),
