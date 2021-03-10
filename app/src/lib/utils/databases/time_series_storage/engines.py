@@ -7,7 +7,7 @@ collections from/to files and/or databases, abstracting the needed
 implementations. For now, it just have influxdb implementation."""
 
 import pandas as pd
-#from influxdb_client import InfluxDBClient, WriteOptions
+from influxdb_client import InfluxDBClient #, WriteOptions
 from influxdb_client.client.write_api import ASYNCHRONOUS #, SYNCHRONOUS
 from influxdb_client.client.exceptions import InfluxDBError
 from .....config.settings import InfluxDbSettings
