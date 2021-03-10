@@ -97,8 +97,8 @@ class StorageKlines(Storage):
 
     def _timestamp_delta(self, n: int) -> int:
         tf_sec = time_frame_to_seconds(self.time_frame)
-        _minimal_n = tf_sec / 60
-        _raw_n = _minimal_n + n + 2  # +2 for a safety margin.
+        _minimum_n = tf_sec / 60
+        _raw_n = _minimum_n + n + 90  # +2 for a safety margin.
         return int(tf_sec * _raw_n)
 
     def _until(self, since: int, n: int) -> int:
