@@ -73,7 +73,6 @@ class KlinesFrom:
     def __init__(self, market: Market, time_frame: str = str()):
         self.market = market
         self.time_frame = time_frame
-        self.oldest_open_time = self._oldest_open_time()
         self.storage = StorageKlines(
             _id="{}_{}".format(
                 market.broker_name,
@@ -81,6 +80,7 @@ class KlinesFrom:
             ),
             time_frame=time_frame,
         )
+        self.oldest_open_time = self._oldest_open_time()
         self.return_as_human_readable = True
         self.ignore_unclosed_kline = True
 
