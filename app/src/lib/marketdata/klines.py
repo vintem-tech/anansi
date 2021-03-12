@@ -161,12 +161,7 @@ class KlinesFrom:
         since, until = self._sanitize_get_input(**kwargs)
         _klines = self._get_core(since, until)
 
-        try:
-            klines = (
-                _klines.set_index("Open_time").loc[since:until].reset_index()
-            )
-        except KeyError:
-            klines = _klines
+        klines = _klines[_klines.Open_time <= until]
 
         if self.return_as_human_readable:
             klines.apply_datetime_conversion.from_timestamp_to_human_readable(
@@ -218,7 +213,7 @@ class FromBroker(KlinesFrom):
         "_broker",
         "minimum_time_frame",
         "_time_frame",
-        "store_klines_by_round",
+        "store_klines_round_by_round",
         "infinite_attempts",
         "_request_step",
     ]
@@ -228,7 +223,7 @@ class FromBroker(KlinesFrom):
         self.minimum_time_frame = self._broker.settings.possible_time_frames[0]
         self._time_frame = self._validate_tf(time_frame)
         super().__init__(market, self.time_frame)
-        self.store_klines_by_round: bool = False
+        self.store_klines_round_by_round: bool = False
         self.infinite_attempts: bool = True
         self._request_step = self.__request_step()
 
@@ -277,7 +272,7 @@ class FromBroker(KlinesFrom):
                             since=timestamp,
                         )
                         klines = klines.append(_klines, ignore_index=True)
-                        if self.store_klines_by_round:
+                        if self.store_klines_round_by_round:
                             self.storage.append(_klines)
                         break
 
@@ -286,7 +281,7 @@ class FromBroker(KlinesFrom):
                         print("Fail, due the error: ", err)
                         time.sleep(cooldown_time(attempt))
                     else:
-                        raise Exception.with_traceback(err) from BrokerError
+                        raise Exception.with_traceback(err) from err
 
         if self.ignore_unclosed_kline:
             klines = remove_last_kline_if_unclosed(klines, self.time_frame)
@@ -297,14 +292,14 @@ class FromStorage(KlinesFrom):
     """Entrypoint for requests to the stored klines"""
 
     def _oldest_open_time(self) -> int:
-        return self.storage.oldest().Open_time.item()
+        return self.storage.oldest().Open_time.item() - 2
 
     def newest_open_time(self) -> int:
-        return self.storage.newest().Open_time.item()
+        return self.storage.newest().Open_time.item() + 2
 
     def _get_core(self, since: int, until: int) -> pd.core.frame.DataFrame:
         try:
-            return self.storage.get(since=since, until=until)
+            return self.storage.get(since=since - 2, until=until + 2)
         except StorageError as err:
             raise Exception.with_traceback(err) from StorageError
 
@@ -316,7 +311,7 @@ class ToStorage:
 
     def __init__(self, market: Market):
         self.klines = FromBroker(market)
-        self.klines.store_klines_by_round = True
+        self.klines.store_klines_round_by_round = True
 
     def create_backtesting(self, **kwargs) -> pd.core.frame.DataFrame:
         """Any (valid!) timeframe klines, on interval [since, until].
@@ -334,11 +329,6 @@ class ToStorage:
         self.klines.time_frame = kwargs.get(
             "time_frame", self.klines.minimum_time_frame
         )
-        _since = kwargs.get("since", self.klines.oldest_open_time)
-        _until = kwargs.get("until", self.klines.newest_open_time())
-
-        # return _since, _until
-
         return self.klines.get(
             since=kwargs.get("since", self.klines.oldest_open_time),
             until=kwargs.get("until", self.klines.newest_open_time()),
