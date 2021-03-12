@@ -24,15 +24,45 @@ services:
       - postgres
 
   influxdb:    
-    image: influxdb:2.0
+    image: influxdb:1.7.4
     restart: unless-stopped
     env_file:
       - '.env'
     ports:
-      - '$INFLUXDB_PORT:8086'
+      - '$INFLUXDB_PORT:8086' 
     volumes:
-      - influxdb2_data:/var/lib/influxdb2
-      - influxdb2_config:/etc/influxdb2
+      - influxdb-data:/var/lib/influxdb
+      - influxdb-config:/etc/influxdb/
+
+  chronograf: # Some influxdb controllers
+    image: chronograf:latest
+    environment:
+    - BASE_PATH=/chronograf
+    restart: unless-stopped
+    volumes:
+      - chronograf-storage:/var/lib/chronograf
+    ports:
+      - '$CHRONOGRAF_PORT:8888'
+    depends_on:
+      - influxdb
+    env_file:
+      - '.env'
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    container_name: grafana
+    env_file:
+      - '.env'
+    user: "0"
+    links:
+      - influxdb
+    volumes:
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini
+      - ./grafana:/etc/grafana/provisioning/datasources
+      - ./grafana:/var/lib/grafana
+    ports: 
+      - '$GRAFANA_PORT:3000'
 
 #  app:
 #    build: app/
@@ -43,19 +73,27 @@ services:
 #    - influxdb
 #    - postgres
 
-#  nginx:
-#    build: nginx/
-#    env_file:
-#      - '.env'
-#    ports: 
-#      - '80:80'
-#    restart: unless-stopped
-#    volumes:
-#      - ./nginx/content:/var/www/html
-#      - ./nginx/sites/:/etc/nginx/conf.d
+  nginx:
+    build: nginx/
+    env_file:
+      - '.env'
+    ports: 
+      - '80:80'
+    restart: unless-stopped
+    volumes:
+      - ./content:/var/www/html
+      - ./nginx/sites/:/etc/nginx/conf.d
     
-#    depends_on:
+    depends_on:
+    - influxdb
+    - grafana
+    - chronograf
 #    - app
+
+
+
+
+
 
 volumes:
   postgres:
@@ -66,10 +104,14 @@ volumes:
     driver: local
     name: pgadmin
 
-  influxdb2_data:
+  influxdb-data:
     driver: local
-    name: influxdb2_data
-
-  influxdb2_config:
+    name: influxdb-data
+  
+  influxdb-config:
     driver: local
-    name: influxdb2_config
+    name: influxdb-config
+  
+  chronograf-storage:
+    driver: local
+    name: chronograf-storage
