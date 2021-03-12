@@ -1,35 +1,36 @@
-# pylint: disable=E1120
-# pylint: disable=E1123
+import collections
 
-"""This module deals with timeseries collections saving. Initially
-designed for saving klines, it must be able to read write timeseries
-collections from/to files and/or databases, abstracting the needed
-implementations. For now, it just have influxdb implementation."""
-
+import sys
 import pandas as pd
-from influxdb_client import InfluxDBClient #, WriteOptions
-from influxdb_client.client.write_api import ASYNCHRONOUS #, SYNCHRONOUS
-from influxdb_client.client.exceptions import InfluxDBError
-from .....config.settings import InfluxDbSettings
+from environs import Env
+from influxdb import DataFrameClient  # Influxdb v1.8
+
+thismodule = sys.modules[__name__]
+
+env = Env()
+
+influxdb_params = dict(
+    host=env.str("INFLUXDB_HOST", default="localhost"),
+    port=env.int("INFLUXDB_PORT", default=8086),
+    username=env.str("INFLUXDB_USER", default="Anansi"),
+    password=env.str("INFLUXDB_USER_PASSWORD", default="anansi2020"),
+    gzip=env.bool("INFLUXDB_GZIP", default=True),
+)
 
 
 class InfluxDb:
-    """An interface layer on top of the influxdb python client,
-    useful for the rest of the system.
 
-    For influxdb information:
-    https://github.com/influxdata/influxdb-client-python
+    """For influxdb information:
+    https://influxdb-python.readthedocs.io/en/latest/api-documentation.html#dataframeclient
     """
 
     __slots__ = [
-        "settings",
-        "bucket",
+        "database",
         "measurement",
     ]
 
-    def __init__(self, bucket: str, measurement: str):
-        self.settings = InfluxDbSettings()
-        self.bucket = bucket
+    def __init__(self, database: str, measurement: str):
+        self.database = database
         self.measurement = measurement
 
     def append(self, dataframe: pd.core.frame.DataFrame) -> None:
@@ -37,143 +38,36 @@ class InfluxDb:
 
         Args:
             dataframe (pd.core.frame.DataFrame): Timeseries dataframe
+
+        For retention policy, follow below example, and declare the
+        'retention_policy=name' at 'client.write_points':
+
+        client.create_retention_policy(name="long_duration",
+        replication=1, duration='INF') or
+
+        client.alter_retention_policy(name="short_duration",
+        replication=1, duration='10d')
         """
+        client = DataFrameClient(**influxdb_params)
+        client.create_database(self.database)
 
-        dataframe.Timestamp = pd.to_datetime(dataframe.Timestamp, unit="s")
-        dataframe.set_index("Timestamp", inplace=True)
-
-        client = InfluxDBClient(**self.settings.credentials)
-        write_client = client.write_api(
-            #write_options=WriteOptions(**self.settings.write_opts),
-            write_options=ASYNCHRONOUS,
-        )
-        write_client.write(
-            bucket=self.bucket,
-            org=client.org,
-            record=dataframe,
-            data_frame_measurement_name=self.measurement,
+        client.write_points(
+            dataframe=dataframe,
+            measurement=self.measurement,
+            tags=None,
+            tag_columns=None,
+            field_columns=list(dataframe.columns),
+            time_precision=None,
+            database=self.database,
+            # retention_policy=None,
+            batch_size=None,
+            protocol="line",
+            numeric_precision=None,
         )
         client.close()
 
-    def _drop_influxdb_columns(
-        self,
-        dataframe: pd.core.frame.DataFrame,
-    ) -> pd.core.frame.DataFrame:
-        returned_columns = list(dataframe.columns)
-        columns_to_drop = [
-            column
-            for column in returned_columns
-            if column in self.settings.system_columns
-        ]
-        return dataframe.drop(columns=columns_to_drop)
-
-    def dataframe_query(
-        self, query: str, drop_influxdb_columns=True
-    ) -> pd.core.frame.DataFrame:
-        """Given a sanitized query*, (flux language format, influxdb v2),
-        returns the request measurement formated as a pandas dataframe.
-        Args:
-            query (str): flux query*
-            drop_influxdb_columns (bool, optional): If True, drops the
-            columns created by the influxdb. Defaults to True.
-
-        Returns:
-            pd.core.frame.DataFrame: Pandas dataframe, created from the
-            returned influxdb measurement, following the conversion:
-
-            [influx]                 -> [dataframe]
-            table.fields.values      -> columns
-            table.records.row.values -> row
-        """
-
-        client = InfluxDBClient(**self.settings.credentials)
-        query_api = client.query_api()
-
-        try:
-            dataframe = query_api.query_data_frame(query)
-            if not dataframe.empty:
-                dataframe = dataframe.rename(columns={"_time": "Timestamp"})
-                dataframe.Timestamp = (
-                    dataframe.Timestamp.astype("int64") // 10 ** 9
-                )
-                if drop_influxdb_columns:
-                    dataframe = self._drop_influxdb_columns(dataframe)
-
-            client.close()
-            return dataframe
-        except InfluxDBError as error:
-            raise Exception.with_traceback(error) from InfluxDBError
-        return None
-
-    def _get_by_range(self, start: int, stop: int) -> pd.core.frame.DataFrame:
-        query = """
-            from(bucket: "{}")
-            |> range(start: {}, stop: {})
-            |> filter(fn: (r) => r["_measurement"] == "{}")
-            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-            """.format(
-            self.bucket, start, stop, self.measurement
-        )
-        return self.dataframe_query(query)
-
-    def _get_by_start_n(self, start: int, n: int) -> pd.core.frame.DataFrame:
-        query = """
-            from(bucket: "{}")
-            |> range(start: {}, stop: now())
-            |> limit(n:{})
-            |> filter(fn: (r) => r["_measurement"] == "{}")
-            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-            """.format(
-            self.bucket, start, n, self.measurement
-        )
-        return self.dataframe_query(query)
-
-    def _get_by_stop_n(self, stop: int, n: int) -> pd.core.frame.DataFrame:
-        query = """
-            from(bucket: "{}")
-            |> range(start: 0, stop: {})
-            |> tail(n:{})
-            |> filter(fn: (r) => r["_measurement"] == "{}")
-            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-            """.format(
-            self.bucket, stop, n, self.measurement
-        )
-        return self.dataframe_query(query)
-
-    def get(self, **kwargs) -> pd.core.frame.DataFrame:
-        """Solves the request, if that contains at least 2 of these
-        3 arguments: "start", "stop", "n".
-
-        Returns:
-            pd.core.frame.DataFrame: Requested measurement range.
-        """
-
-        start = kwargs.get("start")
-        stop = kwargs.get("stop")
-        n = kwargs.get("n")
-
-        if start and n:  # This cover the scenario "start and stop and n"
-            dataframe = self._get_by_start_n(start, n)
-
-        elif start and stop and not n:
-            dataframe = self._get_by_range(start, stop)
-
-        elif stop and n and not start:
-            dataframe = self._get_by_stop_n(stop, n)
-
-        else:
-            dataframe = pd.DataFrame()
-            raise ValueError(
-                "At least 2 of 3 arguments (start, stop, n) must be passed"
-            )
-        return dataframe
-
-    def oldest(self, n=1):
-        _dataframe = self.get(start="0", n=n)
-        _len = min(n, len(_dataframe))
-        return _dataframe[:_len]
-
-    def newest(self, n=1):
-        _dataframe = self.get(stop="now()", n=n)
-        _len = min(n, len(_dataframe))
-        return _dataframe[-_len:]
+    def proceed(self, query_to_proceed) -> collections.defaultdict:
+        client = DataFrameClient(**influxdb_params)
+        query_result = client.query(query_to_proceed)
+        client.close()
+        return query_result
