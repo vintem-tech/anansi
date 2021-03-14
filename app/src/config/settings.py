@@ -32,22 +32,34 @@ class PostgresDatabase(RelationalDatabase):
 
 
 class InfluxDbSettings(BaseModel):
-    credentials = dict(
-        url=env.str("INFLUXDB_HOST", default="http://localhost:8086"),
-        token=env.str("DOCKER_INFLUXDB_INIT_ADMIN_TOKEN", default="Y7&>vj{N"),
-        org=env.str("DOCKER_INFLUXDB_INIT_ORG", default="anansi"),
-        debug=False,
-    )
-    write_opts = dict(
-        batch_size=1000,
-        flush_interval=1000,
-        jitter_interval=0,
-        retry_interval=5000,
-        max_retries=5,
-        max_retry_delay=1000,
-        exponential_base=2,
-    )
-    system_columns = ["result", "table", "_start", "_stop", "_measurement"]
+    class V1:
+        credentials = dict(
+            host=env.str("INFLUXDB_HOST", default="localhost"),
+            port=env.int("INFLUXDB_PORT", default=8086),
+            username=env.str("INFLUXDB_USER", default="Anansi"),
+            password=env.str("INFLUXDB_USER_PASSWORD", default="anansi2020"),
+            gzip=env.bool("INFLUXDB_GZIP", default=True),
+        )
+
+    class V2:
+        credentials = dict(
+            url=env.str("INFLUXDB_HOST", default="http://localhost:8086"),
+            token=env.str(
+                "DOCKER_INFLUXDB_INIT_ADMIN_TOKEN", default="Y7&>vj{N"
+            ),
+            org=env.str("DOCKER_INFLUXDB_INIT_ORG", default="anansi"),
+            debug=False,
+        )
+        write_opts = dict(
+            batch_size=1000,
+            flush_interval=1000,
+            jitter_interval=0,
+            retry_interval=5000,
+            max_retries=5,
+            max_retry_delay=1000,
+            exponential_base=2,
+        )
+        system_columns = ["result", "table", "_start", "_stop", "_measurement"]
 
 
 class BrokerSettings(BaseModel):
