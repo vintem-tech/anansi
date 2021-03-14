@@ -4,7 +4,6 @@
 """An interface layer over influxdb timeseries database.
 Documentation: https://www.influxdata.com/"""
 
-import collections
 import sys
 
 import pandas as pd
@@ -18,6 +17,7 @@ from influxdb_client.client.write_api import ASYNCHRONOUS
 from .....config.settings import InfluxDbSettings
 
 thismodule = sys.modules[__name__]
+
 
 class Engine:
     __slots__ = [
@@ -50,6 +50,7 @@ class Engine:
 
     def newest(self, n=1):
         raise NotImplementedError
+
 
 class InfluxDbV1(Engine):
     """Documentation:
@@ -96,22 +97,37 @@ class InfluxDbV1(Engine):
         )
         client.close()
 
-    def dataframe_query(self, query) -> collections.defaultdict:
+    def dataframe_query(self, query) -> pd.core.frame.DataFrame:
         """Given a sanitized query (InfluxQL language), returns the
         requested measurement formated as a pandas dataframe."""
+
         client = DataFrameClient(**self.settings.credentials)
         query_result = client.query(query)
         client.close()
-        return query_result
+
+        _dataframe = list(query_result.values())[0]
+        _dataframe.reset_index(inplace=True)
+        _dataframe = _dataframe.rename(columns={"index": "Timestamp"})
+        _dataframe.Timestamp = _dataframe.Timestamp.astype("int64") // 10 ** 9
+
+        return _dataframe
 
     def get(self, **kwargs) -> pd.core.frame.DataFrame:
         raise NotImplementedError
 
-    def oldest(self, n=1):
-        raise NotImplementedError
+    def oldest(self, n=1) -> pd.core.frame.DataFrame:
+        query = """SELECT * FROM "{}"."autogen"."{}" ORDER BY ASC LIMIT {}
+        """.format(
+            self.database, self.table, n
+        )
+        return self.dataframe_query(query)
 
     def newest(self, n=1):
-        raise NotImplementedError
+        query = """SELECT * FROM "{}"."autogen"."{}" ORDER BY DESC LIMIT {}
+        """.format(
+            self.database, self.table, n
+        )
+        return self.dataframe_query(query)
 
 
 class InfluxDbV2(Engine):
