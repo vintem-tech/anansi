@@ -1,54 +1,52 @@
 import pandas as pd
+
+from ....tools.time_handlers import time_frame_to_seconds
 from .engines import InfluxDbV1 as InfluxDb
-
-
-
 
 
 class StorageKlines:
     __slots__ = [
         "table",
         "database",
-        "agent",
+        "time_frame",
+        "engine",
+        "_oldest_open_time",
+        "_newest_open_time",
     ]
 
-    def __init__(self, table: str, database: str):
+    def __init__(self, table: str, time_frame: str):
+        self.database = "klines"
         self.table = table
-        self.database = database
-        self.agent = InfluxDb(database=database, measurement=table)
-
-    def seconds_timestamp_of_oldest_record(self, time_frame: str) -> int:
-        oldest_query = """
-            SELECT first("Open") AS "Open" FROM "{}"."autogen"."{}" GROUP BY
-            time({}) FILL(linear) ORDER BY ASC LIMIT 1
-            """.format(
-            self.database,
-            self.table,
-            time_frame
-        )
-        oldest = (self.agent.proceed(oldest_query))[self.table]
-        return int(pd.Timestamp(oldest.index[0]).timestamp())
-
-    def seconds_timestamp_of_newest_record(self, time_frame: str) -> int:
-        newest_query = """
-            SELECT first("Open") AS "Open" FROM "{}"."autogen"."{}" GROUP BY
-            time({}) FILL(linear) ORDER BY DESC LIMIT 1
-            """.format(
-            self.database,
-            self.table,
-            time_frame
-        )
-        newest = (self.agent.proceed(newest_query))[self.table]
-        return int(pd.Timestamp(newest.index[0]).timestamp())
+        self.time_frame = time_frame
+        self.engine = InfluxDb(self.database, table)
+        self._oldest_open_time = self.engine.oldest().Timestamp.item()
+        self._newest_open_time = self.engine.newest().Timestamp.item()
 
     def append(self, klines: pd.core.frame.DataFrame):
-        work_klines = klines.copy()
+        _klines = klines.copy()
 
-        work_klines.Open_time = pd.to_datetime(work_klines.Open_time, unit="s")
-        work_klines.set_index("Open_time", inplace=True)
-        self.agent.append(work_klines)
+        _klines.Open_time = pd.to_datetime(_klines.Open_time, unit="s")
+        _klines.set_index("Open_time", inplace=True)
+        self.engine.append(_klines)
 
-    def get_raw_klines(self, start_time: int, end_time: int, time_frame: str):
+    def _timestamp_delta(self, n: int) -> int:
+        seconds_time_frame = time_frame_to_seconds(self.time_frame)
+        minimum_n = seconds_time_frame / 60
+        return int(seconds_time_frame * (minimum_n + n + 1))
+
+    def _until(self, since: int, n: int) -> int:
+        until = since + self._timestamp_delta(n)
+        return (
+            until if until < self._newest_open_time else self._newest_open_time
+        )
+
+    def _since(self, until: int, n: int) -> int:
+        since = until - self._timestamp_delta(n)
+        return (
+            since if since > self._oldest_open_time else self._oldest_open_time
+        )
+
+    def get_by_time_range(self, since, until) -> pd.core.frame.DataFrame:
         const = 10 ** 9  # Coversion sec <--> nanosec
         klines_query = """
         SELECT first("Open") AS "Open", max("High") AS "High", min("Low") AS 
@@ -58,22 +56,34 @@ class StorageKlines:
         """.format(
             self.database,
             self.table,
-            str(const * start_time),
-            str(const * end_time),
-            time_frame,
+            str(const * since),
+            str(const * until),
+            self.time_frame,
         )
-        return self.agent.proceed(klines_query)
-
-    def get_klines(
-        self, start_time: int, end_time: int, time_frame: str
-    ) -> pd.core.frame.DataFrame:
-        const = 10 ** 9  # Coversion sec <--> nanosec
-
-        _klines = self.get_raw_klines(start_time, end_time, time_frame)
-        klines = _klines[self.table]
-
-        klines.reset_index(inplace=True)
-        klines = klines.rename(columns={"index": "Open_time"})
-        klines.Open_time = klines.Open_time.values.astype(np.int64) // const
+        _klines = self.engine.dataframe_query(klines_query)
+        klines = _klines.rename(columns={"Timestamp": "Open_time"})
         return klines
 
+    def oldest(self, n=1) -> pd.core.frame.DataFrame:
+        _since = self._oldest_open_time
+        klines = self.get_by_time_range(
+            since=_since, until=self._until(_since, n)
+        )
+        _len = min(n, len(klines))
+        return klines[:_len]
+
+    def newest(self, n=1) -> pd.core.frame.DataFrame:
+        klines = pd.DataFrame()
+        _until = self._newest_open_time
+        _klines = self.get_by_time_range(
+            since=self._since(_until, n), until=_until
+        )
+        _len = min(n, len(_klines))
+        klines = klines.append(_klines[-_len:], ignore_index=True)
+        return klines
+
+    def oldest_open_time(self) -> int:
+        return self.oldest().Open_time.item()
+
+    def newest_open_time(self) -> int:
+        return self.newest().Open_time.item()
