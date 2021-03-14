@@ -35,21 +35,21 @@ services:
       - influxdb-config:/etc/influxdb/
 
   chronograf: # Some influxdb controllers
-    image: chronograf:latest
+    image: chronograf:1.8.8-alpine
     environment:
     - BASE_PATH=/chronograf
     restart: unless-stopped
     volumes:
       - chronograf-storage:/var/lib/chronograf
-    ports:
-      - '$CHRONOGRAF_PORT:8888'
+#    ports:
+#      - '$CHRONOGRAF_PORT:8888'
     depends_on:
       - influxdb
     env_file:
       - '.env'
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:7.4.3
     restart: unless-stopped
     container_name: grafana
     env_file:
@@ -61,8 +61,8 @@ services:
       - ./grafana/grafana.ini:/etc/grafana/grafana.ini
       - ./grafana:/etc/grafana/provisioning/datasources
       - ./grafana:/var/lib/grafana
-    ports: 
-      - '$GRAFANA_PORT:3000'
+#    ports: 
+#      - '$GRAFANA_PORT:3000'
 
 #  app:
 #    build: app/
@@ -81,19 +81,14 @@ services:
       - '80:80'
     restart: unless-stopped
     volumes:
-      - ./content:/var/www/html
+      - ./nginx/content:/var/www/html
       - ./nginx/sites/:/etc/nginx/conf.d
     
     depends_on:
-    - influxdb
-    - grafana
-    - chronograf
+      - influxdb
+      - grafana
+      - chronograf
 #    - app
-
-
-
-
-
 
 volumes:
   postgres:
