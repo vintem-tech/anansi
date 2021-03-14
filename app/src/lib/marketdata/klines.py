@@ -74,7 +74,7 @@ class KlinesFrom:
         self.market = market
         self.time_frame = time_frame
         self.storage = StorageKlines(
-            _id="{}_{}".format(
+            table="{}_{}".format(
                 market.broker_name,
                 market.ticker_symbol.lower(),
             ),
@@ -96,8 +96,8 @@ class KlinesFrom:
 
     def _timestamp_delta(self, number_samples: int) -> int:
         return int(
-            time_frame_to_seconds(self.time_frame) * (number_samples + 1)
-        )  # +1 sample for a safety margin.
+            time_frame_to_seconds(self.time_frame) * (number_samples - 1)
+        )
 
     def _until(self, since: int, number_samples: int) -> int:
         until = since + self._timestamp_delta(number_samples)
@@ -159,6 +159,7 @@ class KlinesFrom:
             pd.core.frame.DataFrame: Requested klines range."""
 
         since, until = self._sanitize_get_input(**kwargs)
+        print(since)
         _klines = self._get_core(since, until)
 
         klines = _klines[_klines.Open_time <= until]
@@ -292,14 +293,14 @@ class FromStorage(KlinesFrom):
     """Entrypoint for requests to the stored klines"""
 
     def _oldest_open_time(self) -> int:
-        return self.storage.oldest().Open_time.item() - 2
+        return self.storage.oldest_open_time()
 
     def newest_open_time(self) -> int:
-        return self.storage.newest().Open_time.item() + 2
+        return self.storage.newest_open_time()
 
     def _get_core(self, since: int, until: int) -> pd.core.frame.DataFrame:
         try:
-            return self.storage.get(since=since - 2, until=until + 2)
+            return self.storage.get_by_time_range(since, until)
         except StorageError as err:
             raise Exception.with_traceback(err) from StorageError
 
