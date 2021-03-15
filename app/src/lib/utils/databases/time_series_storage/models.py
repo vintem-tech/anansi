@@ -84,6 +84,51 @@ class StorageKlines:
         return self.newest().Open_time.item()
 
 
+class StorageResults:
+    __slots__ = [
+        "table",
+        "database",
+        "engine",
+    ]
+
+    def __init__(self, table: str):
+        self.database = "results"
+        self.table = table
+        self.engine = InfluxDb(self.database, table)
+
+    def append(self, dataframe: pd.core.frame.DataFrame):
+        try:
+            result = dataframe.rename(columns={"Open_time": "Timestamp"})
+        except KeyError:  # Datetime column already named "Timestamp"
+            result = dataframe
+
+        result.apply_datetime_conversion.from_human_readable_to_timestamp(
+            target_columns=["Timestamp"]
+        )
+        result.Timestamp = pd.to_datetime(result.Timestamp, unit="s")
+        result.set_index("Timestamp", inplace=True)
+        self.engine.append(result)
+
+    @staticmethod
+    def _as_human_readable(
+        result: pd.core.frame.DataFrame,
+    ) -> pd.core.frame.DataFrame:
+
+        result.apply_datetime_conversion.from_timestamp_to_human_readable(
+            target_columns=["Timestamp"]
+        )
+        return result
+
+    def get(self, **kwargs) -> pd.core.frame.DataFrame:
+        return self._as_human_readable(result=self.engine.get(**kwargs))
+
+    def oldest(self, n=1) -> pd.core.frame.DataFrame:
+        return self._as_human_readable(result=self.engine.oldest(n))
+
+    def newest(self, n=1) -> pd.core.frame.DataFrame:
+        return self._as_human_readable(result=self.engine.oldest(n))
+
+
 ## Influxdb version 2.x Backup
 
 # import pandas as pd
