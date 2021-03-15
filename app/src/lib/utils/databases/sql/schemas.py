@@ -186,7 +186,6 @@ class BackTestingSetup(BaseModel):
     fee_rate_decimal: float
     start_datetime: DateTimeType
     end_datetime: DateTimeType
-    wallet: dict
 
 
 class Classifier(BaseModel):
