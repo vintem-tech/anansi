@@ -182,13 +182,11 @@ class Order(BaseModel):
 class BackTestingSetup(BaseModel):
     """Backtesting attributes"""
 
-    #is_on: bool
     price_metrics: str
     fee_rate_decimal: float
-    start_timeframe: int
-    end_timeframe: int
+    start_datetime: DateTimeType
+    end_datetime: DateTimeType
     wallet: dict
-    #initial_portfolio: Portfolio
 
 
 class Classifier(BaseModel):
@@ -196,6 +194,7 @@ class Classifier(BaseModel):
 
     name: str
     setup: BaseModel
+
 
 class StopLoss(BaseModel):
     """Stoploss handler attributes"""
@@ -205,11 +204,21 @@ class StopLoss(BaseModel):
     setup: BaseModel
 
 
+class Broadcasters(BaseModel):
+    """Stores the possible trading signals"""
+
+    print_on_screen: str = "print_on_screen"
+    telegram: str = "telegram"
+    whatsapp: str = "whatsapp"
+    email: str = "email"
+    push: str = "push"
+
+
 class NotifierSetup(BaseModel):
     """Notifier handler attributes"""
 
     debug: bool
-    debug_message_every: str # e.g. "1m", "5m", "2h" ...
+    debug_message_every: str  # e.g. "1m", "5m", "2h" ...
     broadcasters: List
 
 
@@ -255,17 +264,17 @@ class MonitorSetup(BaseModel):
 
     classifier: Classifier
     stoploss: StopLoss
-    #backtesting: Optional[BackTesting]
     market: Market
     default_order_type: str
     allow_naked_sells: bool
 
+
 class Modes:
     real_trading: str = "real_trading"
     test_trading: str = "test_trading"
-    backtesting:str = "backtesting"
+    backtesting: str = "backtesting"
 
-# Parameters collections
+
 class Signals(BaseModel):
     """Stores the possible trading signals"""
 
@@ -277,13 +286,3 @@ class Signals(BaseModel):
     double_buy: str = "double_buy"
     long_stopped: str = "long_stopped"
     short_stopped: str = "short_stopped"
-
-
-class Broadcasters(BaseModel):
-    """Stores the possible trading signals"""
-
-    print_on_screen: str = "print_on_screen"
-    telegram: str = "telegram"
-    whatsapp: str = "whatsapp"
-    email: str = "email"
-    push: str = "push"
