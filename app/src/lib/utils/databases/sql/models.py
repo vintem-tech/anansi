@@ -1,4 +1,4 @@
-#import json
+import json
 
 import pandas as pd
 from pony.orm import Database, Json, Optional, Required, Set, commit, sql_debug
@@ -46,7 +46,7 @@ class Position(db.Entity, AttributeUpdater):
 
 
 class LastCheck(db.Entity, AttributeUpdater):
-    Monitor = Optional(lambda: Monitor)  # Foreing key
+    monitor = Optional(lambda: Monitor)  # Foreing key
     by_classifier_at = Optional(int)  # UTC timestamp
     by_stop_loss_at = Optional(int)  # UTC timestamp
 
@@ -57,12 +57,19 @@ class Monitor(db.Entity, AttributeUpdater):
     position = Required(Position, cascade_delete=True)
     last_check = Required(LastCheck, cascade_delete=True)
     trade_log = Set(lambda: TradeLog, cascade_delete=True)
-    #is_running = Required(bool, default=True)
+
+    def setup(self):
+        return Deserialize(name="setup").from_json(self._setup)
 
     def save_result(
-        self, database: str, result: pd.core.frame.DataFrame
+        self, result_type: str, result: pd.core.frame.DataFrame
     ) -> None:
-        storage = StorageResults(table=str(self.id), database=database)
+
+        exchange = self.setup().market.exchange
+        symbol = self.setup().market.ticker_symbol
+        table = "{}_{}_{}".format(exchange, symbol, result_type)
+
+        storage = StorageResults(table)
         storage.append(result)
 
     def get_last_result(self) -> pd.core.frame.DataFrame:
@@ -71,9 +78,6 @@ class Monitor(db.Entity, AttributeUpdater):
     def report_trade(self, payload):
         self.trade_log.create(**payload)
         commit()
-
-    def setup(self):
-        return Deserialize(name="setup").from_json(self._setup)
 
     def reset(self):
         self.last_check.update(by_classifier_at=0)
@@ -91,21 +95,26 @@ class TradeLog(db.Entity):
     fee = Optional(float)  # base_asset units
     quote_amount = Optional(float)
 
-class Operation(db.Entity):
+
+class Operation(db.Entity, AttributeUpdater):
     monitors = Set(Monitor, cascade_delete=True)
     mode = Required(str, default=modes.backtesting)
     is_running = Required(bool, default=False)
     _notifier_setup = Required(Json)
     _backtesting_setup = Optional(Json)
+    wallet = Optional(Json)
 
     def notifier_setup(self):
         return Deserialize(name="setup").from_json(self._notifier_setup)
 
     def backtesting_setup(self):
         return Deserialize(name="setup").from_json(self._backtesting_setup)
-    
+
     def reset(self):
-        raise NotImplementedError
+        self.update(wallet=json.dumps(dict(USDT=1000.00)))
+
+        for monitor in self.monitors:
+            monitor.reset()
 
 
 db.generate_mapping(create_tables=True)
