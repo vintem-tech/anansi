@@ -75,7 +75,7 @@ class KlinesFrom:
         self.time_frame = time_frame
         self.storage = StorageKlines(
             table="{}_{}".format(
-                market.broker_name,
+                market.broker_name.lower(),
                 market.ticker_symbol.lower(),
             ),
             time_frame=time_frame,
