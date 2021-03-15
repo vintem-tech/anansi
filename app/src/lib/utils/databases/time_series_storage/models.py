@@ -88,7 +88,7 @@ class StorageKlines:
     def newest_open_time(self) -> int:
         return self.newest().Open_time.item()
 
-## Version 2.x Backup
+## Influxdb version 2.x Backup
 
 # import pandas as pd
 # import pendulum
