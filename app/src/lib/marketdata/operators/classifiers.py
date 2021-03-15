@@ -49,7 +49,7 @@ class DidiClassifier:
 
     def get_data_until(self, desired_datetime: DateTimeType) -> None:
         self.data = self.klines_getter.get(
-            until=desired_datetime, number_of_candles=self.number_of_samples()
+            until=desired_datetime, number_samples=self.number_of_samples()
         )
 
     def apply_indicators_pipeline(self):
@@ -58,7 +58,7 @@ class DidiClassifier:
             setup=self.setup.bollinger_bands
         )
 
-    def _didi_factor(self):
+    def _didi_score(self):
         _len = self.result_length + self.extra_length
         delta_inversion = abs(
             self.didi_inversion.index_of_fast
@@ -67,7 +67,7 @@ class DidiClassifier:
         return (_len - delta_inversion) / _len
 
     def _didi_analysis(self, result: pd.core.frame.DataFrame, index: int):
-        self.result.loc[index, "Didi_factor"] = 0.0
+        self.result.loc[index, "Didi_score"] = 0.0
 
         previous_slow = result.iloc[0].Didi_slow
         slow = result.iloc[1].Didi_slow
@@ -84,7 +84,7 @@ class DidiClassifier:
 
         didi_trend = 1 if slow < 0 < fast else -1 if fast < 0 < slow else 0
         if didi_trend != 0:
-            self.result.loc[index, "Didi_factor"] = self._didi_factor()
+            self.result.loc[index, "Didi_score"] = self._didi_score()
 
         self.result.loc[index, "Didi_trend"] = didi_trend
 
@@ -128,22 +128,38 @@ class DidiClassifier:
             result = self.result[i - 2 : i]
             self._didi_analysis(result, i)
             self._bollinger_analysis(result, i)
-            self.result.loc[i, "Result"] = (
-                self.result.iloc[i].Didi_trend * self.result.iloc[i].Bollinger
+            result_i = self.result.iloc[i]
+            self.result.loc[i, "Score"] = (
+                result_i.Didi_trend * result_i.Bollinger * result_i.Didi_score
             )
 
-    def get_restult_at(
-        self, desired_datetime: DateTimeType
-    ) -> pd.core.frame.DataFrame:
-
+    def _proceed(self):
         result = pd.DataFrame()
-        self.get_data_until(desired_datetime)
         self.apply_indicators_pipeline()
         self.evaluate_indicators_results()
         result = result.append(
             self.result[-self.result_length :], ignore_index=True
         )
         return result
+
+    def apply_on(
+        self, klines: pd.core.frame.DataFrame
+    ) -> pd.core.frame.DataFrame:
+
+        reference_len = self.number_of_samples()
+        if len(klines) < reference_len:
+            raise IndexError(
+                "Klines must have at least {} rows.".format(reference_len)
+            )
+        self.data = klines
+        return self._proceed()
+
+    def get_restult_at(
+        self, desired_datetime: DateTimeType
+    ) -> pd.core.frame.DataFrame:
+
+        self.get_data_until(desired_datetime)
+        return self._proceed()
 
 
 def get_classifier(payload: ClassifierPayLoad):
