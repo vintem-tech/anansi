@@ -159,7 +159,6 @@ class KlinesFrom:
             pd.core.frame.DataFrame: Requested klines range."""
 
         since, until = self._sanitize_get_input(**kwargs)
-        print(since)
         _klines = self._get_core(since, until)
 
         klines = _klines[_klines.Open_time <= until]
