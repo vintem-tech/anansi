@@ -74,12 +74,11 @@ default_notifier_setup = NotifierSetup(
     broadcasters=[broadcasters.print_on_screen],
 )
 
-default_backtesting = BackTestingSetup(
+default_backtesting_setup = BackTestingSetup(
     price_metrics="ohlc4",
     fee_rate_decimal=0.001,
     start_datetime="2020-01-01 00:00:00",
     end_datetime="2021-03-14 00:00:00",
-    wallet=dict(USDT=1000.00, BTC=0.0),
 )
 
 default_monitor_setup = MonitorSetup(
