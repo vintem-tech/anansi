@@ -13,7 +13,7 @@ broadcasters = Broadcasters()
 default_market = Market(
     broker_name="Binance",
     quote_symbol="BTC",
-    base_symbol="EUR",
+    base_symbol="USDT",
     ticker_symbol="BTCUSDT",
 )
 
@@ -68,34 +68,35 @@ default_stop_loss = StopLoss(
     setup=default_stoploss_setup,
 )
 
-default_notifier = Notifier(
-    debug=True, broadcasters=[broadcasters.print_on_screen]
+default_notifier_setup = NotifierSetup(
+    debug=True,
+    debug_message_every="2h",
+    broadcasters=[broadcasters.print_on_screen],
 )
 
-default_backtesting = BackTesting(
-    is_on=True,
+default_backtesting = BackTestingSetup(
     price_metrics="ohlc4",
     fee_rate_decimal=0.001,
-    initial_portfolio=Portfolio(quote=0.0, base=1000.0),
+    start_datetime="2020-01-01 00:00:00",
+    end_datetime="2021-03-14 00:00:00",
+    wallet=dict(USDT=1000.00, BTC=0.0),
 )
 
-default_operational_setup = OperationalSetup(
+default_monitor_setup = MonitorSetup(
     classifier=default_classifier,
     stoploss=default_stop_loss,
-    notifier=default_notifier,
-    backtesting=default_backtesting,
     market=default_market,
     default_order_type="market",
     allow_naked_sells=False,
 )
 
-default_backtesting_operational_setup = default_operational_setup
-default_real_trading_setup = default_operational_setup
-default_test_trading_setup = default_operational_setup
+# default_backtesting_operational_setup = default_operational_setup
+# default_real_trading_setup = default_operational_setup
+# default_test_trading_setup = default_operational_setup
 
 
-def get_operational_setup_for(operation_mode: str) -> OperationalSetup:
-    """Returns the desired operational_setup given an operation_mode"""
-    return getattr(
-        thismodule, "default_{}_operational_setup".format(operation_mode)
-    ).json()
+# def get_operational_setup_for(operation_mode: str) -> OperationalSetup:
+#    """Returns the desired operational_setup given an operation_mode"""
+#    return getattr(
+#        thismodule, "default_{}_operational_setup".format(operation_mode)
+#    ).json()
