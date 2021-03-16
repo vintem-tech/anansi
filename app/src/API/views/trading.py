@@ -1,73 +1,51 @@
+# pylint: disable=no-member
 """Interface between trade logic and the user"""
 
-from pony.orm import db_session
+from pony.orm import commit
 
-from ...config.defaults import default_monitor_setup
-from ...lib.utils.databases.sql.models import (
-    LastCheck,
-    Monitor,
-    Operation,
-    Position,
+from ...config.setups import (
+    BackTesting,
+    Notifier,
+    OperationalSetup,
+    default_binance_monitored_markets,
 )
-from ...lib.utils.databases.sql.schemas import MonitorSetup
+from ...lib.utils.databases.sql.models import Operation
+from ...lib.utils.databases.sql.schemas import OperationalModes
+
+modes = OperationalModes()
 
 
+def create_operation_with_monitors(
+    operation_name: str, mode, setup, notifier, market_list, **kwargs
+) -> Operation:
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-@db_session
-def create_monitor(setup: MonitorSetup):
-    Monitor(
-        _setup=setup,
-        position=Position(),
-        last_check=LastCheck(by_classifier_at=0),
+    payload = dict(
+        name=operation_name,
+        mode=mode,
+        _setup=setup.json(),
+        _notifier=notifier.json(),
     )
 
+    if mode == modes.backtesting:
+        backtesting = kwargs.get("backtesting")
+        if not backtesting:
+            raise KeyError("Backtesting must be passed on backtesting mode")
 
-@db_session
-def create_default_monitor():
-    create_monitor(setup=default_monitor_setup)
+        payload = dict(**payload, _backtesting=backtesting.json())
+
+    operation = Operation(**payload)
+    commit()
+
+    operation.create_monitors(market_list)
+    return Operation[operation.id]
 
 
-# Estudar na documentação do Pony como criar objetos relacionados
-
-
-@db_session
-def create_operation(operational_setup: OperationalSetup):
-    """Given an operational setup, creates an operation"""
-
-    Operation(
-        json_setup=operational_setup,
-        position=Position(),
-        last_check=LastCheck(by_classifier_at=0),
+def create_default_operation_with_monitors(name: str) -> Operation:
+    return create_operation_with_monitors(
+        operation_name=name,
+        mode=modes.backtesting,
+        setup=OperationalSetup(),
+        notifier=Notifier(),
+        market_list=default_binance_monitored_markets(),
+        backtesting=BackTesting(),
     )
-
-
-@db_session
-def create_default_operation(operation_mode: str):
-    """Given an operation mode ('backtesting', 'real_trading' or
-    'test_trading'), creates an operation"""
-
-    setup = get_operational_setup_for(operation_mode)
-    create_operation(setup)
