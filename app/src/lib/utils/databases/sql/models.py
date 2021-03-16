@@ -22,11 +22,11 @@ class AttributeUpdater(object):
             commit()
 
 
-#class User(db.Entity, AttributeUpdater):
+# class User(db.Entity, AttributeUpdater):
 #    raise NotImplementedError
 
 
-#class Settings(db.Entity, AttributeUpdater):
+# class Settings(db.Entity, AttributeUpdater):
 #    raise NotImplementedError
 
 
@@ -99,7 +99,7 @@ class Operation(db.Entity, AttributeUpdater):
     name = Required(str, unique=True)
     monitors = Set(Monitor, cascade_delete=True)
     mode = Required(str, default=modes.backtesting)
-    wallet = Optional(Json) # Only needed if backtesting
+    wallet = Optional(Json)  # Only needed if backtesting
     _setup = Required(Json)
     _notifier = Required(Json)
     _backtesting = Optional(Json)
