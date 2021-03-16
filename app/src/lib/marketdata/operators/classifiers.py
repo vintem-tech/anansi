@@ -13,6 +13,10 @@ from ..klines import klines_getter
 
 thismodule = sys.modules[__name__]
 
+avaliable = [
+    "DidiClassifier",
+]
+
 
 class DidiClassifier:
     class DidiInversion:
