@@ -25,9 +25,9 @@ class PostgresDatabase(RelationalDatabase):
             provider="postgres",
             host=env.str("DB_HOST", default="localhost"),
             port=env.int("POSTGRES_PORT", default=5432),
-            database=env.str("POSTGRES_DB", default="ANANSI"),
-            user=env.str("POSTGRES_USER", default="anansi"),
-            password=env.str("POSTGRES_PASSWORD", default="anansi"),
+            database=env.str("POSTGRES_DB", default="anansi_postgres"),
+            user=env.str("POSTGRES_USER", default="anansi_user"),
+            password=env.str("POSTGRES_PASSWORD", default="!@*_anansi_pass_123"),
         )
 
 
