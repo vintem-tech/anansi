@@ -1,17 +1,15 @@
-from ...config.messages import NotifierHeader
-from ...config.settings import system_settings
+from ..config.messages import NotifierHeader
+from ..config.settings import system_settings
 from .broadcasters import get
 
 settings = system_settings()
 header = NotifierHeader()
 
-class OperationalNotifier:
+class Notifier:
     def __init__(self, operation):
-        self.operation = operation
-        self.setup = operation.operational_setup()
         self.broadcasters = [
             get(broadcaster)
-            for broadcaster in self.setup.notifier.broadcasters
+            for broadcaster in operation.setup().notifier.broadcasters
         ]
 
     def _spam(self, msg: str, method: str) -> None:
