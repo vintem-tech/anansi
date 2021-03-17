@@ -15,6 +15,39 @@ sig = Signals()
 mode = OperationalModes()
 
 
+class Signal:
+    def __init__(self, from_side: str, to_side: str, by_stop=False):
+        self.from_side = from_side.capitalize()
+        self.to_side = to_side.capitalize()
+        self.by_stop = by_stop
+
+    def generate(self):
+        if self.from_side == self.to_side:
+            return sig.hold
+
+        if self.from_side == "Zeroed":
+            if self.to_side == "Long":
+                return sig.buy
+            if self.to_side == "Short":
+                return sig.naked_sell
+
+        if self.from_side == "Long":
+            if self.to_side == "Zeroed":
+                if self.by_stop:
+                    return sig.long_stopped
+                return sig.sell
+            if self.to_side == "Short":
+                return sig.double_naked_sell
+
+        if self.from_side == "Short":
+            if self.to_side == "Zeroed":
+                if self.by_stop:
+                    return sig.short_stopped
+                return sig.buy
+            if self.to_side == "Long":
+                return sig.double_buy
+
+
 class Analyzer:
     def __init__(self, monitor: Monitor):
         self.monitor = monitor
@@ -28,7 +61,7 @@ class Analyzer:
         self.step = time_frame_to_seconds(setup.classifier.setup.time_frame)
         self.result = pd.DataFrame()
         self.now: int = None
-        self.signal:str = sig.hold
+        self.signal: str = sig.hold
 
     def _is_a_new_analysis_needed(self) -> bool:
         last_check = self.monitor.last_check.by_classifier_at
