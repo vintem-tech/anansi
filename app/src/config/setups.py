@@ -157,7 +157,7 @@ def default_binance_monitored_markets() -> List[Market]:
             base_symbol=base,
             ticker_symbol="{}{}".format(quote, base),
         )
-        for quote in quotes
         for base in bases
+        for quote in quotes
         if quote != base
     ]
