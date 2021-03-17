@@ -3,8 +3,8 @@ import sys
 
 import telegram
 
-from ...config.settings import system_settings
-from ...tools.formatting import ConvertString
+from ..config.settings import system_settings
+from ..lib.tools.formatting import ConvertString
 
 thismodule = sys.modules[__name__]
 settings = system_settings()
@@ -38,9 +38,6 @@ class Telegram(Base):
 
 
 class PrintOnScreen(Base):
-    def __init__(self):
-        super().__init__()
-
     def debug(self, msg: str):
         print(msg)
 
