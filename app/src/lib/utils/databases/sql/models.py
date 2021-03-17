@@ -128,5 +128,10 @@ class Operation(db.Entity, AttributeUpdater):
             )
             commit()
 
+    def list_of_active_monitors(self) -> list:
+        monitors = [monitor for monitor in self.monitors if monitor.is_active]
+        monitors.sort()
+        return monitors
+
 
 db.generate_mapping(create_tables=True)
