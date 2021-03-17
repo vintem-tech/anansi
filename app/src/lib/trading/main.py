@@ -51,24 +51,34 @@ class Signal:
 class Analyzer:
     def __init__(self, monitor: Monitor):
         self.monitor = monitor
-        setup = monitor.operation.setup()
+        self.setup = monitor.operation.setup()
         payload = ClassifierPayLoad(
             market=monitor.market(),
-            classifier=setup.classifier,
+            classifier=self.setup.classifier,
             backtesting=bool(monitor.operation.mode == mode.backtesting),
         )
         self.classifier = get_classifier(payload)
-        self.step = time_frame_to_seconds(setup.classifier.setup.time_frame)
         self.result = pd.DataFrame()
         self.now: int = None
         self.signal: str = sig.hold
 
     def _is_a_new_analysis_needed(self) -> bool:
         last_check = self.monitor.last_check.by_classifier_at
-        return bool(self.now >= last_check + self.step)
+        step = time_frame_to_seconds(self.setup.classifier.setup.time_frame)
+        return bool(self.now >= last_check + step)
 
     def check_for_signal(self):
-        raise NotImplementedError
+        score = self.result.score
+        side = (
+            "Long"
+            if score > 0.3
+            else "Sell"
+            if score < -0.3 and self.setup.allow_naked_sells
+            else "Zeroed"
+        )
+        self.signal = Signal(
+            from_side=self.monitor.position.side, to_side=side
+        ).generate()
 
     def check_at(self, desired_datetime: DateTimeType):
         self.signal = sig.hold
