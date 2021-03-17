@@ -30,16 +30,17 @@ class AttributeUpdater(object):
 #    raise NotImplementedError
 
 
-class Portfolio(db.Entity, AttributeUpdater):
-    position = Optional(lambda: Position)  # Foreing key
-    quote = Optional(float)
-    base = Optional(float)
+#class Portfolio(db.Entity, AttributeUpdater):
+#    position = Optional(lambda: Position)  # Foreing key
+#    quote = Optional(float)
+#    base = Optional(float)
 
 
 class Position(db.Entity, AttributeUpdater):
     monitor = Optional(lambda: Monitor)  # Foreing key
-    portfolio = Optional(Portfolio, cascade_delete=True)
+#    portfolio = Optional(Portfolio, cascade_delete=True)
     side = Required(str, default="Zeroed")
+    size = Required(float, default=0.0) # by quote
     enter_price = Optional(float)
     timestamp = Optional(int)
     exit_reference_price = Optional(float)
@@ -80,8 +81,7 @@ class Monitor(db.Entity, AttributeUpdater):
 
     def reset(self):
         self.last_check.update(by_classifier_at=0)
-        self.position.update(side="Zeroed")
-        self.position.portfolio.update(quote=0.0, base=0.0)
+        self.position.update(side="Zeroed", size=0.0)
         self.trade_logs.clear()
         commit()
 
