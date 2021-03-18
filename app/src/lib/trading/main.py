@@ -10,42 +10,10 @@ from ..utils.databases.sql.schemas import (
     OperationalModes,
     Signals,
 )
+from .order_handler import get_order_handler, Signal
 
 sig = Signals()
 mode = OperationalModes()
-
-
-class Signal:
-    def __init__(self, from_side: str, to_side: str, by_stop=False):
-        self.from_side = from_side.capitalize()
-        self.to_side = to_side.capitalize()
-        self.by_stop = by_stop
-
-    def generate(self):
-        if self.from_side == self.to_side:
-            return sig.hold
-
-        if self.from_side == "Zeroed":
-            if self.to_side == "Long":
-                return sig.buy
-            if self.to_side == "Short":
-                return sig.naked_sell
-
-        if self.from_side == "Long":
-            if self.to_side == "Zeroed":
-                if self.by_stop:
-                    return sig.long_stopped
-                return sig.sell
-            if self.to_side == "Short":
-                return sig.double_naked_sell
-
-        if self.from_side == "Short":
-            if self.to_side == "Zeroed":
-                if self.by_stop:
-                    return sig.short_stopped
-                return sig.buy
-            if self.to_side == "Long":
-                return sig.double_buy
 
 
 class Analyzer:
@@ -72,7 +40,7 @@ class Analyzer:
         side = (
             "Long"
             if score > 0.3
-            else "Sell"
+            else "Short"
             if score < -0.3 and self.setup.allow_naked_sells
             else "Zeroed"
         )
@@ -90,32 +58,33 @@ class Analyzer:
             self.check_for_signal()
 
 
-class StopLoss:
-    def __init__(self, monitor: Monitor):
-        self.monitor = monitor
+# class StopLoss:
+#    def __init__(self, monitor: Monitor):
+#        self.monitor = monitor
 
 
-class OrderHandler:
-    def __init__(self, operation: Operation):
-        self.operation = operation
+# class OrderHandler:
+#    def __init__(self, operation: Operation):
+#        self.operation = operation
 
 
 class Trader:
     def __init__(self, operation: Operation):
         self.notifier = Notifier(operation)
-        self.order = OrderHandler(operation)
+        self.order_handler = get_order_handler(operation)
         self.monitors = operation.list_of_active_monitors()
         self.analyzers = [Analyzer(monitor) for monitor in self.monitors]
-        self.stop_loss = [StopLoss(monitor) for monitor in self.monitors]
+
+    #        self.stop_loss = [StopLoss(monitor) for monitor in self.monitors]
 
     def check_at(self, desired_datetime: DateTimeType):
-        for stop in self.stop_loss:
-            stop.check_at(desired_datetime)
+        #        for stop in self.stop_loss:
+        #            stop.check_at(desired_datetime)
 
         for analyzer in self.analyzers:
             analyzer.check_at(desired_datetime)
 
-        self.order.handler(
+        self.order_handler.process(
             analyzers=[
                 analyzer
                 for analyzer in self.analyzers
