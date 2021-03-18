@@ -2,29 +2,29 @@
 
 import pandas as pd
 
-from ...repositories.sql_app.schemas import Order, Portfolio
-from ...repositories.sql_app.schemas import Signals as sig
 from ..marketdata.klines import PriceFromStorage
+from ..utils.databases.sql.schemas import Order, Portfolio, Signals
 
+sig = Signals()
 
 class BackTestingBroker:
     """Handle with orders, in case of backtesting"""
 
-    def __init__(self, operation):
-        self.operation = operation
-        self.setup = operation.operational_setup()
-        self.fee_rate_decimal = self.setup.backtesting.fee_rate_decimal
+    def __init__(self, monitor):
+        self.monitor = monitor
+        self.setup = monitor.operation.backtesting()
+        self.fee_rate_decimal = self.setup.fee_rate_decimal
         self.order = Order()
         self.portfolio = Portfolio()
         self.order_id = 1
 
-    def get_price(self, **kwargs) -> float:
+    def get_price_at(self, desired_datetime) -> float:
         """Instant (past or present) artificial average trading price"""
 
         return PriceFromStorage(
-            market=self.setup.market,
-            price_metrics=self.setup.backtesting_price_metrics,
-        ).get_price_at(desired_datetime=kwargs.get("at_time"))
+            market=self.monitor.market(),
+            price_metrics=self.setup.price_metrics,
+        ).get_price_at(desired_datetime)
 
     def get_portfolio(self) -> Portfolio:
         """The portfolio composition, given a market"""
