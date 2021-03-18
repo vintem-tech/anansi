@@ -35,7 +35,7 @@ DateTimeType = Union[str, int]
 
 
 class Market(BaseModel):
-    """ Market attributes """
+    """Market attributes"""
 
     broker_name: str
     quote_symbol: str
@@ -43,7 +43,6 @@ class Market(BaseModel):
     ticker_symbol: str
 
 
-#! Ainda necessário?
 class Portfolio(BaseModel):
     """Market are formed by trading between 'quote' and 'base' assets,
     this class shows the quantity of each asset, given a certain
@@ -77,6 +76,7 @@ class Quant(BaseModel):
 class Order(BaseModel):
     """Order parameters collection"""
 
+    test_order: bool = False
     timestamp: Optional[int]
     order_id: Optional[Union[str, int]]
     order_type: Optional[str]
@@ -87,7 +87,6 @@ class Order(BaseModel):
     suggested_quantity: Optional[float]
     signal: Optional[str]
     price: Optional[float]
-    test_order: bool = False
     proceeded_quantity: Optional[float]
     fulfilled: Optional[bool]
     fee: Optional[float]
