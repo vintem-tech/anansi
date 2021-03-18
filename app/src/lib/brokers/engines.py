@@ -65,7 +65,6 @@ class Broker:
             number_of_candles (int): Number or desired candelesticks for
             request; must to respect the broker limits.
 
-            It's possible to pass timestamps (seconds):
             since (int): Open_time of the first kline
             until (int): Open_time of the last kline
 
