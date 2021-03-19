@@ -8,17 +8,22 @@ import pandas as pd
 from ...log import Notifier
 from ..brokers.backtesting import BackTestingBroker
 from ..brokers.engines import get_broker
-from ..tools.serializers import Deserialize
+
+# from ..tools.serializers import Deserialize
 from ..tools.time_handlers import ParseDateTime
-from ..utils.databases.sql.models import Operation
+from ..utils.databases.sql.models import Monitor, Operation
 from ..utils.databases.sql.schemas import DateTimeType, Order, Signals
+
+
+from ..utils.databases.sql.schemas import OperationalModes
 
 # from typing import Optional, Union
 
 # from pydantic import BaseModel
 
-sig = Signals()
 thismodule = sys.modules[__name__]
+sig = Signals()
+modes = OperationalModes()
 
 
 class Signal:
@@ -54,80 +59,43 @@ class Signal:
                 return sig.double_buy
 
 
-class OrderHandler:
-    def __init__(self, operation: Operation):
-        self.operation = operation
-        self.setup = operation.setup()
-        #self.broker = self._get_broker(operation)
-        self.notifier = Notifier(operation)
-        self.order = None # self.setup.default_order
-
-    def _hold(self):
-        self.order.signal = sig.hold
-        order = self.order
-        self.order = self.broker.execute(order)
-
-    def _buy(self):
-        self.order.signal = sig.buy
-        self.order.quantity = 0.998 * (
-            self.order.leverage
-            * (self.order.portfolio.base / self.order.price)
+class OrderExecutor:
+    def __init__(self, analyzer):
+        self.analyzer = analyzer
+        self.setup = analyzer.monitor.operation.setup()
+        mode = analyzer.monitor.operation.mode
+        self.broker = (
+            BackTestingBroker(analyzer.monitor)
+            if mode == modes.backtesting
+            else get_broker(market=analyzer.monitor.market())
         )
-        order = self.order
-        self.order = self.broker.execute(order)
 
-    def _sell(self):
-        self.order.signal = sig.sell
-        self.order.quantity = 0.998 * self.order.portfolio.quote
-        order = self.order
-        self.order = self.broker.execute(order)
+    def proceed(self):
+        return True
 
-    def _naked_sell(self):
+
+class OrderHandler:
+    def __init__(self):
+        self.buy_queue = list()
+
+    def _buy_queue_execution(self):
         pass
 
-    def _double_naked_sell(self):
-        pass
+    def process(self, analyzers: list):
+        if analyzers:
+            self.buy_queue = list()
+            for analyzer in analyzers:
+                signal = Signal(
+                    from_side=analyzer.order.from_side,
+                    to_side=analyzer.order.to_side,
+                ).generate()
+                analyzer.order.signal = signal
+                executor = OrderExecutor(analyzer)
 
-    def _double_buy(self):
-        pass
+                if signal in [sig.sell, sig.hold]:
+                    executor.proceed()
 
-    def _long_stopped(self):
-        self.order.order_type = "market"
-        self._sell()
+                elif signal == sig.buy:
+                    self.buy_queue.append(executor)
 
-    def _short_stopped(self):
-        pass
-
-    def _process(self, signal: str) -> None:
-        getattr(self, "_{}".format(signal))
-
-    def _update_and_notifier(self):
-        pass
-
-    def proceed(
-        self,
-        at_time: int,
-        analysis_result: pd.core.frame.DataFrame,
-        by_stop: bool = False,
-    ):
-        self.order.order_type = self.setup.default_order_type
-        self.order.from_side = self.operation.position.side
-        self.order.to_side = analysis_result.Side.item()
-        self.order = self.setup.default_order
-        self.order.status = "unfulfilled"
-        self.order.generated_signal = Signal(
-            from_side=self.order.from_side,
-            to_side=self.order.to_side,
-            by_stop=by_stop,
-        ).generate()
-        self.order.at_time = at_time
-        self.order.leverage = analysis_result.Leverage.item()
-        self.order.price = self.broker.get_price(at_time=at_time)
-        self.order.portfolio_before = self.broker.get_portfolio()
-
-        self._process(self.order.generated_signal)
-        self._update_and_notifier()
-
-
-def get_order_handler(operation: Operation) -> OrderHandler:
-    return OrderHandler(operation)
+            self._buy_queue_execution()
