@@ -8,12 +8,13 @@ from ..utils.databases.sql.schemas import (
     ClassifierPayLoad,
     DateTimeType,
     OperationalModes,
+    Order,
     Signals,
 )
-from .order_handler import get_order_handler, Signal
+from .order_handler import OrderHandler
 
 sig = Signals()
-mode = OperationalModes()
+modes = OperationalModes()
 
 
 class Analyzer:
@@ -23,71 +24,62 @@ class Analyzer:
         payload = ClassifierPayLoad(
             market=monitor.market(),
             classifier=self.setup.classifier,
-            backtesting=bool(monitor.operation.mode == mode.backtesting),
+            backtesting=bool(monitor.operation.mode == modes.backtesting),
         )
         self.classifier = get_classifier(payload)
-        self.result = pd.DataFrame()
+        self.was_updated = False
         self.now: int = None
-        self.signal: str = sig.hold
+        self.order = Order()
 
     def _is_a_new_analysis_needed(self) -> bool:
         last_check = self.monitor.last_check.by_classifier_at
         step = time_frame_to_seconds(self.setup.classifier.setup.time_frame)
         return bool(self.now >= last_check + step)
 
-    def check_for_signal(self):
-        score = self.result.score
+    def populate_order(self, result: pd.core.frame.DataFrame):
         side = (
             "Long"
-            if score > 0.3
+            if result.score > 0.3
             else "Short"
-            if score < -0.3 and self.setup.allow_naked_sells
+            if result.score < -0.3 and self.setup.allow_naked_sells
             else "Zeroed"
         )
-        self.signal = Signal(
-            from_side=self.monitor.position.side, to_side=side
-        ).generate()
+        self.order.test_order = bool(
+            self.monitor.operation.mode == modes.test_trading
+        )
+        self.order.timestamp = self.now
+        self.order.order_type = self.setup.default_order_type
+        self.order.from_side = self.monitor.position.side
+        self.order.to_side = side
 
     def check_at(self, desired_datetime: DateTimeType):
-        self.signal = sig.hold
+        self.was_updated = False
         self.now = desired_datetime
         if self._is_a_new_analysis_needed():
-            self.result = self.classifier.get_restult_at(desired_datetime)
-            self.monitor.save_result("classifier", self.result)
+            self.was_updated = True
+            result = self.classifier.get_restult_at(desired_datetime)
+            self.monitor.save_result("classifier", result)
             self.monitor.last_check.update(by_classifier_at=self.now)
-            self.check_for_signal()
-
-
-# class StopLoss:
-#    def __init__(self, monitor: Monitor):
-#        self.monitor = monitor
-
-
-# class OrderHandler:
-#    def __init__(self, operation: Operation):
-#        self.operation = operation
+            self.populate_order(result)
 
 
 class Trader:
     def __init__(self, operation: Operation):
         self.notifier = Notifier(operation)
-        self.order_handler = get_order_handler(operation)
-        self.monitors = operation.list_of_active_monitors()
-        self.analyzers = [Analyzer(monitor) for monitor in self.monitors]
-
-    #        self.stop_loss = [StopLoss(monitor) for monitor in self.monitors]
+        self.order_handler = OrderHandler()
+        monitors = operation.list_of_active_monitors()
+        self.analyzers = [Analyzer(monitor) for monitor in monitors]
+        # self.stop_loss = [StopLoss(monitor) for monitor in monitors]
 
     def check_at(self, desired_datetime: DateTimeType):
-        #        for stop in self.stop_loss:
-        #            stop.check_at(desired_datetime)
+        # for stop in self.stop_loss:
+        #    stop.check_at(desired_datetime)
 
         for analyzer in self.analyzers:
             analyzer.check_at(desired_datetime)
 
         self.order_handler.process(
             analyzers=[
-                analyzer
-                for analyzer in self.analyzers
-                if analyzer.signal != sig.hold
+                analyzer for analyzer in self.analyzers if analyzer.was_updated
             ]
         )
