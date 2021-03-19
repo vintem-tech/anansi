@@ -55,6 +55,7 @@ class LastCheck(db.Entity, AttributeUpdater):
 class Monitor(db.Entity, AttributeUpdater):
     operation = Optional(lambda: Operation)
     is_active = Required(bool, default=True)
+    is_master = Required(bool, default=False)
     _market = Required(Json)
     position = Required(Position, cascade_delete=True)
     last_check = Required(LastCheck, cascade_delete=True)
