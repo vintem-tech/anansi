@@ -36,7 +36,7 @@ def create_operation_with_monitors(
     operation = Operation(**payload)
     commit()
 
-    operation.create_monitors(market_list)
+    operation.recreate_monitors(market_list)
     return Operation[operation.id]
 
 
