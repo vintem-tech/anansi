@@ -136,6 +136,39 @@ class StopTrailing3T(BaseModel):
     price_metric: str = "oc2"
 
 
+class BinanceMonitoring:
+    """Binance monitored markets"""
+
+    bases: list = ["USDT", "BTC"]
+    quotes: list = [
+        "BTC",
+        "ETH",
+        "NEO",
+        "LINK",
+        "EOS",
+        "LTC",
+        "XRP",
+        "BNB",
+        "ADA",
+        "TRX",
+    ]
+
+    def markets(self) -> List[Market]:
+        """Returns a list of binance markets"""
+
+        return [
+            Market(
+                broker_name="binance",
+                quote_symbol=quote,
+                base_symbol=base,
+                ticker_symbol="{}{}".format(quote, base),
+            )
+            for base in self.bases
+            for quote in self.quotes
+            if quote != base
+        ]
+
+
 class OperationalSetup(BaseModel):
     """Operational schema, with default values."""
 
@@ -143,21 +176,4 @@ class OperationalSetup(BaseModel):
     stoploss: StopLoss = StopTrailing3T()
     default_order_type: str = "market"
     allow_naked_sells: bool = False
-
-
-def default_binance_monitored_markets() -> List[Market]:
-    """Returns a list of binance markets"""
-    bases = ["USDT", "BTC"]
-    quotes = ["BTC", "ETH", "NEO", "LINK", "EOS", "LTC", "XRP", "BNB", "ADA", "TRX"]
-
-    return [
-        Market(
-            broker_name="binance",
-            quote_symbol=quote,
-            base_symbol=base,
-            ticker_symbol="{}{}".format(quote, base),
-        )
-        for base in bases
-        for quote in quotes
-        if quote != base
-    ]
+    bases: list = BinanceMonitoring().bases
