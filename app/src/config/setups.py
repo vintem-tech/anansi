@@ -136,7 +136,7 @@ class StopTrailing3T(BaseModel):
     price_metric: str = "oc2"
 
 
-class BinanceMonitoringMarkets:
+class BinanceMonitoring:
     """Binance monitored markets"""
 
     bases: list = ["USDT", "BTC"]
