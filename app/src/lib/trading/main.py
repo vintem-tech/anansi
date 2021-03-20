@@ -51,6 +51,7 @@ class Analyzer:
         self.order.order_type = self.setup.default_order_type
         self.order.from_side = self.monitor.position.side
         self.order.to_side = side
+        self.order.score = result.score
 
     def check_at(self, desired_datetime: DateTimeType):
         self.was_updated = False
