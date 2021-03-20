@@ -78,14 +78,32 @@ class OrderHandler:
     def __init__(self, operation):
         self.operation = operation
         self.setup = operation.setup()
-        self.buy_queue = list()
+        self.buy_queue = {base:list() for base in self.setup.bases}
+        self.imediate_signals = [sig.sell, sig.hold]
 
-    def _buy_queue_execution(self):
+    def _calculate_quantities(self):
         pass
+
+    def _execute(self):
+        pass
+
+    def _buy_pipeline(self, buy_queue):
+        if buy_queue:
+            for executor in buy_queue:
+                base = executor.analyzer.monitor.market.base
+                queue = self.buy_queue[base]
+                queue.append(executor)
+
+                if executor.analyzer.monitor.is_master:
+                    executor.proceed()
+                    queue.pop(queue.index(executor))
+
+            self._calculate_quantities()
+            self._execute()
 
     def process(self, analyzers: list):
         if analyzers:
-            self.buy_queue = list()
+            buy_queue = list()
             for analyzer in analyzers:
                 signal = Signal(
                     from_side=analyzer.order.from_side,
@@ -94,10 +112,10 @@ class OrderHandler:
                 analyzer.order.signal = signal
                 executor = OrderExecutor(analyzer)
 
-                if signal in [sig.sell, sig.hold]:
+                if signal in self.imediate_signals:
                     executor.proceed()
 
                 elif signal == sig.buy:
-                    self.buy_queue.append(executor)
+                    buy_queue.append(executor)
 
-            self._buy_queue_execution()
+            self._buy_pipeline(buy_queue)
