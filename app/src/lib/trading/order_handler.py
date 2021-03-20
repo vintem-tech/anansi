@@ -75,7 +75,9 @@ class OrderExecutor:
 
 
 class OrderHandler:
-    def __init__(self):
+    def __init__(self, operation):
+        self.operation = operation
+        self.setup = operation.setup()
         self.buy_queue = list()
 
     def _buy_queue_execution(self):
