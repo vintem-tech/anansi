@@ -82,6 +82,7 @@ class Order(BaseModel):
     order_type: Optional[str]
     from_side: Optional[str]
     to_side: Optional[str]
+    score: Optional[float]
     leverage: float = 1
     signal: Optional[str]
     price: Optional[float]
