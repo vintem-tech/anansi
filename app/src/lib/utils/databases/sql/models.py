@@ -120,14 +120,18 @@ class Operation(db.Entity, AttributeUpdater):
         for monitor in self.monitors:
             monitor.reset()
 
-    def create_monitors(self, market_list: list):
+    def recreate_monitors(self, market_list: list):
+        self.monitors.clear()
+        is_master = True
         for market in market_list:
             self.monitors.create(
+                is_master=is_master,
                 _market=market.json(),
                 position=Position(),
                 last_check=LastCheck(by_classifier_at=0),
             )
             commit()
+            is_master=False
 
     def list_of_active_monitors(self) -> list:
         monitors = [monitor for monitor in self.monitors if monitor.is_active]
