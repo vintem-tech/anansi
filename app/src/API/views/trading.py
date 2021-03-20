@@ -7,7 +7,7 @@ from ...config.setups import (
     BackTesting,
     Notifier,
     OperationalSetup,
-    default_binance_monitored_markets,
+    BinanceMonitoring,
 )
 from ...lib.utils.databases.sql.models import Operation
 from ...lib.utils.databases.sql.schemas import OperationalModes
@@ -46,6 +46,6 @@ def create_default_operation_with_monitors(name: str) -> Operation:
         mode=modes.backtesting,
         setup=OperationalSetup(),
         notifier=Notifier(),
-        market_list=default_binance_monitored_markets(),
+        market_list=BinanceMonitoring().markets(),
         backtesting=BackTesting(),
     )
