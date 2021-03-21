@@ -75,35 +75,46 @@ class OrderExecutor:
 
 
 class OrderHandler:
-    def __init__(self, operation):
-        self.operation = operation
-        self.setup = operation.setup()
-        self.buy_queue = {base:list() for base in self.setup.bases}
+    def __init__(self, bases:list):
+        self.buy_queue = {base:list() for base in bases}
         self.imediate_signals = [sig.sell, sig.hold]
 
-    def _calculate_quantities(self):
-        pass
+    @staticmethod
+    def _populate_quantities(buy_list:list):
+        weight_sum = 0
+        avaliable_base_amount = (buy_list[0]).broker.get_portfolio.base
 
-    def _execute(self):
-        pass
+        for executor in buy_list:
+            weight_sum+=executor.analyzer.order.score
+
+        for executor in buy_list:
+            weight = executor.analyzer.order.score/weight_sum
+            executor.analyzer.order.quantity = weight*avaliable_base_amount
+
+        return buy_list
+
+    @staticmethod
+    def _proceed(buy_list:list):
+        for executor in buy_list:
+            executor.proceed()
 
     def _buy_pipeline(self, buy_queue):
-        if buy_queue:
-            for executor in buy_queue:
-                base = executor.analyzer.monitor.market.base
-                queue = self.buy_queue[base]
-                queue.append(executor)
+        for executor in buy_queue:
+            base = executor.analyzer.monitor.market.base
+            buy_list = self.buy_queue[base]
+            buy_list.append(executor)
 
-                if executor.analyzer.monitor.is_master:
-                    executor.proceed()
-                    queue.pop(queue.index(executor))
+            if executor.analyzer.monitor.is_master:
+                executor.proceed()
+                buy_list.pop(buy_list.index(executor))
 
-            self._calculate_quantities()
-            self._execute()
+        for buy_list in self.buy_queue.values():
+            if buy_list:
+                self._proceed(self._populate_quantities(buy_list))
 
     def process(self, analyzers: list):
+        buy_queue = list()
         if analyzers:
-            buy_queue = list()
             for analyzer in analyzers:
                 signal = Signal(
                     from_side=analyzer.order.from_side,
@@ -117,5 +128,5 @@ class OrderHandler:
 
                 elif signal == sig.buy:
                     buy_queue.append(executor)
-
+        if buy_queue:
             self._buy_pipeline(buy_queue)
