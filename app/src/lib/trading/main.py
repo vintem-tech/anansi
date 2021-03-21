@@ -1,6 +1,6 @@
 import pandas as pd
 
-from ...log import Notifier
+#from ...log import Notifier
 from ..marketdata.operators.classifiers import get_classifier
 from ..tools.time_handlers import time_frame_to_seconds
 from ..utils.databases.sql.models import Monitor, Operation
@@ -66,10 +66,9 @@ class Analyzer:
 
 class Trader:
     def __init__(self, operation: Operation):
-        self.notifier = Notifier(operation)
-        self.order_handler = OrderHandler()
         monitors = operation.list_of_active_monitors()
         self.analyzers = [Analyzer(monitor) for monitor in monitors]
+        self.order_handler = OrderHandler(bases=operation.setup().bases)
         # self.stop_loss = [StopLoss(monitor) for monitor in monitors]
 
     def check_at(self, desired_datetime: DateTimeType):
