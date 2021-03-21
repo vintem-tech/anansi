@@ -272,21 +272,3 @@ class Binance(Broker):
 def get_broker(market: Market) -> Broker:
     """Given a market, returns an instantiated broker"""
     return getattr(thismodule, market.broker_name.capitalize())(market)
-
-
-# def get_by_operation(operation: Operation) -> Union[Broker, BackTestingBroker]:
-#    """Returns an instance of 'Broker' class  which can perform real
-#    orders to the brokers using its secure APIs (real trading), or
-#    update useful operational control attributes (back testing).
-#
-#    Args:
-#    operation (Operation): Entity containing the attributes related to
-#    the implementation of a single operation (1 market, 1 classifier
-#    setup and 1 stoploss setup), as well as convenient methods for
-#    manipulating these attributes.
-#    """
-#
-#    setup = operation.operational_setup()
-#    if setup.backtesting.is_on:
-#        return BackTestingBroker(operation)
-#    return get_by_market(setup.market)
