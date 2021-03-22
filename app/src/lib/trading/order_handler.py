@@ -75,26 +75,26 @@ class OrderExecutor:
 
 
 class OrderHandler:
-    def __init__(self, bases:list):
-        self.buy_queue = {base:list() for base in bases}
+    def __init__(self, bases: list):
+        self.buy_queue = {base: list() for base in bases}
         self.imediate_signals = [sig.sell, sig.hold]
 
     @staticmethod
-    def _populate_quantities(buy_list:list):
+    def _populate_quantities(buy_list: list):
         weight_sum = 0
         avaliable_base_amount = (buy_list[0]).broker.get_portfolio.base
 
         for executor in buy_list:
-            weight_sum+=executor.analyzer.order.score
+            weight_sum += executor.analyzer.order.score
 
         for executor in buy_list:
-            weight = executor.analyzer.order.score/weight_sum
-            executor.analyzer.order.quantity = weight*avaliable_base_amount
+            weight = executor.analyzer.order.score / weight_sum
+            executor.analyzer.order.quantity = weight * avaliable_base_amount
 
         return buy_list
 
     @staticmethod
-    def _proceed(buy_list:list):
+    def _proceed(buy_list: list):
         for executor in buy_list:
             executor.proceed()
 
