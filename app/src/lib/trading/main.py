@@ -61,7 +61,7 @@ class Analyzer:
             self.monitor.last_check.update(by_classifier_at=self.now)
             self.populate_order(result)
 
-    def finish(self):
+    def report_trade(self):
         pass
 
 
