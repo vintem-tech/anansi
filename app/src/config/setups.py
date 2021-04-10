@@ -176,4 +176,4 @@ class OperationalSetup(BaseModel):
     stoploss: StopLoss = StopTrailing3T()
     default_order_type: str = "market"
     allow_naked_sells: bool = False
-    bases: list = BinanceMonitoring().bases
+    bases_symbols: list = BinanceMonitoring().bases
