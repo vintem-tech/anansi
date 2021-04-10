@@ -16,11 +16,12 @@ python-telegram-bot = "^13.0"
 requests = "^2.25.0"
 psycopg2 = "^2.8.6"
 environs = "^9.2.0"
-influxdb = "^5.3.1"
 python-binance = "^0.7.5"
 print-dict = "^0.1.16"
 pony = "^0.7.14"
 tabulate = "^0.8.8"
+influxdb = "^5.3.1"
+influxdb-client = {extras = ["ciso", "extra"], version = "^1.15.0"}
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
@@ -31,6 +32,7 @@ pylint = "^2.6.0"
 rope = "^0.18.0"
 pytest-mock = "^3.3.1"
 requests-mock = "^1.8.0"
+matplotlib = "^3.3.4"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -42,4 +44,4 @@ to = {format = "requirements", path = "requirements.txt"}
 
 
 [tool.poetry.scripts]
-anansi = 'anansi_.start:run'
+anansi = 'cli:__main__'
