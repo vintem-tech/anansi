@@ -106,6 +106,13 @@ class Operation(db.Entity, AttributeUpdater):
 #    _notifier = Required(Json)
 #    _backtesting = Optional(Json)
 
+    def wallet_as_dict(self):
+        return json.loads(self.wallet)
+
+    def get_asset_from_wallet(self, asset_symbol:str):
+        _wallet = self.wallet_as_dict()
+        return _wallet.get(asset_symbol)
+
     def setup(self):
         return Deserialize(name="setup").from_json(self._setup)
 
