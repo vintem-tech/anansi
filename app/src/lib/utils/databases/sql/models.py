@@ -89,7 +89,8 @@ class Monitor(db.Entity, AttributeUpdater):
 
 class TradeLog(db.Entity):
     monitor = Optional(lambda: Monitor)
-    signal = Optional(str)
+    signal_generated = Optional(str)
+    signal_interpreted = Optional(str)
     timestamp = Optional(int)
     price = Optional(float)
     fee = Optional(float)  # base_asset units
@@ -100,19 +101,19 @@ class Operation(db.Entity, AttributeUpdater):
     name = Required(str, unique=True)
     monitors = Set(Monitor, cascade_delete=True)
     mode = Required(str, default=modes.backtesting)
-    wallet = Optional(Json)  # Only needed if backtesting
+    wallet = Optional(Json)
     _setup = Required(Json)
-    _notifier = Required(Json)
-    _backtesting = Optional(Json)
+#    _notifier = Required(Json)
+#    _backtesting = Optional(Json)
 
     def setup(self):
         return Deserialize(name="setup").from_json(self._setup)
 
-    def notifier(self):
-        return Deserialize(name="notifier").from_json(self._notifier)
+#    def notifier(self):
+#        return Deserialize(name="notifier").from_json(self._notifier)
 
-    def backtesting(self):
-        return Deserialize(name="backtesting").from_json(self._backtesting)
+#    def backtesting(self):
+#        return Deserialize(name="backtesting").from_json(self._backtesting)
 
     def reset(self):
         self.update(wallet=json.dumps(dict(USDT=1000.00)))
