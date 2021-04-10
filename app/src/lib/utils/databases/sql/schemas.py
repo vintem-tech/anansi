@@ -84,7 +84,8 @@ class Order(BaseModel):
     to_side: Optional[str]
     score: Optional[float]
     leverage: float = 1
-    signal: Optional[str]
+    generated_signal: Optional[str]
+    interpreted_signal: Optional[str]
     price: Optional[float]
     quantity: Optional[float]
     fulfilled: Optional[bool]
@@ -143,6 +144,7 @@ class Trigger(BaseModel):
 
 class OperationalModes(BaseModel):
     """Stores the possible operation modes"""
+
     real_trading: str = "real_trading"
     test_trading: str = "test_trading"
     backtesting: str = "backtesting"
