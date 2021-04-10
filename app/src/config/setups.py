@@ -3,7 +3,7 @@
 
 """User customizable parameters, from indicator setups to operations setups"""
 
-from typing import List, Sequence, Union
+from typing import List, Optional, Sequence, Union
 
 from pydantic import BaseModel, validator
 
@@ -177,3 +177,5 @@ class OperationalSetup(BaseModel):
     default_order_type: str = "market"
     allow_naked_sells: bool = False
     bases_symbols: list = BinanceMonitoring().bases
+    notifier = Notifier()
+    backtesting: Optional[BackTesting] = BackTesting()
