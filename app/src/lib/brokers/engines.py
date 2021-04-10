@@ -100,11 +100,11 @@ class Broker:
         raise NotImplementedError
 
     def execute(self, order: Order):
-        """Proceed trade orders """
+        """Proceed real trading orders """
         raise NotImplementedError
 
     def execute_test(self, order: Order):
-        """Proceed test orders """
+        """Proceed test trading orders """
         raise NotImplementedError
 
 
