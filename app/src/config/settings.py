@@ -140,11 +140,12 @@ class BinanceSettings(BrokerSettings):
         "Ignore",
     ]
 
+FAKE_TELEGRAM_TOKEN = "0123456789:ABCd_F67pwokcpwjpjJKJPJoj98709IJOIp"
 
 class TelegramSettings(BaseModel):
     token: str = env.str(
         "TELEGRAM_TOKEN",
-        default="0123456789:ABCd_F67pwokcpwjpjJKJPJoj98709IJOIp",
+        default=FAKE_TELEGRAM_TOKEN,
     )
     debug: int = env.int("TELEGRAM_DEBBUG_ID", default=None)
     error_id: int = env.int("TELEGRAM_ERROR_ID", default=None)
