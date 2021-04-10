@@ -1,5 +1,6 @@
 # pylint: disable=E1136
 # pylint: disable=no-name-in-module
+# pylint: disable=too-few-public-methods
 
 # from ..brokers.backtesting import BackTestingBroker
 # from ..tools.serializers import Deserialize
@@ -14,7 +15,7 @@ import pandas as pd
 
 from ..brokers.engines import get_broker
 from ..marketdata.klines import PriceFromStorage
-from ..utils.databases.sql.models import Monitor, Operation
+from ..utils.databases.sql.models import Monitor  # , Operation
 from ..utils.databases.sql.schemas import (
     OperationalModes,
     Order,
@@ -63,9 +64,9 @@ class Signal:
 class BackTestingBroker:
     """Handle with orders, in case of backtesting"""
 
-    def __init__(self, operation):
-        self.operation = operation
-        self.setup = operation.operational_setup()
+    def __init__(self, monitor: Monitor):
+        self.monitor = monitor
+        self.setup = monitor.operation.setup()
         self.fee_rate_decimal = self.setup.backtesting.fee_rate_decimal
         self.order = Order()
         self.portfolio = Portfolio()
@@ -83,14 +84,24 @@ class BackTestingBroker:
             desired_datetime=kwargs.get("at_time")
         )
 
-    def get_portfolio(self) -> Portfolio:
+    def deprecated_get_portfolio(self) -> Portfolio:
         """The portfolio composition, given a market"""
 
         return Portfolio(
-            quote=self.operation.position.porfolio.quote,
-            base=self.operation.position.portfolio.base,
+            quote=self.monitor.position.porfolio.quote,
+            base=self.monitor.position.portfolio.base,
         )
 
+    def get_portfolio(self) -> Portfolio:
+        """The portfolio composition, given a market"""
+
+        wallet = self.monitor.operation.wallet
+    
+    
+    
+    
+    
+    
     def get_min_lot_size(self) -> float:
         """Minimal possible trading amount, by quote."""
 
@@ -107,7 +118,7 @@ class BackTestingBroker:
 
         self.order.fee = fee_quote * self.order.price
         self.order.proceeded_quantity = bought_quote_amount
-        self.operation.position.portolio.update(base=new_base, quote=new_quote)
+        self.monitor.position.portolio.update(base=new_base, quote=new_quote)
 
     def _order_sell(self):
         order_amount = self.order.suggested_quantity
@@ -119,7 +130,7 @@ class BackTestingBroker:
 
         self.order.fee = fee_quote * self.order.price
         self.order.proceeded_quantity = order_amount - fee_quote
-        self.operation.position.portolio.update(base=new_base, quote=new_quote)
+        self.monitor.position.portolio.update(base=new_base, quote=new_quote)
 
     def _order_market(self) -> dict:
         executor = "_order_{}".format(self.order.signal)
@@ -132,7 +143,7 @@ class BackTestingBroker:
         columns = list(self.order.dict().keys())
         data = [list(self.order.dict().values())]
         _order = pd.DataFrame(columns, data)
-        self.operation.save_result(database="order", result=_order)
+        self.monitor.save_result(database="order", result=_order)
 
     def execute(self, order: Order) -> Order:
         """Proceeds order validation and some trading calculation,
@@ -199,7 +210,7 @@ class OrderExecutor:
         order.quantity = 0.998 * (order.quantity / order.price)
 
         self.analyzer.order = self.broker.execute(order)
-        self.analyzer.notify_trade()
+        self.analyzer.report_trade()
 
     def _sell(self):
         signal = sig.sell
@@ -209,7 +220,7 @@ class OrderExecutor:
         order.quantity = 0.998 * order.quantity
 
         self.analyzer.order = self.broker.execute(order)
-        self.analyzer.notify_trade()
+        self.analyzer.report_trade()
 
     def _naked_sell(self):
         pass
