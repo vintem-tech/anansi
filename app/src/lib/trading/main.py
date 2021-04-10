@@ -1,6 +1,6 @@
 import pandas as pd
 
-#from ...log import Notifier
+# from ...log import Notifier
 from ..marketdata.operators.classifiers import get_classifier
 from ..tools.time_handlers import time_frame_to_seconds
 from ..utils.databases.sql.models import Monitor, Operation
@@ -9,11 +9,9 @@ from ..utils.databases.sql.schemas import (
     DateTimeType,
     OperationalModes,
     Order,
-    Signals,
 )
 from .order_handler import OrderHandler
 
-sig = Signals()
 modes = OperationalModes()
 
 
@@ -63,12 +61,17 @@ class Analyzer:
             self.monitor.last_check.update(by_classifier_at=self.now)
             self.populate_order(result)
 
+    def finish(self):
+        pass
+
 
 class Trader:
     def __init__(self, operation: Operation):
         monitors = operation.list_of_active_monitors()
         self.analyzers = [Analyzer(monitor) for monitor in monitors]
-        self.order_handler = OrderHandler(bases=operation.setup().bases)
+        self.order_handler = OrderHandler(
+            bases_symbols=operation.setup().bases_symbols
+        )
         # self.stop_loss = [StopLoss(monitor) for monitor in monitors]
 
     def check_at(self, desired_datetime: DateTimeType):
