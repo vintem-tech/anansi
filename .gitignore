@@ -8,6 +8,7 @@ jupyterlog
 *.ipynb
 dev*
 .idea/
+productivity.md
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
