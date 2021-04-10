@@ -84,24 +84,17 @@ class BackTestingBroker:
             desired_datetime=kwargs.get("at_time")
         )
 
-    def deprecated_get_portfolio(self) -> Portfolio:
-        """The portfolio composition, given a market"""
-
-        return Portfolio(
-            quote=self.monitor.position.porfolio.quote,
-            base=self.monitor.position.portfolio.base,
-        )
-
     def get_portfolio(self) -> Portfolio:
         """The portfolio composition, given a market"""
 
-        wallet = self.monitor.operation.wallet
-    
-    
-    
-    
-    
-    
+        wallet = self.monitor.operation.get_asset_from_wallet
+        market = self.monitor.market
+
+        return Portfolio(
+            quote=wallet(asset_symbol=market.quote_symbol),
+            base=wallet(asset_symbol=market.base_symbol),
+        )
+
     def get_min_lot_size(self) -> float:
         """Minimal possible trading amount, by quote."""
 
