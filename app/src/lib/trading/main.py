@@ -11,7 +11,7 @@ from ..utils.databases.sql.schemas import (
     Order,
     Sides,
 )
-from .order_handler import OrderHandler
+from .orderflow import OrderHandler
 
 modes = OperationalModes()
 sides = Sides()
