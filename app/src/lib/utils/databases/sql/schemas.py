@@ -78,7 +78,7 @@ class Order(BaseModel):
 
     test_order: bool = False
     timestamp: Optional[int]
-    order_id: Optional[str]
+    tag: Optional[str]
     order_type: Optional[str]
     from_side: Optional[str]
     to_side: Optional[str]
