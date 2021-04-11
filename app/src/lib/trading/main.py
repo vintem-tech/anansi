@@ -9,10 +9,12 @@ from ..utils.databases.sql.schemas import (
     DateTimeType,
     OperationalModes,
     Order,
+    Sides,
 )
 from .order_handler import OrderHandler
 
 modes = OperationalModes()
+sides = Sides()
 
 
 class Analyzer:
@@ -34,22 +36,26 @@ class Analyzer:
         step = time_frame_to_seconds(self.setup.classifier.setup.time_frame)
         return bool(self.now >= last_check + step)
 
-    def populate_order(self, result: pd.core.frame.DataFrame):
+    def _evaluate_side(self, score: float) -> str:
         side = (
-            "Long"
-            if result.score > 0.3
-            else "Short"
-            if result.score < -0.3 and self.setup.allow_naked_sells
-            else "Zeroed"
+            sides.long
+            if score > self.setup.score_that_triggers_long_side
+            else sides.short
+            if score < self.setup.score_that_triggers_short_side
+            and self.setup.allow_naked_sells
+            else sides.zeroed
         )
+        return side
+
+    def populate_order(self, result: pd.core.frame.DataFrame):
+        self.order.score = result.score
+        self.order.to_side = self._evaluate_side(result.Score)
         self.order.test_order = bool(
             self.monitor.operation.mode == modes.test_trading
         )
         self.order.timestamp = self.now
         self.order.order_type = self.setup.default_order_type
         self.order.from_side = self.monitor.position.side
-        self.order.to_side = side
-        self.order.score = result.score
 
     def check_at(self, desired_datetime: DateTimeType):
         self.was_updated = False
@@ -61,8 +67,8 @@ class Analyzer:
             self.monitor.last_check.update(by_classifier_at=self.now)
             self.populate_order(result)
 
-    def report_trade(self):
-        pass
+    def save_and_report_trade(self):
+        self.monitor.report_trade(payload=self.order.dict())
 
 
 class Trader:
