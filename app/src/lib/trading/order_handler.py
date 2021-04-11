@@ -65,7 +65,7 @@ class BackTestingBroker:
 
         price_getter = PriceFromStorage(
             market=self.market,
-            price_metrics=self.setup.backtesting_price_metrics,
+            price_metrics=self.setup.backtesting.price_metrics,
         )
 
         return price_getter.get_price_at(
@@ -267,7 +267,11 @@ class OrderHandler:
 
         for executor in buy_queue:
             weight = executor.analyzer.order.score / score_sum
-            executor.analyzer.order.quantity = weight * avaliable_base_amount
+            leverage = executor.analyzer.order.leverage
+
+            executor.analyzer.order.quantity = (
+                leverage * weight * avaliable_base_amount
+            )
 
         return buy_queue
 
