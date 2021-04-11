@@ -176,6 +176,8 @@ class OperationalSetup(BaseModel):
     stoploss: StopLoss = StopTrailing3T()
     default_order_type: str = "market"
     allow_naked_sells: bool = False
+    score_that_triggers_long_side: float = 0.3 # <=1.0
+    score_that_triggers_short_side: float = -0.3 # >=-1.0
     bases_symbols: list = BinanceMonitoring().bases
     notifier = Notifier()
     backtesting: Optional[BackTesting] = BackTesting()
