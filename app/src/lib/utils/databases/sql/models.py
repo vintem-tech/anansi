@@ -71,7 +71,7 @@ class Monitor(db.Entity, AttributeUpdater):
     def get_last_result(self) -> pd.core.frame.DataFrame:
         raise NotImplementedError
 
-    def report_trade(self, payload:dict):
+    def report_trade(self, payload: dict):
         self.trade_logs.create(**payload)
         commit()
 
@@ -99,6 +99,7 @@ class TradeLog(db.Entity):
     fulfilled = Optional(bool)
     fee = Optional(float)
     warnings = Optional(str)
+
 
 class Operation(db.Entity, AttributeUpdater):
     name = Required(str, unique=True)
@@ -133,6 +134,12 @@ class Operation(db.Entity, AttributeUpdater):
         monitors = [monitor for monitor in self.monitors if monitor.is_active]
         monitors.sort()
         return monitors
+
+    def bases_symbols(self) -> list:
+        return [
+            monitor.market().base_symbol
+            for monitor in self.list_of_active_monitors()
+        ]
 
 
 db.generate_mapping(create_tables=True)
