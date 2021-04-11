@@ -1,6 +1,5 @@
 import pandas as pd
 
-# from ...log import Notifier
 from ..marketdata.operators.classifiers import get_classifier
 from ..tools.time_handlers import time_frame_to_seconds
 from ..utils.databases.sql.models import Monitor, Operation
@@ -29,6 +28,7 @@ class Analyzer:
             )
         )
         self.was_updated = False
+        self.has_a_trade_occurred = False
         self.now: int = None
         self.order = Order()
         self.result = pd.DataFrame()
@@ -71,7 +71,9 @@ class Analyzer:
 
     def check_at(self, desired_datetime: DateTimeType):
         self.was_updated = False
+        self.has_a_trade_occurred = False
         self.now = desired_datetime
+
         if self._is_a_new_analysis_needed():
             self._refresh_result()
             self._populate_order()
