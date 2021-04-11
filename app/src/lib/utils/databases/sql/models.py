@@ -52,7 +52,7 @@ class Monitor(db.Entity, AttributeUpdater):
     _market = Required(Json)
     position = Required(Position, cascade_delete=True)
     last_check = Required(LastCheck, cascade_delete=True)
-    trade_logs = Set(lambda: TradeLog, cascade_delete=True)
+    trading_logs = Set(lambda: TradingLog, cascade_delete=True)
 
     def market(self):
         return Deserialize(name="market").from_json(self._market)
@@ -71,18 +71,18 @@ class Monitor(db.Entity, AttributeUpdater):
     def get_last_result(self) -> pd.core.frame.DataFrame:
         raise NotImplementedError
 
-    def report_trade(self, payload: dict):
-        self.trade_logs.create(**payload)
+    def save_trading_log(self, payload: dict):
+        self.trading_logs.create(**payload)
         commit()
 
     def reset(self):
         self.last_check.update(by_classifier_at=0)
         self.position.update(side="Zeroed", size=0.0)
-        self.trade_logs.clear()
+        self.trading_logs.clear()
         commit()
 
 
-class TradeLog(db.Entity):
+class TradingLog(db.Entity):
     monitor = Optional(lambda: Monitor)
     test_order = Optional(bool)
     id_by_broker = Optional(str)
