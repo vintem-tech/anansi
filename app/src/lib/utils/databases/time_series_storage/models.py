@@ -21,6 +21,13 @@ class StorageKlines:
     def append(self, klines: pd.core.frame.DataFrame):
         _klines = klines.copy()
 
+        try:
+            _klines.apply_datetime_conversion.from_human_readable_to_timestamp(
+                target_columns=["Open_time"]
+            )
+        except TypeError: # Datetime values already in timestamp type
+            pass
+
         _klines.Open_time = pd.to_datetime(_klines.Open_time, unit="s")
         _klines.set_index("Open_time", inplace=True)
         self.engine.append(_klines)
@@ -102,9 +109,13 @@ class StorageResults:
         except KeyError:  # Datetime column already named "Timestamp"
             result = dataframe
 
-        result.apply_datetime_conversion.from_human_readable_to_timestamp(
-            target_columns=["Timestamp"]
-        )
+        try:
+            result.apply_datetime_conversion.from_human_readable_to_timestamp(
+                target_columns=["Timestamp"]
+            )
+        except TypeError: # Datetime values already in timestamp type
+            pass
+
         result.Timestamp = pd.to_datetime(result.Timestamp, unit="s")
         result.set_index("Timestamp", inplace=True)
         self.engine.append(result)
