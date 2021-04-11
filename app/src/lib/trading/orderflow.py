@@ -181,8 +181,8 @@ class OrderExecutor:
 
         return order
 
-    def _save_and_report_trade(self):
-        self.analyzer.monitor.report_trade(payload=self.analyzer.order)
+    def _save_trading_log(self):
+        self.analyzer.monitor.save_trading_log(payload=self.analyzer.order)
 
     def _hold(self):
         order = self.analyzer.order
@@ -190,7 +190,7 @@ class OrderExecutor:
         self.analyzer.order = self.broker.execute(order)
 
         if self.backtesting:
-            self._save_and_report_trade()
+            self._save_trading_log()
 
     def _buy(self):
         order = self._validate_order()
@@ -198,7 +198,7 @@ class OrderExecutor:
         order.quantity = 0.998 * (order.quantity / order.price)
 
         self.analyzer.order = self.broker.execute(order)
-        self._save_and_report_trade()
+        self._save_trading_log()
 
     def _sell(self):
         order = self._validate_order()
@@ -206,7 +206,7 @@ class OrderExecutor:
         order.quantity = 0.998 * (self.broker.get_portfolio().quote)
 
         self.analyzer.order = self.broker.execute(order)
-        self._save_and_report_trade()
+        self._save_trading_log()
 
     def _naked_sell(self):
         pass
