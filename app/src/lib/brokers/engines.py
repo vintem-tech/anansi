@@ -235,7 +235,7 @@ class Binance(Broker):
     @DocInherit
     def _check_and_update_order(self) -> dict:
         order = self.client.get_order(
-            symbol=self.market.ticker_symbol, orderId=self.order.tag
+            symbol=self.market.ticker_symbol, orderId=self.order.id_by_broker
         )
         quote_amount = float(order["executedQty"])
         base_amount = float(order["cummulativeQuoteQty"])
@@ -256,7 +256,7 @@ class Binance(Broker):
         try:
             fulfilled_order = getattr(self, order_executor)()
             if fulfilled_order:
-                self.order.tag = fulfilled_order["orderId"]
+                self.order.id_by_broker = fulfilled_order["orderId"]
                 self._check_and_update_order()
             else:
                 self.order.warnings = "Insufficient balance"
