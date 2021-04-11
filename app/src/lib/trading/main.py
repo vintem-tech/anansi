@@ -50,7 +50,11 @@ class Analyzer:
             return sides.short
         return sides.zeroed
 
-    def populate_order(self):
+    def _refresh_result(self):
+        self.result = self.classifier.get_restult_at(self.now)
+        self.monitor.save_result("classifier", self.result)
+
+    def _populate_order(self):
         self.order.test_order = bool(
             self.monitor.operation.mode == modes.test_trading
         )
@@ -61,18 +65,20 @@ class Analyzer:
         self.order.from_side = self.monitor.position.side
         self.order.to_side = self._evaluate_side()
 
+    def _update(self):
+        self.was_updated = True
+        self.monitor.last_check.update(by_classifier_at=self.now)
+
     def check_at(self, desired_datetime: DateTimeType):
         self.was_updated = False
         self.now = desired_datetime
         if self._is_a_new_analysis_needed():
-            self.was_updated = True
-            self.result = self.classifier.get_restult_at(desired_datetime)
-            self.monitor.save_result("classifier", self.result)
-            self.monitor.last_check.update(by_classifier_at=self.now)
-            self.populate_order()
+            self._refresh_result()
+            self._populate_order()
+            self._update()
 
-    def save_and_report_trade(self):
-        self.monitor.report_trade(payload=self.order.dict())
+    def save_trading_log(self):
+        self.monitor.save_trading_log(payload=self.order.dict())
 
 
 class Trader:
