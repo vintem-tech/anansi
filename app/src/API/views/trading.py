@@ -16,8 +16,7 @@ def create_operation_with_monitors(
     operation_name: str,
     mode: str,
     setup: OperationalSetup,
-    market_list: List[Market],
-    **kwargs
+    market_list: List[Market]
 ) -> Operation:
 
     payload = dict(
