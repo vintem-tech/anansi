@@ -105,8 +105,8 @@ class BackTestingBroker:
 
     def _process_fee(self) -> float:
         fee = self.setup.backtesting.fee_rate_decimal * self.order.quantity
-        self.order.fee = fee * self.order.price
-        return fee
+        self.order.fee = fee * self.order.price # base equivalent
+        return fee # quote equivalent
 
     def _market_buy_order(self):
         fee = self._process_fee()
@@ -174,17 +174,10 @@ class OrderExecutor:
             else get_broker(market=analyzer.monitor.market())
         )
 
-    def _validate_order(self, signal: str):
+    def _validate_order(self):
         order = self.analyzer.order
         if not order.price:
             order.price = self.broker.get_price(at_time=order.timestamp)
-
-        if not order.quantity:
-            portfolio = self.broker.get_portfolio()
-            if signal in [sig.buy]:
-                order.quantity = portfolio.base
-            if signal in [sig.sell]:
-                order.quantity = portfolio.quote
 
         return order
 
@@ -200,21 +193,17 @@ class OrderExecutor:
             self._save_and_report_trade()
 
     def _buy(self):
-        signal = sig.buy
-        order = self._validate_order(signal)
-        order.interpreted_signal = signal
-
+        order = self._validate_order()
+        order.interpreted_signal = sig.buy
         order.quantity = 0.998 * (order.quantity / order.price)
 
         self.analyzer.order = self.broker.execute(order)
         self._save_and_report_trade()
 
     def _sell(self):
-        signal = sig.sell
-        order = self._validate_order(signal)
-        order.interpreted_signal = signal
-
-        order.quantity = 0.998 * order.quantity
+        order = self._validate_order()
+        order.interpreted_signal = sig.sell
+        order.quantity = 0.998 * (self.broker.get_portfolio().quote)
 
         self.analyzer.order = self.broker.execute(order)
         self._save_and_report_trade()
