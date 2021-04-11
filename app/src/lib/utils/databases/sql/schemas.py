@@ -78,7 +78,7 @@ class Order(BaseModel):
 
     test_order: bool = False
     timestamp: Optional[int]
-    tag: Optional[str]
+    id_by_broker: Optional[str]
     order_type: Optional[str]
     from_side: Optional[str]
     to_side: Optional[str]
