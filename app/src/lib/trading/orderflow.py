@@ -230,6 +230,8 @@ class OrderExecutor:
         signal_handler = getattr(self, "_{}".format(signal))
 
         signal_handler()
+        if signal != sig.hold:
+            self.analyzer.has_a_trade_occurred = True
 
 
 class OrderHandler:
