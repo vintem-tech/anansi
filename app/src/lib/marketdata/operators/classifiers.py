@@ -96,8 +96,8 @@ class DidiClassifier:
         previous_bb_upper = result.iloc[0].BB_upper
         current_bb_upper = result.iloc[1].BB_upper
 
-        previous_bb_bottom = result.iloc[0].BB_lower
-        current_bb_bottom = result.iloc[1].BB_lower
+        previous_bb_bottom = result.iloc[0].BB_bottom
+        current_bb_bottom = result.iloc[1].BB_bottom
 
         total_opened_bands = bool(
             (current_bb_upper > previous_bb_upper)
