@@ -85,7 +85,7 @@ class Monitor(db.Entity, AttributeUpdater):
 class TradeLog(db.Entity):
     monitor = Optional(lambda: Monitor)
     test_order = Optional(bool)
-    order_id = Optional(str)
+    id_by_broker = Optional(str)
     timestamp = Optional(int)
     order_type = Optional(str)
     from_side = Optional(str)
