@@ -1,63 +1,54 @@
-# pylint: disable=E1136
-# pylint: disable=no-name-in-module
-# pylint: disable=too-few-public-methods
-
-# from ..brokers.backtesting import BackTestingBroker
-# from ..tools.serializers import Deserialize
-# from ..tools.time_handlers import ParseDateTime
-# from typing import Optional, Union
-# from pydantic import BaseModel
-# from ...log import Notifier
-
+import json
 import sys
-
-import pandas as pd
 
 from ..brokers.engines import get_broker
 from ..marketdata.klines import PriceFromStorage
-from ..utils.databases.sql.models import Monitor  # , Operation
+from ..tools.hashes import string_hash_from_string
+from ..utils.databases.sql.models import Monitor
 from ..utils.databases.sql.schemas import (
     OperationalModes,
     Order,
     Portfolio,
+    Sides,
     Signals,
 )
 
 thismodule = sys.modules[__name__]
 sig = Signals()
 modes = OperationalModes()
+sides = Sides()
 
 
 class Signal:
     def __init__(self, from_side: str, to_side: str, by_stop=False):
-        self.from_side = from_side.capitalize()
-        self.to_side = to_side.capitalize()
+        self.from_side = from_side.lower()
+        self.to_side = to_side.lower()
         self.by_stop = by_stop
 
     def generate(self):
         if self.from_side == self.to_side:
             return sig.hold
 
-        if self.from_side == "Zeroed":
-            if self.to_side == "Long":
+        if self.from_side == sides.zeroed:
+            if self.to_side == sides.long:
                 return sig.buy
-            if self.to_side == "Short":
+            if self.to_side == sides.short:
                 return sig.naked_sell
 
-        if self.from_side == "Long":
-            if self.to_side == "Zeroed":
+        if self.from_side == sides.long:
+            if self.to_side == sides.zeroed:
                 if self.by_stop:
                     return sig.long_stopped
                 return sig.sell
-            if self.to_side == "Short":
+            if self.to_side == sides.short:
                 return sig.double_naked_sell
 
-        if self.from_side == "Short":
-            if self.to_side == "Zeroed":
+        if self.from_side == sides.short:
+            if self.to_side == sides.zeroed:
                 if self.by_stop:
                     return sig.short_stopped
                 return sig.buy
-            if self.to_side == "Long":
+            if self.to_side == sides.long:
                 return sig.double_buy
 
 
@@ -70,7 +61,7 @@ class BackTestingBroker:
         self.fee_rate_decimal = self.setup.backtesting.fee_rate_decimal
         self.order = Order()
         self.portfolio = Portfolio()
-        self.order_id = 1
+        self.order_counter = 1
 
     def get_price(self, **kwargs) -> float:
         """Instant (past or present) artificial average trading price"""
@@ -87,12 +78,10 @@ class BackTestingBroker:
     def get_portfolio(self) -> Portfolio:
         """The portfolio composition, given a market"""
 
-        wallet = self.monitor.operation.get_asset_from_wallet
-        market = self.monitor.market
-
+        wallet = json.loads(self.monitor.operation.wallet)
         return Portfolio(
-            quote=wallet(asset_symbol=market.quote_symbol),
-            base=wallet(asset_symbol=market.base_symbol),
+            quote=wallet.get(self.monitor.market.quote_symbol),
+            base=wallet.get(self.monitor.market.base_symbol),
         )
 
     def get_min_lot_size(self) -> float:
@@ -100,68 +89,92 @@ class BackTestingBroker:
 
         return 10.3 / self.get_price()
 
-    def _order_buy(self):
-        order_amount = self.order.suggested_quantity
-        fee_quote = self.fee_rate_decimal * order_amount
-        spent_base_amount = order_amount * self.order.price
-        bought_quote_amount = self.order.suggested_quantity - fee_quote
+    def _update_wallet(self, delta_quote, delta_base):
+        _wallet = json.loads(self.monitor.operation.wallet)
 
-        new_base = self.portfolio.base - spent_base_amount
-        new_quote = self.portfolio.quote + bought_quote_amount
+        quote_symbol = self.monitor.market.quote_symbol
+        base_symbol = self.monitor.market.base_symbol
 
+        quote = _wallet.get(quote_symbol)
+        base = _wallet.get(base_symbol)
+
+        _wallet.update(
+            **{
+                quote_symbol: quote + delta_quote,
+                base_symbol: base + delta_base,
+            }
+        )
+        self.monitor.operation.update(wallet=json.dumps(_wallet))
+
+    def _process_fee(self) -> float:
+        fee_quote = self.fee_rate_decimal * self.order.quantity
         self.order.fee = fee_quote * self.order.price
-        self.order.proceeded_quantity = bought_quote_amount
-        self.monitor.position.portolio.update(base=new_base, quote=new_quote)
 
-    def _order_sell(self):
-        order_amount = self.order.suggested_quantity
-        fee_quote = self.fee_rate_decimal * order_amount
-        bought_base_amount = self.order.price * (order_amount - fee_quote)
+        return fee_quote
 
-        new_base = self.portfolio.base + bought_base_amount
-        new_quote = self.portfolio.quote - order_amount
+    def _market_buy_order(self):
+        fee = self._process_fee()
+        spent_base_amount = self.order.quantity * self.order.price
+        bought_quote_amount = self.order.quantity - fee
+        self._update_wallet(
+            delta_quote=bought_quote_amount, delta_base=-spent_base_amount
+        )
 
-        self.order.fee = fee_quote * self.order.price
-        self.order.proceeded_quantity = order_amount - fee_quote
-        self.monitor.position.portolio.update(base=new_base, quote=new_quote)
+    def _market_sell_order(self):
+        fee = self._process_fee()
+        bought_base_amount = self.order.price * (self.order.quantity - fee)
+        self._update_wallet(
+            delta_quote=-self.order.quantity, delta_base=bought_base_amount
+        )
 
-    def _order_market(self) -> dict:
-        executor = "_order_{}".format(self.order.signal)
-        getattr(self, executor)()
-
-    def _order_limit(self) -> dict:
+    def _limit_buy_order(self):
         raise NotImplementedError
 
-    def _append_order_to_storage(self) -> dict:
-        columns = list(self.order.dict().keys())
-        data = [list(self.order.dict().values())]
-        _order = pd.DataFrame(columns, data)
-        self.monitor.save_result(database="order", result=_order)
+    def _limit_sell_order(self):
+        raise NotImplementedError
+
+    def _order_id(self):
+        return string_hash_from_string(
+            input_string="{}{}{}{}".format(
+                self.monitor.operation.name,
+                self.monitor.market.broker_name,
+                self.monitor.market.ticker_symbol,
+                self.order_counter,
+            )
+        )
 
     def execute(self, order: Order) -> Order:
         """Proceeds order validation and some trading calculation,
         saving the order like a time series.
 
         Args:
-            order (Order): [description]
+            order (Order): Order parameters collection
 
         Returns:
-            Order: [description]
+            Order: Order parameters collection
         """
+
         self.order = order
-        self.order.order_id = self.order_id
-        if self.order.signal == sig.hold:
+        self.order.order_id = self._order_id()
+
+        if self.order.interpreted_signal == sig.hold:
             self.order.warnings = "Bypassed due to the 'hold' signal"
+
         else:
-            self.portfolio = self.get_portfolio()
-            if self.order.suggested_quantity > self.get_min_lot_size():
-                order_executor = "_order_{}".format(order.order_type)
-                getattr(self, order_executor)()
+            if self.order.quantity > self.get_min_lot_size():
+                order_processor = getattr(
+                    self,
+                    "_{}_{}_order".format(
+                        order.order_type, order.interpreted_signal
+                    ),
+                )
+                order_processor()
                 self.order.fulfilled = True
+
             else:
                 self.order.warnings = "Insufficient balance."
-        self._append_order_to_storage()
-        self.order_id += 1
+
+        self.order_counter += 1
         return self.order
 
 
@@ -169,10 +182,12 @@ class OrderExecutor:
     def __init__(self, analyzer):
         self.analyzer = analyzer
         self.setup = analyzer.monitor.operation.setup()
-        mode = analyzer.monitor.operation.mode
+        self.backtesting = bool(
+            analyzer.monitor.operation.mode == modes.backtesting
+        )
         self.broker = (
             BackTestingBroker(analyzer.monitor)
-            if mode == modes.backtesting
+            if self.backtesting
             else get_broker(market=analyzer.monitor.market())
         )
 
@@ -190,10 +205,16 @@ class OrderExecutor:
 
         return order
 
+    def _save_and_report_trade(self):
+        self.analyzer.monitor.report_trade(payload=self.analyzer.order)
+
     def _hold(self):
         order = self.analyzer.order
         order.interpreted_signal = sig.hold
         self.analyzer.order = self.broker.execute(order)
+
+        if self.backtesting:
+            self._save_and_report_trade()
 
     def _buy(self):
         signal = sig.buy
@@ -203,7 +224,7 @@ class OrderExecutor:
         order.quantity = 0.998 * (order.quantity / order.price)
 
         self.analyzer.order = self.broker.execute(order)
-        self.analyzer.report_trade()
+        self._save_and_report_trade()
 
     def _sell(self):
         signal = sig.sell
@@ -213,7 +234,7 @@ class OrderExecutor:
         order.quantity = 0.998 * order.quantity
 
         self.analyzer.order = self.broker.execute(order)
-        self.analyzer.report_trade()
+        self._save_and_report_trade()
 
     def _naked_sell(self):
         pass
@@ -227,11 +248,9 @@ class OrderExecutor:
     def _long_stopped(self):
         self.analyzer.order.order_type = "market"
         self._sell()
+        self.analyzer.order.order_type = self.setup.default_order_type
 
     def _short_stopped(self):
-        pass
-
-    def _update_and_notifier(self):
         pass
 
     def proceed(self):
@@ -244,9 +263,6 @@ class OrderExecutor:
 class OrderHandler:
     def __init__(self, bases_symbols: list):
         self.bases_symbols = bases_symbols
-        self.buy_queues = {
-            base_symbol: list() for base_symbol in self.bases_symbols
-        }
         self.high_priority_signals = [
             sig.sell,
             sig.hold,
@@ -273,29 +289,32 @@ class OrderHandler:
         return buy_queue
 
     @staticmethod
-    def _proceed(buy_queue: list):
+    def _proceed_each_buy_on(buy_queue: list):
         for executor in buy_queue:
             executor.proceed()
             buy_queue.pop(buy_queue.index(executor))
 
-    def _handle_with(self, buy_queue):
-        # Split executors in buy_queues by base_symbol
+    def _buy_queue_handler(self, buy_queue):
+        # Splits executors into separate queues, indexed by base symbol
+        base_indexed_queues = {
+            base_symbol: list() for base_symbol in self.bases_symbols
+        }
+
         for executor in buy_queue:
             base_symbol = executor.analyzer.monitor.market.base_symbol
-            buy_queue = self.buy_queues[base_symbol]
+            buy_queue = base_indexed_queues.get(base_symbol)
             buy_queue.append(executor)
 
             if executor.analyzer.monitor.is_master:
                 executor.proceed()
                 buy_queue.pop(buy_queue.index(executor))
 
-        queues = self.buy_queues.values()
+        queues = base_indexed_queues.values()
         for queue in queues:
 
-            not_an_empty_queue = bool(queue)
-            if not_an_empty_queue:
+            if queue:
                 _queue = self._populate_orders_quantities(queue)
-                self._proceed(buy_queue=_queue)
+                self._proceed_each_buy_on(buy_queue=_queue)
 
     def process(self, analyzers: list):
         buy_queue = list()
@@ -315,4 +334,4 @@ class OrderHandler:
                     buy_queue.append(executor)
                 # TODO: treat 'double_buy' scenario
         if buy_queue:
-            self._handle_with(buy_queue)
+            self._buy_queue_handler(buy_queue)
