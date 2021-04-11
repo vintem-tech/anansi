@@ -1,7 +1,8 @@
+"""User customizable parameters, like indicators, classifiers,
+stoploss or even entire operations setups"""
+
 # pylint: disable=no-name-in-module
 # pylint: disable=too-few-public-methods
-
-"""User customizable parameters, from indicator setups to operations setups"""
 
 from typing import List, Optional, Sequence, Union
 
@@ -106,10 +107,9 @@ class DidiClassifier(BaseModel):
     time_frame: str = "6h"
     didi_index = DidiIndex()
     bollinger_bands = BollingerBands()
-    # Values must be in [0.0, ..., 1.0]
-    only_lower_opened_weight: float = 1.0
-    only_upper_opened_weight: float = 1.0
-
+    # Below values must be in range(0.0, 1.0) | 'bb' = 'Bollinger bands'
+    weight_if_only_upper_bb_opened: float = 1.0
+    weight_if_only_bottom_bb_opened: float = 1.0
 
 class BackTesting(BaseModel):
     """Backtesting attributes"""
@@ -154,7 +154,7 @@ class BinanceMonitoring:
     ]
 
     def markets(self) -> List[Market]:
-        """Returns a list of binance markets"""
+        """Returns a list of binance markets to monitoring"""
 
         return [
             Market(
@@ -169,15 +169,21 @@ class BinanceMonitoring:
         ]
 
 
+class Trading(BaseModel):
+    """Trading setup schema, with default values."""
+
+    score_that_triggers_long_side: float = 0.3  # <=1.0
+    score_that_triggers_short_side: float = -0.3  # >=-1.0
+    default_order_type: str = "market"
+    allow_naked_sells: bool = False
+    leverage = 1.0
+
+
 class OperationalSetup(BaseModel):
-    """Operational schema, with default values."""
+    """Operation setup schema, with default values."""
 
     classifier: Classifier = DidiClassifier()
     stoploss: StopLoss = StopTrailing3T()
-    default_order_type: str = "market"
-    allow_naked_sells: bool = False
-    score_that_triggers_long_side: float = 0.3 # <=1.0
-    score_that_triggers_short_side: float = -0.3 # >=-1.0
-    bases_symbols: list = BinanceMonitoring().bases
+    trading: Trading = Trading()
     notifier = Notifier()
     backtesting: Optional[BackTesting] = BackTesting()
