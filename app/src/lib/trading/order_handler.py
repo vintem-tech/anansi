@@ -133,7 +133,7 @@ class BackTestingBroker:
     def _limit_sell_order(self):
         raise NotImplementedError
 
-    def _order_id(self):
+    def _tag(self):
         return string_hash_from_string(
             input_string="{}{}{}{}".format(
                 self.monitor.operation.name,
@@ -155,7 +155,7 @@ class BackTestingBroker:
         """
 
         self.order = order
-        self.order.order_id = self._order_id()
+        self.order.tag = self._tag()
 
         if self.order.interpreted_signal == sig.hold:
             self.order.warnings = "Bypassed due to the 'hold' signal"
