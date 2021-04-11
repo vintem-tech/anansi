@@ -57,17 +57,15 @@ class BackTestingBroker:
 
     def __init__(self, monitor: Monitor):
         self.monitor = monitor
+        self.market = monitor.market()
         self.setup = monitor.operation.setup()
-        self.fee_rate_decimal = self.setup.backtesting.fee_rate_decimal
         self.order = Order()
-        self.portfolio = Portfolio()
-        self.order_counter = 1
 
     def get_price(self, **kwargs) -> float:
         """Instant (past or present) artificial average trading price"""
 
         price_getter = PriceFromStorage(
-            market=self.setup.market,
+            market=self.market,
             price_metrics=self.setup.backtesting_price_metrics,
         )
 
@@ -80,8 +78,8 @@ class BackTestingBroker:
 
         wallet = json.loads(self.monitor.operation.wallet)
         return Portfolio(
-            quote=wallet.get(self.monitor.market.quote_symbol),
-            base=wallet.get(self.monitor.market.base_symbol),
+            quote=wallet.get(self.market.quote_symbol),
+            base=wallet.get(self.market.base_symbol),
         )
 
     def get_min_lot_size(self) -> float:
@@ -92,8 +90,8 @@ class BackTestingBroker:
     def _update_wallet(self, delta_quote, delta_base):
         _wallet = json.loads(self.monitor.operation.wallet)
 
-        quote_symbol = self.monitor.market.quote_symbol
-        base_symbol = self.monitor.market.base_symbol
+        quote_symbol = self.market.quote_symbol
+        base_symbol = self.market.base_symbol
 
         quote = _wallet.get(quote_symbol)
         base = _wallet.get(base_symbol)
@@ -107,10 +105,9 @@ class BackTestingBroker:
         self.monitor.operation.update(wallet=json.dumps(_wallet))
 
     def _process_fee(self) -> float:
-        fee_quote = self.fee_rate_decimal * self.order.quantity
-        self.order.fee = fee_quote * self.order.price
-
-        return fee_quote
+        fee = self.setup.backtesting.fee_rate_decimal * self.order.quantity
+        self.order.fee = fee * self.order.price
+        return fee
 
     def _market_buy_order(self):
         fee = self._process_fee()
@@ -133,16 +130,6 @@ class BackTestingBroker:
     def _limit_sell_order(self):
         raise NotImplementedError
 
-    def _tag(self):
-        return string_hash_from_string(
-            input_string="{}{}{}{}".format(
-                self.monitor.operation.name,
-                self.monitor.market.broker_name,
-                self.monitor.market.ticker_symbol,
-                self.order_counter,
-            )
-        )
-
     def execute(self, order: Order) -> Order:
         """Proceeds order validation and some trading calculation,
         saving the order like a time series.
@@ -155,8 +142,6 @@ class BackTestingBroker:
         """
 
         self.order = order
-        self.order.tag = self._tag()
-
         if self.order.interpreted_signal == sig.hold:
             self.order.warnings = "Bypassed due to the 'hold' signal"
 
@@ -174,7 +159,6 @@ class BackTestingBroker:
             else:
                 self.order.warnings = "Insufficient balance."
 
-        self.order_counter += 1
         return self.order
 
 
@@ -301,8 +285,8 @@ class OrderHandler:
         }
 
         for executor in buy_queue:
-            base_symbol = executor.analyzer.monitor.market.base_symbol
-            buy_queue = base_indexed_queues.get(base_symbol)
+            market = executor.analyzer.monitor.market()
+            buy_queue = base_indexed_queues.get(market.base_symbol)
             buy_queue.append(executor)
 
             if executor.analyzer.monitor.is_master:
@@ -311,7 +295,6 @@ class OrderHandler:
 
         queues = base_indexed_queues.values()
         for queue in queues:
-
             if queue:
                 _queue = self._populate_orders_quantities(queue)
                 self._proceed_each_buy_on(buy_queue=_queue)
@@ -324,6 +307,7 @@ class OrderHandler:
                     from_side=analyzer.order.from_side,
                     to_side=analyzer.order.to_side,
                 ).generate()
+
                 analyzer.order.generated_signal = signal
                 executor = OrderExecutor(analyzer)
 
