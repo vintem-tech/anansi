@@ -96,29 +96,29 @@ class DidiClassifier:
         previous_bb_upper = result.iloc[0].BB_upper
         current_bb_upper = result.iloc[1].BB_upper
 
-        previous_bb_lower = result.iloc[0].BB_lower
-        current_bb_lower = result.iloc[1].BB_lower
+        previous_bb_bottom = result.iloc[0].BB_lower
+        current_bb_bottom = result.iloc[1].BB_lower
 
         total_opened_bands = bool(
             (current_bb_upper > previous_bb_upper)
-            and (current_bb_lower < previous_bb_lower)
+            and (current_bb_bottom < previous_bb_bottom)
         )
-        only_upper_opened = bool(
+        only_upper_bb_opened = bool(
             (current_bb_upper > previous_bb_upper)
-            and (current_bb_lower >= previous_bb_lower)
+            and (current_bb_bottom >= previous_bb_bottom)
         )
-        only_lower_opened = bool(
+        only_bottom_bb_opened = bool(
             (current_bb_upper <= previous_bb_upper)
-            and (current_bb_lower < previous_bb_lower)
+            and (current_bb_bottom < previous_bb_bottom)
         )
 
         self.result.loc[index, "Bollinger"] = (
             1.0
             if total_opened_bands
-            else self.setup.only_upper_opened_weight
-            if only_upper_opened
-            else self.setup.only_lower_opened_weight
-            if only_lower_opened
+            else self.setup.weight_if_only_upper_bb_opened
+            if only_upper_bb_opened
+            else self.setup.weight_if_only_bottom_bb_opened
+            if only_bottom_bb_opened
             else 0  # Both bands are closed.
         )
 
