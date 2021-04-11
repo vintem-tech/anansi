@@ -3,7 +3,6 @@ import sys
 
 from ..brokers.engines import get_broker
 from ..marketdata.klines import PriceFromStorage
-from ..tools.hashes import string_hash_from_string
 from ..utils.databases.sql.models import Monitor
 from ..utils.databases.sql.schemas import (
     OperationalModes,
