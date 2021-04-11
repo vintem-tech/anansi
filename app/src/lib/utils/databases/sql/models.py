@@ -30,17 +30,10 @@ class AttributeUpdater(object):
 #    raise NotImplementedError
 
 
-#class Portfolio(db.Entity, AttributeUpdater):
-#    position = Optional(lambda: Position)  # Foreing key
-#    quote = Optional(float)
-#    base = Optional(float)
-
-
 class Position(db.Entity, AttributeUpdater):
     monitor = Optional(lambda: Monitor)  # Foreing key
-#    portfolio = Optional(Portfolio, cascade_delete=True)
     side = Required(str, default="Zeroed")
-    size = Required(float, default=0.0) # by quote
+    size = Required(float, default=0.0)  # by quote
     enter_price = Optional(float)
     timestamp = Optional(int)
     exit_reference_price = Optional(float)
@@ -65,18 +58,20 @@ class Monitor(db.Entity, AttributeUpdater):
         return Deserialize(name="market").from_json(self._market)
 
     def save_result(self, result_type: str, result: pd.core.frame.DataFrame):
-        op_name = self.operation.name
-        exchange = self.market().exchange
-        symbol = self.market().ticker_symbol
-        table = "{}_{}_{}_{}".format(op_name, exchange, symbol, result_type)
-
+        market = self.market()
+        table = "{}_{}_{}_{}".format(
+            self.operation.name,
+            market.broker_name,
+            market.ticker_symbol,
+            result_type,
+        )
         storage = StorageResults(table)
         storage.append(result)
 
     def get_last_result(self) -> pd.core.frame.DataFrame:
         raise NotImplementedError
 
-    def report_trade(self, payload):
+    def report_trade(self, payload:dict):
         self.trade_logs.create(**payload)
         commit()
 
@@ -89,38 +84,31 @@ class Monitor(db.Entity, AttributeUpdater):
 
 class TradeLog(db.Entity):
     monitor = Optional(lambda: Monitor)
-    signal_generated = Optional(str)
-    signal_interpreted = Optional(str)
+    test_order = Optional(bool)
+    order_id = Optional(str)
     timestamp = Optional(int)
+    order_type = Optional(str)
+    from_side = Optional(str)
+    to_side = Optional(str)
+    score = Optional(float)
+    leverage = Optional(float)
+    generated_signal = Optional(str)
+    interpreted_signal = Optional(str)
     price = Optional(float)
-    fee = Optional(float)  # base_asset units
-    quote_amount = Optional(float)
-
+    quantity = Optional(float)
+    fulfilled = Optional(bool)
+    fee = Optional(float)
+    warnings = Optional(str)
 
 class Operation(db.Entity, AttributeUpdater):
     name = Required(str, unique=True)
     monitors = Set(Monitor, cascade_delete=True)
     mode = Required(str, default=modes.backtesting)
-    wallet = Optional(Json)
+    wallet = Optional(Json)  # Useful on backtesting scenarios
     _setup = Required(Json)
-#    _notifier = Required(Json)
-#    _backtesting = Optional(Json)
-
-    def wallet_as_dict(self):
-        return json.loads(self.wallet)
-
-    def get_asset_from_wallet(self, asset_symbol:str):
-        _wallet = self.wallet_as_dict()
-        return _wallet.get(asset_symbol)
 
     def setup(self):
         return Deserialize(name="setup").from_json(self._setup)
-
-#    def notifier(self):
-#        return Deserialize(name="notifier").from_json(self._notifier)
-
-#    def backtesting(self):
-#        return Deserialize(name="backtesting").from_json(self._backtesting)
 
     def reset(self):
         self.update(wallet=json.dumps(dict(USDT=1000.00)))
@@ -139,7 +127,7 @@ class Operation(db.Entity, AttributeUpdater):
                 last_check=LastCheck(by_classifier_at=0),
             )
             commit()
-            is_master=False
+            is_master = False
 
     def list_of_active_monitors(self) -> list:
         monitors = [monitor for monitor in self.monitors if monitor.is_active]
