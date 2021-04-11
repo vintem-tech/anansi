@@ -78,7 +78,7 @@ class Order(BaseModel):
 
     test_order: bool = False
     timestamp: Optional[int]
-    order_id: Optional[Union[str, int]]
+    order_id: Optional[str]
     order_type: Optional[str]
     from_side: Optional[str]
     to_side: Optional[str]
@@ -148,6 +148,14 @@ class OperationalModes(BaseModel):
     real_trading: str = "real_trading"
     test_trading: str = "test_trading"
     backtesting: str = "backtesting"
+
+
+class Sides(BaseModel):
+    """Stores the possible sides"""
+
+    zeroed: str = "zeroed"
+    long: str = "long"
+    short: str = "short"
 
 
 class Signals(BaseModel):
