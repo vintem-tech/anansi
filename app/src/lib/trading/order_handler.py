@@ -263,11 +263,11 @@ class OrderHandler:
         avaliable_base_amount = portfolio.base
 
         score_sum = sum(
-            [abs(executor.analyzer.order.score) for executor in buy_queue]
+            [executor.analyzer.order.score for executor in buy_queue]
         )
 
         for executor in buy_queue:
-            weight = abs(executor.analyzer.order.score) / score_sum
+            weight = executor.analyzer.order.score / score_sum
             executor.analyzer.order.quantity = weight * avaliable_base_amount
 
         return buy_queue
