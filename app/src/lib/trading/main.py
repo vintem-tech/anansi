@@ -55,7 +55,7 @@ class Analyzer:
         self.result = self.classifier.get_restult_at(self.current_timestamp)
         self.monitor.save_result("classifier", self.result)
 
-    def _populate_order(self):
+    def _fill_the_order(self):
         self.order.test_order = bool(
             self.monitor.operation.mode == modes.test_trading
         )
@@ -76,7 +76,7 @@ class Analyzer:
 
         if self._is_a_new_analysis_needed():
             self._refresh_result()
-            self._populate_order()
+            self._fill_the_order()
             self._update()
 
     def save_trading_log(self):
