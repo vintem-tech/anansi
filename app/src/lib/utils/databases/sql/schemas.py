@@ -169,3 +169,6 @@ class Signals(BaseModel):
     double_buy: str = "double_buy"
     long_stopped: str = "long_stopped"
     short_stopped: str = "short_stopped"
+
+    def get_all(self):
+        return [signal for signal in list(self)]
