@@ -105,8 +105,8 @@ class BackTestingBroker:
 
     def _process_fee(self) -> float:
         fee = self.setup.backtesting.fee_rate_decimal * self.order.quantity
-        self.order.fee = fee * self.order.price # base equivalent
-        return fee # quote equivalent
+        self.order.fee = fee * self.order.price  # base equivalent
+        return fee  # quote equivalent
 
     def _market_buy_order(self):
         fee = self._process_fee()
@@ -115,6 +115,7 @@ class BackTestingBroker:
         self._update_wallet(
             delta_quote=bought_quote_amount, delta_base=-spent_base_amount
         )
+        return True
 
     def _market_sell_order(self):
         fee = self._process_fee()
@@ -122,6 +123,7 @@ class BackTestingBroker:
         self._update_wallet(
             delta_quote=-self.order.quantity, delta_base=bought_base_amount
         )
+        return True
 
     def _limit_buy_order(self):
         raise NotImplementedError
@@ -141,23 +143,21 @@ class BackTestingBroker:
         """
 
         self.order = order
-        if self.order.interpreted_signal == sig.hold:
+        signal = order.interpreted_signal
+
+        if signal == sig.hold:
             self.order.warnings = "Bypassed due to the 'hold' signal"
+            return self.order
 
-        else:
-            if self.order.quantity > self.get_min_lot_size():
-                order_processor = getattr(
-                    self,
-                    "_{}_{}_order".format(
-                        order.order_type, order.interpreted_signal
-                    ),
-                )
-                order_processor()
-                self.order.fulfilled = True
+        sufficient_balance = bool(
+            self.order.quantity > self.get_min_lot_size()
+        )
+        if sufficient_balance:
+            processor = "_{}_{}_order".format(order.order_type, signal)
+            self.order.fulfilled = getattr(self, processor)()
+            return self.order
 
-            else:
-                self.order.warnings = "Insufficient balance."
-
+        self.order.warnings = "Insufficient balance."
         return self.order
 
 
@@ -209,13 +209,15 @@ class OrderExecutor:
         self._save_trading_log()
 
     def _naked_sell(self):
-        pass
+        if self.setup.trading.allow_naked_sells:
+            raise NotImplementedError
 
     def _double_naked_sell(self):
-        pass
+        self._sell()
+        self._naked_sell()
 
     def _double_buy(self):
-        pass
+        raise NotImplementedError
 
     def _long_stopped(self):
         self.analyzer.order.order_type = "market"
@@ -237,14 +239,6 @@ class OrderExecutor:
 class OrderHandler:
     def __init__(self, bases_symbols: list):
         self.bases_symbols = bases_symbols
-        self.high_priority_signals = [
-            sig.sell,
-            sig.hold,
-            sig.short_stopped,
-            sig.long_stopped,
-            sig.naked_sell,
-            sig.double_buy,
-        ]
 
     @staticmethod
     def _populate_orders_quantities(buy_queue: list):
@@ -259,10 +253,8 @@ class OrderHandler:
         for executor in buy_queue:
             weight = executor.analyzer.order.score / score_sum
             leverage = executor.analyzer.order.leverage
-
-            executor.analyzer.order.quantity = (
-                leverage * weight * avaliable_base_amount
-            )
+            quantity = leverage * weight * avaliable_base_amount
+            executor.analyzer.order.quantity = quantity
 
         return buy_queue
 
@@ -288,28 +280,27 @@ class OrderHandler:
                 buy_queue.pop(buy_queue.index(executor))
 
         queues = base_indexed_queues.values()
-        for queue in queues:
-            if queue:
-                _queue = self._populate_orders_quantities(queue)
-                self._proceed_each_buy_on(buy_queue=_queue)
+        for queue in (queue_ for queue_ in queues if queue_):
+
+            _queue = self._populate_orders_quantities(queue)
+            self._proceed_each_buy_on(buy_queue=_queue)
 
     def process(self, analyzers: list):
         buy_queue = list()
-        if analyzers:
-            for analyzer in analyzers:
-                signal = Signal(
-                    from_side=analyzer.order.from_side,
-                    to_side=analyzer.order.to_side,
-                ).generate()
 
-                analyzer.order.generated_signal = signal
-                executor = OrderExecutor(analyzer)
+        for analyzer in analyzers:
+            signal = Signal(
+                from_side=analyzer.order.from_side,
+                to_side=analyzer.order.to_side,
+            ).generate()
 
-                if signal in self.high_priority_signals:
-                    executor.proceed()
+            analyzer.order.generated_signal = signal
+            executor = OrderExecutor(analyzer)
 
-                elif signal == sig.buy:
-                    buy_queue.append(executor)
-                # TODO: treat 'double_buy' scenario
+            if signal not in [sig.buy, sig.double_buy]:
+                executor.proceed()
+
+            elif signal == sig.buy:
+                buy_queue.append(executor)
         if buy_queue:
             self._buy_queue_handler(buy_queue)
