@@ -241,7 +241,7 @@ class OrderHandler:
         self.bases_symbols = bases_symbols
 
     @staticmethod
-    def _populate_orders_quantities(buy_queue: list):
+    def _fill_the_order_quantities_in_the(buy_queue: list):
         _executor = buy_queue[0]
         portfolio = _executor.broker.get_portfolio()
         avaliable_base_amount = portfolio.base
@@ -259,7 +259,7 @@ class OrderHandler:
         return buy_queue
 
     @staticmethod
-    def _proceed_each_buy_on(buy_queue: list):
+    def _proceed_each_buy_in_the(buy_queue: list):
         for executor in buy_queue:
             executor.proceed()
             buy_queue.pop(buy_queue.index(executor))
@@ -280,10 +280,9 @@ class OrderHandler:
                 buy_queue.pop(buy_queue.index(executor))
 
         queues = base_indexed_queues.values()
-        for queue in (queue_ for queue_ in queues if queue_):
-
-            _queue = self._populate_orders_quantities(queue)
-            self._proceed_each_buy_on(buy_queue=_queue)
+        for non_empty_queue in (queue for queue in queues if queue):
+            _queue = self._fill_the_order_quantities_in_the(non_empty_queue)
+            self._proceed_each_buy_in_the(buy_queue=_queue)
 
     def process(self, analyzers: list):
         buy_queue = list()
