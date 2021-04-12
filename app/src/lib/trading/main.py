@@ -29,36 +29,37 @@ class Analyzer:
         )
         self.was_updated = False
         self.has_a_trade_occurred = False
-        self.now: int = None
+        self.current_timestamp: int = None
         self.order = Order()
         self.result = pd.DataFrame()
 
     def _is_a_new_analysis_needed(self) -> bool:
         last_check = self.monitor.last_check.by_classifier_at
         step = time_frame_to_seconds(self.setup.classifier.setup.time_frame)
-        return bool(self.now >= last_check + step)
+        return bool(self.current_timestamp >= last_check + step)
 
     def _evaluate_side(self) -> str:
         score = self.result.score
         if score > self.setup.trading.score_that_triggers_long_side:
             return sides.long
 
-        if (
-            score < self.setup.trading.score_that_triggers_short_side
-            and self.setup.trading.allow_naked_sells
-        ):
+        if score < self.setup.trading.score_that_triggers_short_side:
             return sides.short
         return sides.zeroed
 
+    def _reset(self):
+        self.was_updated = False
+        self.has_a_trade_occurred = False
+
     def _refresh_result(self):
-        self.result = self.classifier.get_restult_at(self.now)
+        self.result = self.classifier.get_restult_at(self.current_timestamp)
         self.monitor.save_result("classifier", self.result)
 
     def _populate_order(self):
         self.order.test_order = bool(
             self.monitor.operation.mode == modes.test_trading
         )
-        self.order.timestamp = self.now
+        self.order.timestamp = self.current_timestamp
         self.order.order_type = self.setup.trading.default_order_type
         self.order.leverage = self.setup.trading.leverage
         self.order.score = self.result.score
@@ -67,12 +68,11 @@ class Analyzer:
 
     def _update(self):
         self.was_updated = True
-        self.monitor.last_check.update(by_classifier_at=self.now)
+        self.monitor.last_check.update(by_classifier_at=self.current_timestamp)
 
     def check_at(self, desired_datetime: DateTimeType):
-        self.was_updated = False
-        self.has_a_trade_occurred = False
-        self.now = desired_datetime
+        self._reset()
+        self.current_timestamp = desired_datetime
 
         if self._is_a_new_analysis_needed():
             self._refresh_result()
@@ -96,11 +96,11 @@ class Trader:
         # for stop in self.stop_loss:
         #    stop.check_at(desired_datetime)
 
+        updated_analyzers = list()
         for analyzer in self.analyzers:
             analyzer.check_at(desired_datetime)
+            if analyzer.was_updated:
+                updated_analyzers.append(analyzer)
 
-        self.order_handler.process(
-            analyzers=[
-                analyzer for analyzer in self.analyzers if analyzer.was_updated
-            ]
-        )
+        if updated_analyzers:
+            self.order_handler.process(analyzers=updated_analyzers)
