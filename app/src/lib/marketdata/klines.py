@@ -319,7 +319,6 @@ class ToStorage:
         Args:
             since (DateTimeType): Start desired datetime
             until (DateTimeType): End desired datetime
-            time_frame (str): <amount><scale_unit> e.g. '1m', '2h'
 
         Returns:
             pd.core.frame.DataFrame: Raw timestamp formatted OHLCV
