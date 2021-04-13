@@ -106,10 +106,10 @@ class Operation(db.Entity, AttributeUpdater):
     monitors = Set(Monitor, cascade_delete=True)
     mode = Required(str, default=modes.backtesting)
     wallet = Optional(Json)  # Useful on backtesting scenarios
-    _setup = Required(Json)
+    setup_ = Required(Json)
 
     def setup(self):
-        return Deserialize(name="setup").from_json(self._setup)
+        return Deserialize(name="setup").from_json(self.setup_)
 
     def reset(self):
         self.update(wallet=json.dumps(dict(USDT=1000.00)))
