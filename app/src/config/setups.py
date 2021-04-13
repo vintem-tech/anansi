@@ -144,13 +144,13 @@ class BinanceMonitoring:
         "BTC",
         "ETH",
         "NEO",
-        "LINK",
-        "EOS",
-        "LTC",
-        "XRP",
-        "BNB",
-        "ADA",
-        "TRX",
+#        "LINK",
+#        "EOS",
+#        "LTC",
+#        "XRP",
+#        "BNB",
+#        "ADA",
+#        "TRX",
     ]
 
     def markets(self) -> List[Market]:
