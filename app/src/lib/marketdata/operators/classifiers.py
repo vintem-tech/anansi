@@ -5,7 +5,6 @@ import pandas as pd
 
 from ...utils.schemas import (
     BaseModel,
-    ClassifierPayLoad,
     DateTimeType,
     Ticker,
 )
@@ -13,7 +12,7 @@ from ..klines import klines_getter
 
 thismodule = sys.modules[__name__]
 
-avaliable = [
+avaliable_classifiers = [
     "DidiClassifier",
 ]
 
@@ -166,7 +165,15 @@ class DidiClassifier:
         return self._proceed()
 
 
-def get_classifier(payload: ClassifierPayLoad):
+class PayLoad(BaseModel):
+    name: str
+    ticker: Ticker
+    setup: BaseModel
+    backtesting: bool = False
+    result_length: int = 1
+
+
+def get_classifier(payload: PayLoad):
     """Given a market ticker, returns an instance of the named
     setup.classifier_name classifier.
 
@@ -175,9 +182,9 @@ def get_classifier(payload: ClassifierPayLoad):
     Returns: Union[DidiClassifier]: The classifier
     """
 
-    return getattr(thismodule, payload.classifier.name)(
+    return getattr(thismodule, payload.name)(
         ticker=payload.ticker,
-        setup=payload.classifier.setup,
+        setup=payload.setup,
         backtesting=payload.backtesting,
         result_length=payload.result_length,
     )
