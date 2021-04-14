@@ -1,9 +1,9 @@
 import pandas as pd
 
 from ..marketdata.operators.classifiers import get_classifier
-from ..tools.time_handlers import time_frame_to_seconds
+from ..utils.tools.time_handlers import time_frame_to_seconds
 from ..utils.databases.sql.models import Monitor, Operation
-from ..utils.databases.sql.schemas import (
+from ..utils.schemas import (
     ClassifierPayLoad,
     DateTimeType,
     OperationalModes,
