@@ -1,10 +1,9 @@
 import pandas as pd
 
-from ..marketdata.operators.classifiers import get_classifier
+from ..marketdata.operators.classifiers import get_classifier, PayLoad
 from ..utils.tools.time_handlers import time_frame_to_seconds
 from ..utils.databases.sql.models import Monitor, Operation
 from ..utils.schemas import (
-    ClassifierPayLoad,
     DateTimeType,
     OperationalModes,
     Order,
@@ -21,9 +20,10 @@ class Analyzer:
         self.monitor = monitor
         self.setup = monitor.operation.setup()
         self.classifier = get_classifier(
-            payload=ClassifierPayLoad(
-                market=monitor.market(),
-                classifier=self.setup.classifier,
+            payload=PayLoad(
+                name=self.setup.classifier.name,
+                ticker=monitor.ticker(),
+                setup=self.setup.classifier.setup,
                 backtesting=bool(monitor.operation.mode == modes.backtesting),
             )
         )
