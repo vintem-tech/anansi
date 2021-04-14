@@ -4,8 +4,9 @@ import pandas as pd
 from pony.orm import Database, Json, Optional, Required, Set, commit, sql_debug
 
 from .....config.settings import system_settings
-from ....tools.serializers import Deserialize
-from ..sql.schemas import OperationalModes
+from .....config.setups import initial_wallet
+from ....utils.schemas import OperationalModes
+from ...tools.serializers import Deserialize
 from ..time_series_storage.models import StorageResults
 
 settings = system_settings()
@@ -49,13 +50,13 @@ class Monitor(db.Entity, AttributeUpdater):
     operation = Optional(lambda: Operation)
     is_active = Required(bool, default=True)
     is_master = Required(bool, default=False)
-    _market = Required(Json)
+    market_ = Required(Json)
     position = Required(Position, cascade_delete=True)
     last_check = Required(LastCheck, cascade_delete=True)
-    trading_logs = Set(lambda: TradingLog, cascade_delete=True)
+    orders = Set(lambda: Order, cascade_delete=True)
 
     def market(self):
-        return Deserialize(name="market").from_json(self._market)
+        return Deserialize(name="market").from_json(self.market_)
 
     def save_result(self, result_type: str, result: pd.core.frame.DataFrame):
         market = self.market()
@@ -72,17 +73,17 @@ class Monitor(db.Entity, AttributeUpdater):
         raise NotImplementedError
 
     def save_trading_log(self, payload: dict):
-        self.trading_logs.create(**payload)
+        self.orders.create(**payload)
         commit()
 
     def reset(self):
         self.last_check.update(by_classifier_at=0)
         self.position.update(side="Zeroed", size=0.0)
-        self.trading_logs.clear()
+        self.orders.clear()
         commit()
 
 
-class TradingLog(db.Entity):
+class Order(db.Entity):
     monitor = Optional(lambda: Monitor)
     test_order = Optional(bool)
     id_by_broker = Optional(str)
@@ -104,18 +105,12 @@ class TradingLog(db.Entity):
 class Operation(db.Entity, AttributeUpdater):
     name = Required(str, unique=True)
     monitors = Set(Monitor, cascade_delete=True)
-    mode = Required(str, default=modes.backtesting)
-    wallet = Optional(Json)  # Useful on backtesting scenarios
+    # mode = Required(str, default=modes.backtesting)
+    # wallet = Optional(Json)  # Useful on backtesting scenarios
     setup_ = Required(Json)
 
     def setup(self):
         return Deserialize(name="setup").from_json(self.setup_)
-
-    def reset(self):
-        self.update(wallet=json.dumps(dict(USDT=1000.00)))
-
-        for monitor in self.monitors:
-            monitor.reset()
 
     def recreate_monitors(self, market_list: list):
         self.monitors.clear()
@@ -130,6 +125,10 @@ class Operation(db.Entity, AttributeUpdater):
             commit()
             is_master = False
 
+    def reset_monitors(self):
+        for monitor in self.monitors:
+            monitor.reset()
+
     def list_of_active_monitors(self) -> list:
         monitors = [monitor for monitor in self.monitors if monitor.is_active]
         monitors.sort()
@@ -140,6 +139,19 @@ class Operation(db.Entity, AttributeUpdater):
             monitor.market().base_symbol
             for monitor in self.list_of_active_monitors()
         ]
+
+
+class RealTradingOperation(Operation):
+    mode = Required(str, default=modes.real_trading)
+
+
+class BackTestingOperation(Operation):
+    mode = Required(str, default=modes.backtesting)
+    wallet = Optional(Json)
+
+    def reset(self):
+        self.update(wallet=json.dumps(initial_wallet))
+        self.reset_monitors()
 
 
 db.generate_mapping(create_tables=True)
