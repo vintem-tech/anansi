@@ -5,9 +5,12 @@
 
 """Shared pydantic model classes."""
 
-from typing import Optional, Union
+from typing import Dict, Optional, Union
 
 from pydantic import BaseModel
+
+DateTimeType = Union[str, int]
+Wallet = Dict[str, float]
 
 possible_price_metrics = ["o", "h", "l", "c", "oc2", "hl2", "hlc3", "ohlc4"]
 
@@ -31,10 +34,7 @@ possible_price_metrics = ["o", "h", "l", "c", "oc2", "hl2", "hlc3", "ohlc4"]
 # measure is 'DateTimeType' - MUST be converted or originally measured
 # in UTC time zone.
 
-DateTimeType = Union[str, int]
-
-
-class Market(BaseModel):
+class Ticker(BaseModel):
     """Market attributes"""
 
     broker_name: str
@@ -43,13 +43,13 @@ class Market(BaseModel):
     ticker_symbol: str
 
 
-class Portfolio(BaseModel):
+class MarketPartition(BaseModel):
     """Market are formed by trading between 'quote' and 'base' assets,
     this class shows the quantity of each asset, given a certain
     Market; e.g., suppose, for the 'BTCUDST' binance market, that you
     have 100 USDTs and 0.02 BTC in your portfolio, so let's do
 
-    p = portfolio (quote = 0.02, base = 100)
+    p = MarketPartition (quote = 0.02, base = 100)
 
     ... that way:
 
@@ -65,12 +65,12 @@ class Portfolio(BaseModel):
     base: float = None
 
 
-class Quant(BaseModel):
+class Quantity(BaseModel):
     """Auxiliary class to store the amount quantity information, useful
     for the trade order flow"""
 
-    is_enough: Optional[bool]
-    value: Optional[str]
+    is_sufficient: bool = False
+    value: Optional[Union[str, float]]
 
 
 class Order(BaseModel):
@@ -103,10 +103,11 @@ class Classifier(BaseModel):
 class StopLoss(BaseModel):
     """Stoploss handler attributes"""
 
-    is_on: bool
-    name: str
-    setup: BaseModel
+    is_on: bool = False
+    name: Optional[str]
+    setup: Optional[BaseModel]
 
+# Name collections
 
 class Broadcasters(BaseModel):
     """Stores the possible trading signals"""
@@ -116,31 +117,6 @@ class Broadcasters(BaseModel):
     whatsapp: str = "whatsapp"
     email: str = "email"
     push: str = "push"
-
-
-class ClassifierPayLoad(BaseModel):
-    """Information that must be passed to get a classifier"""
-
-    classifier: Classifier
-    market: Market
-    backtesting: bool
-    result_length: int
-
-
-class Treshold(BaseModel):
-    """Fires the trigger when 'm_found' true conditions are found among
-    the 'n_datapoints' values."""
-
-    m_found: int
-    n_datapoints: int
-
-
-class Trigger(BaseModel):
-    """Trigger parameters"""
-
-    rate: float
-    treshold: Treshold
-
 
 class OperationalModes(BaseModel):
     """Stores the possible operation modes"""
@@ -170,5 +146,32 @@ class Signals(BaseModel):
     long_stopped: str = "long_stopped"
     short_stopped: str = "short_stopped"
 
-    def get_all(self):
-        return [signal for signal in list(self)]
+    def get_all(self)->list:
+        """A list of the all possibles trading signals"""
+
+        return [signal[1] for signal in list(self)]
+
+# Deprecation Candidates
+
+class ClassifierPayLoad(BaseModel):
+    """Information that must be passed to get a classifier"""
+
+    classifier: Classifier
+    market: Ticker
+    backtesting: bool
+    result_length: int
+
+
+class Treshold(BaseModel):
+    """Fires the trigger when 'm_found' true conditions are found among
+    the 'n_datapoints' values."""
+
+    m_found: int
+    n_datapoints: int
+
+
+class Trigger(BaseModel):
+    """Trigger parameters"""
+
+    rate: float
+    treshold: Treshold
