@@ -3,11 +3,11 @@ import sys
 
 import pandas as pd
 
-from ...utils.databases.sql.schemas import (
+from ...utils.schemas import (
     BaseModel,
     ClassifierPayLoad,
     DateTimeType,
-    Market,
+    Ticker,
 )
 from ..klines import klines_getter
 
@@ -29,14 +29,14 @@ class DidiClassifier:
 
     def __init__(
         self,
-        market: Market,
+        ticker: Ticker,
         setup: BaseModel,
         backtesting: bool = False,
         result_length: int = 1,
     ):
         self.setup = setup
         self.klines_getter = klines_getter(
-            market=market,
+            ticker=ticker,
             time_frame=setup.time_frame,
             backtesting=backtesting,
         )
@@ -167,8 +167,8 @@ class DidiClassifier:
 
 
 def get_classifier(payload: ClassifierPayLoad):
-    """Given a market, returns an instance of the named setup.classifier_name
-    classifier.
+    """Given a market ticker, returns an instance of the named
+    setup.classifier_name classifier.
 
     Args: operation (Operation): An instance of an Operation
 
@@ -176,7 +176,7 @@ def get_classifier(payload: ClassifierPayLoad):
     """
 
     return getattr(thismodule, payload.classifier.name)(
-        market=payload.market,
+        ticker=payload.ticker,
         setup=payload.classifier.setup,
         backtesting=payload.backtesting,
         result_length=payload.result_length,
