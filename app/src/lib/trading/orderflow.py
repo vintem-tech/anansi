@@ -4,10 +4,10 @@ import sys
 from ..brokers.engines import get_broker
 from ..marketdata.klines import PriceFromStorage
 from ..utils.databases.sql.models import Monitor
-from ..utils.databases.sql.schemas import (
+from ..utils.schemas import (
     OperationalModes,
     Order,
-    Portfolio,
+    MarketPartition,
     Sides,
     Signals,
 )
@@ -56,7 +56,7 @@ class BackTestingBroker:
 
     def __init__(self, monitor: Monitor):
         self.monitor = monitor
-        self.market = monitor.market()
+        self.ticker = monitor.ticker()
         self.setup = monitor.operation.setup()
         self.order = Order()
 
@@ -64,7 +64,7 @@ class BackTestingBroker:
         """Instant (past or present) artificial average trading price"""
 
         price_getter = PriceFromStorage(
-            market=self.market,
+            ticker=self.ticker,
             price_metrics=self.setup.backtesting.price_metrics,
         )
 
@@ -72,13 +72,13 @@ class BackTestingBroker:
             desired_datetime=kwargs.get("at_time")
         )
 
-    def get_portfolio(self) -> Portfolio:
-        """The portfolio composition, given a market"""
+    def get_portfolio(self) -> MarketPartition:
+        """The portfolio composition, given a ticker"""
 
         wallet = json.loads(self.monitor.operation.wallet)
-        return Portfolio(
-            quote=wallet.get(self.market.quote_symbol),
-            base=wallet.get(self.market.base_symbol),
+        return MarketPartition(
+            quote=wallet.get(self.ticker.quote_symbol),
+            base=wallet.get(self.ticker.base_symbol),
         )
 
     def get_min_lot_size(self) -> float:
@@ -87,21 +87,21 @@ class BackTestingBroker:
         return 10.3 / self.get_price()
 
     def _update_wallet(self, delta_quote, delta_base):
-        _wallet = json.loads(self.monitor.operation.wallet)
+        wallet_ = json.loads(self.monitor.operation.wallet)
 
-        quote_symbol = self.market.quote_symbol
-        base_symbol = self.market.base_symbol
+        quote_symbol = self.ticker.quote_symbol
+        base_symbol = self.ticker.base_symbol
 
-        quote = _wallet.get(quote_symbol)
-        base = _wallet.get(base_symbol)
+        quote = wallet_.get(quote_symbol)
+        base = wallet_.get(base_symbol)
 
-        _wallet.update(
+        wallet_.update(
             **{
                 quote_symbol: quote + delta_quote,
                 base_symbol: base + delta_base,
             }
         )
-        self.monitor.operation.update(wallet=json.dumps(_wallet))
+        self.monitor.operation.update(wallet=json.dumps(wallet_))
 
     def _process_fee(self) -> float:
         fee = self.setup.backtesting.fee_rate_decimal * self.order.quantity
@@ -171,7 +171,7 @@ class OrderExecutor:
         self.broker = (
             BackTestingBroker(analyzer.monitor)
             if self.backtesting
-            else get_broker(market=analyzer.monitor.market())
+            else get_broker(ticker=analyzer.monitor.ticker())
         )
 
     def _validate_order(self):
@@ -271,8 +271,8 @@ class OrderHandler:
         }
 
         for executor in buy_queue:
-            market = executor.analyzer.monitor.market()
-            buy_queue = base_indexed_queues.get(market.base_symbol)
+            ticker = executor.analyzer.monitor.ticker()
+            buy_queue = base_indexed_queues.get(ticker.base_symbol)
             buy_queue.append(executor)
 
             if executor.analyzer.monitor.is_master:
@@ -281,8 +281,8 @@ class OrderHandler:
 
         queues = base_indexed_queues.values()
         for non_empty_queue in (queue for queue in queues if queue):
-            _queue = self._fill_the_order_quantities_in_the(non_empty_queue)
-            self._proceed_each_buy_in_the(buy_queue=_queue)
+            queue_ = self._fill_the_order_quantities_in_the(non_empty_queue)
+            self._proceed_each_buy_in_the(buy_queue=queue_)
 
     def process(self, analyzers: list):
         buy_queue = list()
