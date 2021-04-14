@@ -3,7 +3,7 @@
 import pandas as pd
 
 from ..marketdata.klines import PriceFromStorage
-from ..utils.databases.sql.schemas import Order, Portfolio, Signals
+from ..utils.databases.sql.schemas import Order, MarketPartition, Signals
 
 sig = Signals()
 
@@ -15,7 +15,7 @@ class BackTestingBroker:
         self.setup = monitor.operation.backtesting()
         self.fee_rate_decimal = self.setup.fee_rate_decimal
         self.order = Order()
-        self.portfolio = Portfolio()
+        self.portfolio = MarketPartition()
         self.order_id = 1
 
     def get_price_at(self, desired_datetime) -> float:
@@ -26,10 +26,10 @@ class BackTestingBroker:
             price_metrics=self.setup.price_metrics,
         ).get_price_at(desired_datetime)
 
-    def get_portfolio(self) -> Portfolio:
+    def get_portfolio(self) -> MarketPartition:
         """The portfolio composition, given a market"""
 
-        return Portfolio(
+        return MarketPartition(
             quote=self.operation.position.porfolio.quote,
             base=self.operation.position.portfolio.base,
         )
