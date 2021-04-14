@@ -4,19 +4,21 @@ stoploss or even entire operations setups"""
 # pylint: disable=no-name-in-module
 # pylint: disable=too-few-public-methods
 
-from typing import List, Optional, Sequence, Union
+from typing import List, Optional, Sequence
 
 from pydantic import BaseModel, validator
 
-from ..lib.utils.databases.sql.schemas import (
+from ..lib.utils.schemas import (
     Broadcasters,
     Classifier,
+    DateTimeType,
     Market,
     StopLoss,
+    Wallet,
     possible_price_metrics,
 )
 
-DateTimeType = Union[str, int]
+initial_wallet: Wallet = dict(USDT=1000.00)
 broadcasters = Broadcasters()
 
 
@@ -111,6 +113,7 @@ class DidiClassifier(BaseModel):
     weight_if_only_upper_bb_opened: float = 1.0
     weight_if_only_bottom_bb_opened: float = 1.0
 
+
 class BackTesting(BaseModel):
     """Backtesting attributes"""
 
@@ -144,13 +147,13 @@ class BinanceMonitoring:
         "BTC",
         "ETH",
         "NEO",
-#        "LINK",
-#        "EOS",
-#        "LTC",
-#        "XRP",
-#        "BNB",
-#        "ADA",
-#        "TRX",
+        #        "LINK",
+        #        "EOS",
+        #        "LTC",
+        #        "XRP",
+        #        "BNB",
+        #        "ADA",
+        #        "TRX",
     ]
 
     def markets(self) -> List[Market]:
