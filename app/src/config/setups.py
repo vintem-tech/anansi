@@ -3,7 +3,7 @@ stoploss or even entire operations setups"""
 
 # pylint: disable=no-name-in-module
 # pylint: disable=too-few-public-methods
-
+import sys
 from typing import List, Optional, Sequence
 
 from pydantic import BaseModel, validator
@@ -12,13 +12,15 @@ from ..lib.utils.schemas import (
     Broadcasters,
     Classifier,
     DateTimeType,
-    Market,
     StopLoss,
+    Ticker,
     Wallet,
     possible_price_metrics,
 )
 
-initial_wallet: Wallet = dict(USDT=1000.00)
+thismodule = sys.modules[__name__]
+
+initial_wallet: Wallet = dict(USDT=1000.00) # Backtesting scenarios
 broadcasters = Broadcasters()
 
 
@@ -104,11 +106,12 @@ class DidiIndex(BaseModel):
 
 class DidiClassifier(BaseModel):
     """Setup of DidiClassifier operator, which uses didi index and
-    bollinger bands indicators to proceed classification"""
+    bollinger bands indicators to generate a classification score"""
 
     time_frame: str = "6h"
     didi_index = DidiIndex()
     bollinger_bands = BollingerBands()
+
     # Below values must be in range(0.0, 1.0) | 'bb' = 'Bollinger bands'
     weight_if_only_upper_bb_opened: float = 1.0
     weight_if_only_bottom_bb_opened: float = 1.0
@@ -128,8 +131,7 @@ class Notifier(BaseModel):
 
     broadcasters: List = [broadcasters.print_on_screen, broadcasters.telegram]
     debug: bool = True
-    # e.g. "1m", "5m", "2h" ...
-    debug_message_every: str = "6h"
+    debug_message_every: str = "6h" # e.g. "1m", "5m", "2h" ...
 
 
 class StopTrailing3T(BaseModel):
@@ -156,11 +158,11 @@ class BinanceMonitoring:
         #        "TRX",
     ]
 
-    def markets(self) -> List[Market]:
-        """Returns a list of binance markets to monitoring"""
+    def tickers(self) -> List[Ticker]:
+        """Returns a list of binance market tickers to monitoring"""
 
         return [
-            Market(
+            Ticker(
                 broker_name="binance",
                 quote_symbol=quote,
                 base_symbol=base,
@@ -185,8 +187,15 @@ class Trading(BaseModel):
 class OperationalSetup(BaseModel):
     """Operation setup schema, with default values."""
 
-    classifier: Classifier = DidiClassifier()
+    classifier =  Classifier(
+        name = "DidiClassifier",
+        setup = DidiClassifier()
+    )
     stoploss: StopLoss = StopTrailing3T()
     trading: Trading = Trading()
     notifier = Notifier()
     backtesting: Optional[BackTesting] = BackTesting()
+
+
+def get_setup(name: str):
+    return getattr(thismodule, name)()
