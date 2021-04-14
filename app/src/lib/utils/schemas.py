@@ -153,15 +153,6 @@ class Signals(BaseModel):
 
 # Deprecation Candidates
 
-class ClassifierPayLoad(BaseModel):
-    """Information that must be passed to get a classifier"""
-
-    classifier: Classifier
-    market: Ticker
-    backtesting: bool
-    result_length: int
-
-
 class Treshold(BaseModel):
     """Fires the trigger when 'm_found' true conditions are found among
     the 'n_datapoints' values."""
