@@ -4,7 +4,11 @@ import pandas as pd
 from pony.orm import Database, Json, Optional, Required, Set, commit, sql_debug
 
 from .....config.settings import system_settings
-from .....config.setups import initial_wallet
+from .....config.setups import (
+    initial_wallet,
+    OperationalSetup,
+    BinanceMonitoring,
+)
 from ....utils.schemas import OperationalModes
 from ...tools.serializers import Deserialize
 from ..time_series_storage.models import StorageResults
@@ -56,7 +60,7 @@ class Monitor(db.Entity, AttributeUpdater):
     orders = Set(lambda: Order, cascade_delete=True)
 
     def ticker(self):
-        return Deserialize(name="market").from_json(self.ticker_)
+        return Deserialize(name="ticker").from_json(self.ticker_)
 
     def save_result(self, result_type: str, result: pd.core.frame.DataFrame):
         ticker = self.ticker()
@@ -83,42 +87,23 @@ class Monitor(db.Entity, AttributeUpdater):
         commit()
 
 
-class Order(db.Entity):
-    monitor = Optional(lambda: Monitor)
-    test_order = Optional(bool)
-    id_by_broker = Optional(str)
-    timestamp = Optional(int)
-    order_type = Optional(str)
-    from_side = Optional(str)
-    to_side = Optional(str)
-    score = Optional(float)
-    leverage = Optional(float)
-    generated_signal = Optional(str)
-    interpreted_signal = Optional(str)
-    price = Optional(float)
-    quantity = Optional(float)
-    fulfilled = Optional(bool)
-    fee = Optional(float)
-    warnings = Optional(str)
-
-
 class Operation(db.Entity, AttributeUpdater):
     name = Required(str, unique=True)
     monitors = Set(Monitor, cascade_delete=True)
-    # mode = Required(str, default=modes.backtesting)
+    mode = Required(str, default=modes.backtesting)
     # wallet = Optional(Json)  # Useful on backtesting scenarios
     setup_ = Required(Json)
 
     def setup(self):
         return Deserialize(name="setup").from_json(self.setup_)
 
-    def recreate_monitors(self, market_list: list):
+    def recreate_monitors(self, tickers_list: list):
         self.monitors.clear()
         is_master = True
-        for market in market_list:
+        for ticker in tickers_list:
             self.monitors.create(
                 is_master=is_master,
-                _market=market.json(),
+                ticker_=ticker.json(),
                 position=Position(),
                 last_check=LastCheck(by_classifier_at=0),
             )
@@ -136,22 +121,59 @@ class Operation(db.Entity, AttributeUpdater):
 
     def bases_symbols(self) -> list:
         return [
-            monitor.market().base_symbol
+            monitor.ticker().base_symbol
             for monitor in self.list_of_active_monitors()
         ]
 
 
 class RealTradingOperation(Operation):
-    mode = Required(str, default=modes.real_trading)
+    status = Optional(str)
 
 
 class BackTestingOperation(Operation):
-    mode = Required(str, default=modes.backtesting)
     wallet = Optional(Json)
+    fraction_complete = Optional(float)
 
     def reset(self):
         self.update(wallet=json.dumps(initial_wallet))
         self.reset_monitors()
+
+
+def create_backtesting_operation(
+    name: str,
+    tickers_list = BinanceMonitoring().tickers(),
+    setup: json = OperationalSetup().json(),
+) -> Operation:
+
+    operation = BackTestingOperation(
+        name=name,
+        setup_=setup,
+    )
+    commit()
+
+    operation.recreate_monitors(tickers_list)
+    operation.reset()
+
+    return BackTestingOperation[operation.id]
+
+
+class Order(db.Entity):
+    monitor = Optional(lambda: Monitor)
+    test_order = Optional(bool)
+    id_by_broker = Optional(str)
+    timestamp = Optional(int)
+    order_type = Optional(str)
+    from_side = Optional(str)
+    to_side = Optional(str)
+    score = Optional(float)
+    leverage = Optional(float)
+    generated_signal = Optional(str)
+    interpreted_signal = Optional(str)
+    price = Optional(float)
+    quantity = Optional(float)
+    fulfilled = Optional(bool)
+    fee = Optional(float)
+    warnings = Optional(str)
 
 
 db.generate_mapping(create_tables=True)
