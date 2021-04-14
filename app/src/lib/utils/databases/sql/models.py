@@ -50,20 +50,20 @@ class Monitor(db.Entity, AttributeUpdater):
     operation = Optional(lambda: Operation)
     is_active = Required(bool, default=True)
     is_master = Required(bool, default=False)
-    market_ = Required(Json)
+    ticker_ = Required(Json)
     position = Required(Position, cascade_delete=True)
     last_check = Required(LastCheck, cascade_delete=True)
     orders = Set(lambda: Order, cascade_delete=True)
 
-    def market(self):
-        return Deserialize(name="market").from_json(self.market_)
+    def ticker(self):
+        return Deserialize(name="market").from_json(self.ticker_)
 
     def save_result(self, result_type: str, result: pd.core.frame.DataFrame):
-        market = self.market()
+        ticker = self.ticker()
         table = "{}_{}_{}_{}".format(
             self.operation.name,
-            market.broker_name,
-            market.ticker_symbol,
+            ticker.broker_name,
+            ticker.ticker_symbol,
             result_type,
         )
         storage = StorageResults(table)
