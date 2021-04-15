@@ -1,6 +1,6 @@
 from ..lib.marketdata.klines import ToStorage
-from ..lib.utils.databases.sql.schemas import Market
+from ..lib.utils.schemas import Ticker, TimeRange
 
-def create_or_complete(market:Market, time_range:TimeRange):
-    storage = ToStorage(market)
-    storage.create_backtesting(since)
+def create_or_complete(ticker:Ticker, time_range:TimeRange):
+    storage = ToStorage(ticker)
+    storage.create_backtesting(since= time_range.since, until= time_range.until)
