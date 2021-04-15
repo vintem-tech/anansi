@@ -34,6 +34,10 @@ possible_price_metrics = ["o", "h", "l", "c", "oc2", "hl2", "hlc3", "ohlc4"]
 # measure is 'DateTimeType' - MUST be converted or originally measured
 # in UTC time zone.
 
+class TimeRange(BaseModel):
+    since: DateTimeType
+    until: DateTimeType
+
 class Ticker(BaseModel):
     """Market attributes"""
 
