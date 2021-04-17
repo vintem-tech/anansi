@@ -76,15 +76,16 @@ class BackTestingBroker:
         """The portfolio composition, given a ticker"""
 
         wallet = json.loads(self.monitor.operation.wallet)
+        # print("wallet", wallet)
         return MarketPartition(
-            quote=wallet.get(self.ticker.quote_symbol),
-            base=wallet.get(self.ticker.base_symbol),
+            quote=wallet.get(self.ticker.quote_symbol, 0.0),
+            base=wallet.get(self.ticker.base_symbol, 0.0),
         )
 
     def get_min_lot_size(self) -> float:
         """Minimal possible trading amount, by quote."""
 
-        return 10.3 / self.get_price()
+        return 10.3 / self.get_price(at_time=self.order.timestamp)
 
     def _update_wallet(self, delta_quote, delta_base):
         wallet_ = json.loads(self.monitor.operation.wallet)
@@ -92,8 +93,8 @@ class BackTestingBroker:
         quote_symbol = self.ticker.quote_symbol
         base_symbol = self.ticker.base_symbol
 
-        quote = wallet_.get(quote_symbol)
-        base = wallet_.get(base_symbol)
+        quote = wallet_.get(quote_symbol, 0.0)
+        base = wallet_.get(base_symbol, 0.0)
 
         wallet_.update(
             **{
@@ -179,34 +180,37 @@ class OrderExecutor:
         if not order.price:
             order.price = self.broker.get_price(at_time=order.timestamp)
 
+        if not order.quantity:
+            portfolio = self.broker.get_portfolio()
+            signal = order.interpreted_signal
+            order.quantity = order.leverage * portfolio.base
+
+            if signal == sig.sell:
+                order.quantity = portfolio.quote
+
         return order
 
     def _save_trading_log(self):
-        self.analyzer.monitor.save_trading_log(payload=self.analyzer.order)
+        self.analyzer.monitor.save_trading_log(payload=self.analyzer.order.dict())
 
     def _hold(self):
         order = self.analyzer.order
         order.interpreted_signal = sig.hold
         self.analyzer.order = self.broker.execute(order)
 
-        if self.backtesting:
-            self._save_trading_log()
-
     def _buy(self):
+        self.analyzer.order.interpreted_signal = sig.buy
         order = self._validate_order()
-        order.interpreted_signal = sig.buy
-        order.quantity = 0.998 * (order.quantity / order.price)
 
+        order.quantity = 0.998 * (order.quantity / order.price)
         self.analyzer.order = self.broker.execute(order)
-        self._save_trading_log()
 
     def _sell(self):
+        self.analyzer.order.interpreted_signal = sig.sell
         order = self._validate_order()
-        order.interpreted_signal = sig.sell
-        order.quantity = 0.998 * (self.broker.get_portfolio().quote)
 
+        order.quantity = 0.998 * order.quantity
         self.analyzer.order = self.broker.execute(order)
-        self._save_trading_log()
 
     def _naked_sell(self):
         if self.setup.trading.allow_naked_sells:
@@ -230,10 +234,7 @@ class OrderExecutor:
     def proceed(self):
         signal = self.analyzer.order.generated_signal
         signal_handler = getattr(self, "_{}".format(signal))
-
         signal_handler()
-        if signal != sig.hold:
-            self.analyzer.has_a_trade_occurred = True
 
 
 class OrderHandler:
@@ -243,16 +244,25 @@ class OrderHandler:
     @staticmethod
     def _fill_the_order_quantities_in_the(buy_queue: list):
         _executor = buy_queue[0]
+        # print(_executor.analyzer.monitor.ticker().dict())
+
         portfolio = _executor.broker.get_portfolio()
+        # print(portfolio.dict())
         avaliable_base_amount = portfolio.base
+        # print("avaliable_base_amount", avaliable_base_amount)
 
         score_sum = sum(
             [executor.analyzer.order.score for executor in buy_queue]
         )
+        # print("score_sum", score_sum)
 
         for executor in buy_queue:
             weight = executor.analyzer.order.score / score_sum
+            # print("weight", weight)
+
             leverage = executor.analyzer.order.leverage
+            # print("leverage", leverage)
+
             quantity = leverage * weight * avaliable_base_amount
             executor.analyzer.order.quantity = quantity
 
