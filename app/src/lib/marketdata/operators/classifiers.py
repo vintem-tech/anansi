@@ -173,7 +173,7 @@ class PayLoad(BaseModel):
     result_length: int = 1
 
 
-def get_classifier(payload: PayLoad):
+def get_classifier(name, ticker, setup, backtesting, result_length=1):
     """Given a market ticker, returns an instance of the named
     setup.classifier_name classifier.
 
@@ -182,9 +182,4 @@ def get_classifier(payload: PayLoad):
     Returns: Union[DidiClassifier]: The classifier
     """
 
-    return getattr(thismodule, payload.name)(
-        ticker=payload.ticker,
-        setup=payload.setup,
-        backtesting=payload.backtesting,
-        result_length=payload.result_length,
-    )
+    return getattr(thismodule, name)(ticker, setup, backtesting, result_length)
