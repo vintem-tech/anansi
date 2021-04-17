@@ -82,19 +82,19 @@ class Order(BaseModel):
 
     test_order: bool = False
     timestamp: Optional[int]
-    id_by_broker: Optional[str]
+    id_by_broker: Optional[str] = str()
     order_type: Optional[str]
     from_side: Optional[str]
     to_side: Optional[str]
     score: Optional[float]
     leverage: float = 1
     generated_signal: Optional[str]
-    interpreted_signal: Optional[str]
+    interpreted_signal: Optional[str] = str()
     price: Optional[float]
     quantity: Optional[float]
-    fulfilled: Optional[bool]
+    fulfilled: Optional[bool] = False
     fee: Optional[float]
-    warnings: Optional[str]
+    warnings: Optional[str] = str()
 
 
 class Classifier(BaseModel):
