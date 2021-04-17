@@ -9,7 +9,7 @@ from .....config.setups import (
     OperationalSetup,
     BinanceMonitoring,
 )
-from ....utils.schemas import OperationalModes
+from ....utils.schemas import OperationalModes, Ticker
 from ...tools.serializers import Deserialize
 from ..time_series_storage.models import StorageResults
 
@@ -37,8 +37,9 @@ class AttributeUpdater(object):
 
 class Position(db.Entity, AttributeUpdater):
     monitor = Optional(lambda: Monitor)  # Foreing key
-    side = Required(str, default="Zeroed")
-    size = Required(float, default=0.0)  # by quote
+    side = Required(str, default="zeroed")
+    by_score = Required(float, default=0.0)
+    size = Required(float, default=0.0)
     enter_price = Optional(float)
     timestamp = Optional(int)
     exit_reference_price = Optional(float)
@@ -60,7 +61,7 @@ class Monitor(db.Entity, AttributeUpdater):
     orders = Set(lambda: Order, cascade_delete=True)
 
     def ticker(self):
-        return Deserialize(name="ticker").from_json(self.ticker_)
+        return Ticker(**json.loads(self.ticker_))
 
     def save_result(self, result_type: str, result: pd.core.frame.DataFrame):
         ticker = self.ticker()
@@ -82,7 +83,7 @@ class Monitor(db.Entity, AttributeUpdater):
 
     def reset(self):
         self.last_check.update(by_classifier_at=0)
-        self.position.update(side="Zeroed", size=0.0)
+        self.position.update(side="zeroed", size=0.0)
         self.orders.clear()
         commit()
 
@@ -94,6 +95,9 @@ class Operation(db.Entity, AttributeUpdater):
     # wallet = Optional(Json)  # Useful on backtesting scenarios
     setup_ = Required(Json)
 
+#    def setup(self):
+#        return OperationalSetup(**json.loads(self.setup_))
+    
     def setup(self):
         return Deserialize(name="setup").from_json(self.setup_)
 
