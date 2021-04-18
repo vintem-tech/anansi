@@ -33,7 +33,7 @@ class Analyzer:
         return bool(self.current_timestamp >= last_check + step)
 
     def _evaluate_side(self) -> str:
-        score = self.order.score
+        score = self.order.to.score
         if score > self.setup.trading.score_that_triggers_long_side:
             return sides.long
 
@@ -43,22 +43,27 @@ class Analyzer:
 
     def _reset(self):
         self.was_updated = False
+        self.order.test_order = bool(
+            self.monitor.operation.mode == modes.test_trading
+        )
+        self.order.order_type = self.setup.trading.default_order_type
+        self.order.leverage = self.setup.trading.leverage
+        self.order.signal = 'reset'
+        self.order.fulfilled = False
+        self.order.warnings = str()
 
     def _refresh_result(self):
         self.result = self.classifier.get_restult_at(self.current_timestamp)
         self.monitor.save_result("classifier", self.result)
 
-    def _fill_the_order(self):
-        self.order.test_order = bool(
-            self.monitor.operation.mode == modes.test_trading
-        )
+    def _fill_the_order(self):        
         self.order.timestamp = self.current_timestamp
-        self.order.order_type = self.setup.trading.default_order_type
-        self.order.leverage = self.setup.trading.leverage
-        self.order.score = self.result.Score.tail(1).item()
-        self.order.from_side = self.monitor.position.side
-        self.order.to_side = self._evaluate_side()
-        self.order.fulfilled = False
+
+        self.order.from_.score = self.monitor.position.by_score
+        self.order.from_.side = self.monitor.position.side
+
+        self.order.to.score = self.result.Score.tail(1).item()
+        self.order.to.side = self._evaluate_side()
 
     def _update(self):
         self.monitor.last_check.update(by_classifier_at=self.current_timestamp)
@@ -74,11 +79,13 @@ class Analyzer:
             self._fill_the_order()
             self._update()
 
+# Migrate to a specific class
+
     def _update_position(self):
         order = self.order
         self.monitor.position.update(
-            side = order.to_side,
-            by_score = order.score,
+            side = order.to.side,
+            by_score = order.to.score,
             size = order.quantity,
             enter_price = order.price,
             timestamp = order.timestamp,
@@ -101,7 +108,7 @@ class Analyzer:
     def debug_message_items(self) -> list:
         return [
             self.monitor.ticker().ticker_symbol,
-            self.order.score,
+            self.order.to.score,
             self.monitor.position.side
         ]
 
