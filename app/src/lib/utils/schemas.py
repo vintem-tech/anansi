@@ -34,9 +34,11 @@ possible_price_metrics = ["o", "h", "l", "c", "oc2", "hl2", "hlc3", "ohlc4"]
 # measure is 'DateTimeType' - MUST be converted or originally measured
 # in UTC time zone.
 
+
 class TimeRange(BaseModel):
     since: DateTimeType
     until: DateTimeType
+
 
 class Ticker(BaseModel):
     """Market attributes"""
@@ -77,26 +79,6 @@ class Quantity(BaseModel):
     value: Optional[Union[str, float]]
 
 
-class Order(BaseModel):
-    """Order parameters collection"""
-
-    test_order: bool = False
-    timestamp: Optional[int]
-    id_by_broker: Optional[str] = str()
-    order_type: Optional[str]
-    from_side: Optional[str]
-    to_side: Optional[str]
-    score: Optional[float]
-    leverage: float = 1
-    generated_signal: Optional[str]
-    interpreted_signal: Optional[str] = str()
-    price: Optional[float]
-    quantity: Optional[float]
-    fulfilled: Optional[bool] = False
-    fee: Optional[float]
-    warnings: Optional[str] = str()
-
-
 class Classifier(BaseModel):
     """Classifier handler attributes"""
 
@@ -111,7 +93,9 @@ class StopLoss(BaseModel):
     name: Optional[str]
     setup: Optional[BaseModel]
 
+
 # Name collections
+
 
 class Broadcasters(BaseModel):
     """Stores the possible trading signals"""
@@ -121,6 +105,7 @@ class Broadcasters(BaseModel):
     whatsapp: str = "whatsapp"
     email: str = "email"
     push: str = "push"
+
 
 class OperationalModes(BaseModel):
     """Stores the possible operation modes"""
@@ -147,15 +132,46 @@ class Signals(BaseModel):
     naked_sell: str = "naked_sell"
     double_naked_sell: str = "double_naked_sell"
     double_buy: str = "double_buy"
+
+    # deprecating candidate
     long_stopped: str = "long_stopped"
     short_stopped: str = "short_stopped"
 
-    def get_all(self)->list:
+    def get_all(self) -> list:
         """A list of the all possibles trading signals"""
 
         return [signal[1] for signal in list(self)]
 
+
+class PositionInfo(BaseModel):
+    side: str = Sides().zeroed
+    score: float = 0.0
+
+
+class Order(BaseModel):
+    """Order parameters collection"""
+
+    test_order: bool = False
+    by_stop: bool = False
+    order_type: Optional[str]
+    leverage: float = 1
+
+    timestamp: Optional[int]
+    id_by_broker: Optional[str] = str()
+
+    from_ = PositionInfo()
+    to = PositionInfo()
+
+    signal: str = Signals().hold
+    price: Optional[float]
+    quantity: Optional[float]
+    fulfilled: Optional[bool] = False
+    fee: Optional[float]
+    warnings: Optional[str] = str()
+
+
 # Deprecation Candidates
+
 
 class Treshold(BaseModel):
     """Fires the trigger when 'm_found' true conditions are found among
