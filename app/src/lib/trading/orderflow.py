@@ -16,39 +16,54 @@ thismodule = sys.modules[__name__]
 sig = Signals()
 modes = OperationalModes()
 sides = Sides()
+from pydantic import BaseModel
 
+class SignalGenerator(BaseModel):
+    order: Order
 
-class Signal:
-    def __init__(self, from_side: str, to_side: str, by_stop=False):
-        self.from_side = from_side.lower()
-        self.to_side = to_side.lower()
-        self.by_stop = by_stop
+    @staticmethod
+    def _from_zeroed_to_zeroed():
+        return sig.hold
+
+    @staticmethod
+    def _from_zeroed_to_long():
+        return sig.buy
+
+    @staticmethod
+    def _from_long_to_zeroed():
+        return sig.sell
+
+    @staticmethod
+    def _from_zeroed_to_short():
+        return sig.naked_sell
+
+    @staticmethod
+    def _from_short_to_long():
+        return sig.double_buy
+
+    @staticmethod
+    def _from_long_to_short():
+        return sig.double_naked_sell
+
+    def _has_score_increased(self):
+        return bool(abs(self.order.to.score) > abs(self.order.from_.score))
+
+    def _from_long_to_long(self):
+        if self._has_score_increased():
+            return sig.buy
+        return sig.hold
+
+    def _from_short_to_short(self):
+        if self._has_score_increased():
+            return sig.sell
+        return sig.hold
 
     def generate(self):
-        if self.from_side == self.to_side:
-            return sig.hold
+        from_side = self.order.from_.side
+        to_side = self.order.to.side
 
-        if self.from_side == sides.zeroed:
-            if self.to_side == sides.long:
-                return sig.buy
-            if self.to_side == sides.short:
-                return sig.naked_sell
-
-        if self.from_side == sides.long:
-            if self.to_side == sides.zeroed:
-                if self.by_stop:
-                    return sig.long_stopped
-                return sig.sell
-            if self.to_side == sides.short:
-                return sig.double_naked_sell
-
-        if self.from_side == sides.short:
-            if self.to_side == sides.zeroed:
-                if self.by_stop:
-                    return sig.short_stopped
-                return sig.buy
-            if self.to_side == sides.long:
-                return sig.double_buy
+        signal = getattr(self, "_from_{}_to_{}".format(from_side, to_side))
+        return signal()
 
 
 class BackTestingBroker:
@@ -144,17 +159,14 @@ class BackTestingBroker:
         """
 
         self.order = order
-        signal = order.interpreted_signal
+        #signal = order.interpreted_signal
 
-        if signal == sig.hold:
+        if order.signal == sig.hold:
             self.order.warnings = "Bypassed due to the 'hold' signal"
             return self.order
 
-        sufficient_balance = bool(
-            self.order.quantity > self.get_min_lot_size()
-        )
-        if sufficient_balance:
-            processor = "_{}_{}_order".format(order.order_type, signal)
+        if order.quantity > self.get_min_lot_size():
+            processor = "_{}_{}_order".format(order.order_type, order.signal)
             self.order.fulfilled = getattr(self, processor)()
             return self.order
 
@@ -182,31 +194,28 @@ class OrderExecutor:
 
         if not order.quantity:
             portfolio = self.broker.get_portfolio()
-            signal = order.interpreted_signal
+            #signal = order.interpreted_signal
             order.quantity = order.leverage * portfolio.base
 
-            if signal == sig.sell:
+            if order.signal == sig.sell:
                 order.quantity = portfolio.quote
 
         return order
 
-    def _save_trading_log(self):
-        self.analyzer.monitor.save_trading_log(payload=self.analyzer.order.dict())
-
     def _hold(self):
         order = self.analyzer.order
-        order.interpreted_signal = sig.hold
+        #order.interpreted_signal = sig.hold
         self.analyzer.order = self.broker.execute(order)
 
     def _buy(self):
-        self.analyzer.order.interpreted_signal = sig.buy
+        # self.analyzer.order.interpreted_signal = sig.buy
         order = self._validate_order()
 
-        order.quantity = 0.998 * (order.quantity / order.price)
+        order.quantity = 0.998 * order.to.score * (order.quantity / order.price)
         self.analyzer.order = self.broker.execute(order)
 
     def _sell(self):
-        self.analyzer.order.interpreted_signal = sig.sell
+        #self.analyzer.order.interpreted_signal = sig.sell
         order = self._validate_order()
 
         order.quantity = 0.998 * order.quantity
@@ -232,9 +241,8 @@ class OrderExecutor:
         pass
 
     def proceed(self):
-        signal = self.analyzer.order.generated_signal
-        signal_handler = getattr(self, "_{}".format(signal))
-        signal_handler()
+        signal_run = getattr(self, "_{}".format(self.analyzer.order.signal))
+        signal_run()
 
 
 class OrderHandler:
@@ -252,12 +260,12 @@ class OrderHandler:
         # print("avaliable_base_amount", avaliable_base_amount)
 
         score_sum = sum(
-            [executor.analyzer.order.score for executor in buy_queue]
+            [executor.analyzer.order.to.score for executor in buy_queue]
         )
         # print("score_sum", score_sum)
 
         for executor in buy_queue:
-            weight = executor.analyzer.order.score / score_sum
+            weight = executor.analyzer.order.to.score / score_sum
             # print("weight", weight)
 
             leverage = executor.analyzer.order.leverage
@@ -287,7 +295,9 @@ class OrderHandler:
 
             if executor.analyzer.monitor.is_master:
                 executor.proceed()
-                buy_queue.pop(buy_queue.index(executor))
+
+                ## Comment below in order proceed master monitor buy twice.
+                # buy_queue.pop(buy_queue.index(executor))
 
         queues = base_indexed_queues.values()
         for non_empty_queue in (queue for queue in queues if queue):
@@ -298,12 +308,9 @@ class OrderHandler:
         buy_queue = list()
 
         for analyzer in analyzers:
-            signal = Signal(
-                from_side=analyzer.order.from_side,
-                to_side=analyzer.order.to_side,
-            ).generate()
+            signal = SignalGenerator(order=analyzer.order).generate()
 
-            analyzer.order.generated_signal = signal
+            analyzer.order.signal = signal
             executor = OrderExecutor(analyzer)
 
             if signal not in [sig.buy, sig.double_buy]:
