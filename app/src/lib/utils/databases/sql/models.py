@@ -78,6 +78,9 @@ class Monitor(db.Entity, AttributeUpdater):
         raise NotImplementedError
 
     def save_trading_log(self, payload: dict):
+        payload.update(
+            from_=json.dumps(payload["from_"]), to=json.dumps(payload["to"])
+        )
         self.orders.create(**payload)
         commit()
 
@@ -95,9 +98,9 @@ class Operation(db.Entity, AttributeUpdater):
     # wallet = Optional(Json)  # Useful on backtesting scenarios
     setup_ = Required(Json)
 
-#    def setup(self):
-#        return OperationalSetup(**json.loads(self.setup_))
-    
+    #    def setup(self):
+    #        return OperationalSetup(**json.loads(self.setup_))
+
     def setup(self):
         return Deserialize(name="setup").from_json(self.setup_)
 
@@ -145,7 +148,7 @@ class BackTestingOperation(Operation):
 
 def create_backtesting_operation(
     name: str,
-    tickers_list = BinanceMonitoring().tickers(),
+    tickers_list=BinanceMonitoring().tickers(),
     setup: json = OperationalSetup().json(),
 ) -> Operation:
 
@@ -163,16 +166,19 @@ def create_backtesting_operation(
 
 class Order(db.Entity):
     monitor = Optional(lambda: Monitor)
+
     test_order = Optional(bool)
-    id_by_broker = Optional(str)
-    timestamp = Optional(int)
+    by_stop = Optional(bool, default=False)
     order_type = Optional(str)
-    from_side = Optional(str)
-    to_side = Optional(str)
-    score = Optional(float)
     leverage = Optional(float)
-    generated_signal = Optional(str)
-    interpreted_signal = Optional(str)
+
+    timestamp = Optional(int)
+    id_by_broker = Optional(str)
+
+    from_ = Optional(Json)
+    to = Optional(Json)
+
+    signal = Optional(str)
     price = Optional(float)
     quantity = Optional(float)
     fulfilled = Optional(bool)
