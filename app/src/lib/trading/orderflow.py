@@ -23,7 +23,7 @@ class SignalGenerator(BaseModel):
 
     @staticmethod
     def _from_zeroed_to_zeroed():
-        return sig.hold
+        return sig.sell
 
     @staticmethod
     def _from_zeroed_to_long():
@@ -97,7 +97,7 @@ class BackTestingBroker:
             base=wallet.get(self.ticker.base_symbol, 0.0),
         )
 
-    def get_min_lot_size(self) -> float:
+    def get_min_lot_size(self) -> float: #TODO: rever isto
         """Minimal possible trading amount, by quote."""
 
         return 10.3 / self.get_price(at_time=self.order.timestamp)
@@ -169,6 +169,8 @@ class BackTestingBroker:
             processor = "_{}_{}_order".format(order.order_type, order.signal)
             self.order.fulfilled = getattr(self, processor)()
             return self.order
+
+        # Se o sinal for de venda e o montante insuficiente, então a posição deve ser desarmada.
 
         self.order.warnings = "Insufficient balance."
         return self.order
