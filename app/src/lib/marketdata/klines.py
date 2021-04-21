@@ -1,4 +1,4 @@
-# pylint: disable=too-few-public-methods
+# ppylint: disable=too-few-public-methods
 
 """Deals specifically with klines, delivering them formatted as pandas
 dataframes, with some extra methods, such as market indicators. This
@@ -12,7 +12,7 @@ import time
 import pandas as pd
 import pendulum
 
-from ..brokers.engines import get_broker
+from ..brokers import get_broker
 from ..utils.tools.time_handlers import (
     ParseDateTime,
     cooldown_time,
@@ -211,6 +211,7 @@ class FromBroker(KlinesFrom):
 
     __slots__ = [
         "_broker",
+        "ticker_symbol",
         "minimum_time_frame",
         "_time_frame",
         "store_klines_round_by_round",
@@ -219,7 +220,8 @@ class FromBroker(KlinesFrom):
     ]
 
     def __init__(self, ticker: Ticker, time_frame: str = str()):
-        self._broker = get_broker(ticker)
+        self._broker = get_broker(ticker.broker_name)
+        self.ticker_symbol = ticker.ticker_symbol
         self.minimum_time_frame = self._broker.settings.possible_time_frames[0]
         self._time_frame = self._validate_tf(time_frame)
         super().__init__(ticker, self.time_frame)
@@ -246,7 +248,9 @@ class FromBroker(KlinesFrom):
         self._time_frame = self._validate_tf(time_frame_to_set)
 
     def _oldest_open_time(self) -> int:
-        return self._broker.oldest_kline(self.time_frame).Open_time.item()
+        return self._broker.oldest_kline(
+            ticker_symbol=self.ticker_symbol, time_frame=self.time_frame
+        ).Open_time.item()
 
     def newest_open_time(self) -> int:
         return (pendulum.now(tz="UTC")).int_timestamp
@@ -268,6 +272,7 @@ class FromBroker(KlinesFrom):
                     else:
                         attempt += 1
                         _klines = self._broker.get_klines(
+                            ticker_symbol=self.ticker_symbol,
                             time_frame=self._time_frame,
                             since=timestamp,
                         )
