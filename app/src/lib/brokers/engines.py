@@ -1,7 +1,5 @@
-# pylint: disable=E1136
-# pylint: disable=no-name-in-module
-
 """All the brokers low level communications goes here."""
+
 import sys
 from decimal import Decimal
 from typing import Union
@@ -10,14 +8,14 @@ import pandas as pd
 import requests
 from binance.client import Client as BinanceClient
 from binance.exceptions import BinanceOrderException
-from pydantic import BaseModel
 
 from ...config.settings import BinanceSettings
-from ..utils.schemas import MarketPartition, Order, Quantity, Ticker
+from ..utils.schemas import Order, Quantity, Ticker
 from ..utils.tools import documentation, formatting
 
 thismodule = sys.modules[__name__]
 DocInherit = documentation.DocInherit
+DF = pd.core.frame.DataFrame
 
 
 def get_response(endpoint: str) -> Union[requests.models.Response, None]:
@@ -34,11 +32,22 @@ def get_response(endpoint: str) -> Union[requests.models.Response, None]:
 
 
 class Broker:
-    """Must be a model that groups broker needed low level functions"""
+    """Broker low level functions"""
 
-    def __init__(self, ticker: Ticker, settings: BaseModel):
-        self.ticker = ticker
+    def __init__(self, settings=BinanceSettings()):
         self.settings = settings
+        self._ticker_symbol = str()
+
+    @property
+    def ticker_symbol(self):
+        """String that uniquely identifies the traded asset;
+        e.g. 'BTCUSDT', 'PETR4BRL'"""
+
+        return self._ticker_symbol
+
+    @ticker_symbol.setter
+    def ticker_symbol(self, ticker_symbol_to_set: str):
+        self._ticker_symbol = ticker_symbol_to_set
 
     def server_time(self) -> int:
         """Date time of broker server.
@@ -57,7 +66,7 @@ class Broker:
 
         raise NotImplementedError
 
-    def get_klines(self, time_frame: str, **kwargs) -> pd.core.frame.DataFrame:
+    def get_klines(self, ticker_symbol: str, time_frame: str, **kwargs) -> DF:
         """Historical market data (candlesticks, OHLCV).
 
         Args:
@@ -82,30 +91,42 @@ class Broker:
 
         raise NotImplementedError
 
-    def oldest_kline(self, time_frame: str) -> pd.core.frame.DataFrame:
+    def oldest_kline(self, ticker_symbol: str, time_frame: str) -> DF:
         """Oldest avaliable kline of this time frame"""
 
         return self.get_klines(
-            time_frame=time_frame, since=1, number_samples=1
+            ticker_symbol, time_frame, since=1, number_samples=1
         ).iloc[0]
 
-    def get_price(self, **kwargs) -> float:
+    def get_price(self, ticker_symbol: str, **kwargs) -> float:
         """Instant average trading price"""
         raise NotImplementedError
 
-    def get_market_partition(self) -> MarketPartition:
-        """The portfolio composition, given a market ticker"""
+    def ticker_info(self, ticker_symbol: str) -> dict:
+        """Pertinent information about a 'ticker_symbol' """
+
         raise NotImplementedError
 
-    def get_min_lot_size(self) -> float:
-        """Minimal possible trading amount, by quote."""
+    def free_quantity_asset(self, asset_symbol: str) -> float:
+        """Avaliable amount of a certain asset_symbol."""
+
         raise NotImplementedError
 
-    def execute(self, order: Order):
+    def min_notional(self, ticker_symbol: str) -> float:
+        """Minimum quantity (base) admitted in an order for
+        the market identified by the 'ticker_symbol'."""
+
+        raise NotImplementedError
+
+    def minimal_order_quantity(self, ticker_symbol) -> float:
+        """Minimal possible trading amount (quote)."""
+        raise NotImplementedError
+
+    def execute_order(self, order: Order):
         """Proceed real trading orders """
         raise NotImplementedError
 
-    def execute_test(self, order: Order):
+    def execute_test_order(self, order: Order):
         """Proceed test trading orders """
         raise NotImplementedError
 
@@ -113,9 +134,8 @@ class Broker:
 class Binance(Broker):
     """All needed functions, wrapping the communication with binance"""
 
-    @DocInherit
-    def __init__(self, ticker: Ticker, settings=BinanceSettings()):
-        super().__init__(ticker, settings)
+    def __init__(self, settings=BinanceSettings()):
+        super().__init__(settings)
         self.client = BinanceClient(
             api_key=self.settings.api_key, api_secret=self.settings.api_secret
         )
@@ -138,13 +158,14 @@ class Binance(Broker):
         return False
 
     @DocInherit
-    def get_klines(self, time_frame: str, **kwargs) -> pd.core.frame.DataFrame:
-        endpoint = self.settings.klines_endpoint.format(
-            self.ticker.ticker_symbol, time_frame
-        )
+    def get_klines(self, ticker_symbol: str, time_frame: str, **kwargs) -> DF:
         since: int = kwargs.get("since")
         until: int = kwargs.get("until")
         number_of_candles: int = kwargs.get("number_of_candles")
+
+        endpoint = self.settings.klines_endpoint.format(
+            ticker_symbol, time_frame
+        )
 
         if since:
             endpoint += "&startTime={}".format(str(since * 1000))
@@ -168,56 +189,57 @@ class Binance(Broker):
         return klines
 
     @DocInherit
-    def get_price(self, **kwargs) -> float:
-        return float(
-            self.client.get_avg_price(symbol=self.ticker.ticker_symbol)[
-                "price"
-            ]
-        )
+    def get_price(self, ticker_symbol, **kwargs) -> float:
+        return float(self.client.get_avg_price(symbol=ticker_symbol)["price"])
 
     @DocInherit
-    def get_market_partition(self) -> float:
-        partition = MarketPartition()
-        partition.quote, partition.base = (
-            float(self.client.get_asset_balance(asset=symbol)["free"])
-            for symbol in [self.ticker.quote_symbol, self.ticker.base_symbol]
-        )
-        return partition
+    def ticker_info(self, ticker_symbol: str) -> dict:
+        return self.client.get_symbol_info(symbol=ticker_symbol)
 
     @DocInherit
-    def get_min_lot_size(self) -> float:  # Measured by quote asset
-        min_notional = float(  # Measured by base asset
-            self.client.get_symbol_info(symbol=self.ticker.ticker_symbol)[
-                "filters"
-            ][3]["minNotional"]
-        )
-        return 1.03 * min_notional / self.get_price()
+    def free_quantity_asset(self, asset_symbol: str) -> float:
+        return float(self.client.get_asset_balance(asset=asset_symbol)["free"])
+
+    @DocInherit
+    def min_notional(self, ticker_symbol: str) -> float:
+        ticker_info = self.ticker_info(ticker_symbol)
+
+        return float(ticker_info["filters"][3]["minNotional"])
+
+    @DocInherit
+    def minimal_order_quantity(self, ticker_symbol: str) -> float:
+        min_notional = self.min_notional(ticker_symbol)
+        price = self.get_price(ticker_symbol)
+
+        return 1.03 * min_notional / price
 
     def _sanitize_quantity(self, quantity: float) -> Quantity:
         quantity = Quantity()
+        ticker_info = self.ticker_info(self.ticker_symbol)
+        minimum_quantity_filter = float(ticker_info["filters"][2]["minQty"])
 
-        info = self.client.get_symbol_info(symbol=self.ticker.ticker_symbol)
-        minimum = float(info["filters"][2]["minQty"])
-
-        quant_ = Decimal.from_float(quantity).quantize(Decimal(str(minimum)))
-        sufficient_balance = bool(float(quant_) > self.get_min_lot_size())
+        quantity_ = Decimal.from_float(quantity).quantize(
+            Decimal(str(minimum_quantity_filter))
+        )
+        minimum_quantity = self.minimal_order_quantity(self.ticker_symbol)
+        sufficient_balance = float(quantity_) > minimum_quantity
 
         if sufficient_balance:
             quantity.is_sufficient = True
-            quantity.value = str(quant_)
+            quantity.value = str(quantity_)
 
         return quantity
 
     def _sanitize_price(self, price: float) -> str:
-        info = self.client.get_symbol_info(symbol=self.ticker.ticker_symbol)
-        price_filter = float(info["filters"][0]["tickSize"])
-        return str(
-            Decimal.from_float(price).quantize(Decimal(str(price_filter)))
-        )
+        ticker_info = self.ticker_info(self.ticker_symbol)
+        price_filter = float(ticker_info["filters"][0]["tickSize"])
+        price_ = Decimal.from_float(price).quantize(Decimal(str(price_filter)))
 
-    def _check_and_update(self, order: Order) -> Order:
+        return str(price_)
+
+    def _check_order_and_update(self, order: Order) -> Order:
         order_ = self.client.get_order(
-            symbol=self.ticker.ticker_symbol, orderId=order.id_by_broker
+            symbol=self.ticker_symbol, orderId=order.id_by_broker
         )
         quote_amount = float(order_["executedQty"])
         base_amount = float(order_["cummulativeQuoteQty"])
@@ -231,7 +253,7 @@ class Binance(Broker):
         return order
 
     @DocInherit
-    def execute(self, order: Order) -> Order:
+    def execute_order(self, order: Order) -> Order:
         signal = order.interpreted_signal
 
         if signal == "hold":
@@ -244,7 +266,7 @@ class Binance(Broker):
         quantity = self._sanitize_quantity(order.quantity)
         if quantity.is_sufficient:
             order_payload = dict(
-                symbol=self.ticker.ticker_symbol, quantity=quantity.value
+                symbol=self.ticker_symbol, quantity=quantity.value
             )
             if order.order_type == "limit":
                 order_payload = dict(
@@ -254,7 +276,7 @@ class Binance(Broker):
             try:
                 fulfilled_order = order_executor_client(**order_payload)
                 order.id_by_broker = fulfilled_order["orderId"]
-                order = self._check_and_update(order)
+                order = self._check_order_and_update(order)
 
             except BinanceOrderException as broker_erro:
                 order.warnings = str(broker_erro)
@@ -265,7 +287,7 @@ class Binance(Broker):
         return order
 
     @DocInherit
-    def execute_test(self, order: Order):
+    def execute_test_order(self, order: Order):
         pass
 
 
