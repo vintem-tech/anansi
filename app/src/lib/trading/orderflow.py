@@ -1,13 +1,17 @@
+# pylint: disable=no-name-in-module
+
 import json
 import sys
+
+from pydantic import BaseModel
 
 from ..brokers import get_broker
 from ..marketdata.klines import PriceFromStorage
 from ..utils.databases.sql.models import Monitor
 from ..utils.schemas import (
+    MarketPartition,
     OperationalModes,
     Order,
-    MarketPartition,
     Sides,
     Signals,
 )
@@ -16,7 +20,7 @@ thismodule = sys.modules[__name__]
 sig = Signals()
 modes = OperationalModes()
 sides = Sides()
-from pydantic import BaseModel
+
 
 class SignalGenerator(BaseModel):
     order: Order
@@ -97,7 +101,7 @@ class BackTestingBroker:
             base=wallet.get(self.ticker.base_symbol, 0.0),
         )
 
-    def get_min_lot_size(self) -> float: #TODO: rever isto
+    def get_min_lot_size(self) -> float:  # TODO: rever isto
         """Minimal possible trading amount, by quote."""
 
         return 10.3 / self.get_price(at_time=self.order.timestamp)
@@ -159,7 +163,7 @@ class BackTestingBroker:
         """
 
         self.order = order
-        #signal = order.interpreted_signal
+        # signal = order.interpreted_signal
 
         if order.signal == sig.hold:
             self.order.warnings = "Bypassed due to the 'hold' signal"
@@ -196,7 +200,7 @@ class OrderExecutor:
 
         if not order.quantity:
             portfolio = self.broker.get_portfolio()
-            #signal = order.interpreted_signal
+            # signal = order.interpreted_signal
             order.quantity = order.leverage * portfolio.base
 
             if order.signal == sig.sell:
@@ -206,18 +210,20 @@ class OrderExecutor:
 
     def _hold(self):
         order = self.analyzer.order
-        #order.interpreted_signal = sig.hold
+        # order.interpreted_signal = sig.hold
         self.analyzer.order = self.broker.execute(order)
 
     def _buy(self):
         # self.analyzer.order.interpreted_signal = sig.buy
         order = self._validate_order()
 
-        order.quantity = 0.998 * order.to.score * (order.quantity / order.price)
+        order.quantity = (
+            0.998 * order.to.score * (order.quantity / order.price)
+        )
         self.analyzer.order = self.broker.execute(order)
 
     def _sell(self):
-        #self.analyzer.order.interpreted_signal = sig.sell
+        # self.analyzer.order.interpreted_signal = sig.sell
         order = self._validate_order()
 
         order.quantity = 0.998 * order.quantity
