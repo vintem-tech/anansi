@@ -25,7 +25,7 @@ def get_response(endpoint: str) -> Union[requests.models.Response, None]:
         return None
 
     except ConnectionError as error:
-        raise Exception.with_traceback(error) from ConnectionError
+        raise Exception from error
 
 
 class Broker:
