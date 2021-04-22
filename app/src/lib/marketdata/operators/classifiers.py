@@ -70,15 +70,16 @@ class DidiClassifier:
         return (_len - delta_inversion) / _len
 
     def _didi_analysis(self, result: pd.core.frame.DataFrame, index: int):
+        didi_trend = 0
         self.result.loc[index, "Didi_score"] = 0.0
 
-        previous_slow = result.iloc[0].Didi_slow
-        slow = result.iloc[1].Didi_slow
-        slow_inversion = bool(slow / previous_slow < 0)
+        previous_slow = float(result.iloc[0].Didi_slow.item())
+        slow = float(result.iloc[1].Didi_slow.item())
+        slow_inversion = (slow / previous_slow) < 0
 
-        previous_fast = result.iloc[0].Didi_fast
-        fast = result.iloc[1].Didi_fast
-        fast_inversion = bool(fast / previous_fast < 0)
+        previous_fast = float(result.iloc[0].Didi_fast.item())
+        fast = float(result.iloc[1].Didi_fast.item())
+        fast_inversion = (fast / previous_fast) < 0
 
         if slow_inversion:
             self.didi_inversion.index_of_slow = index
@@ -123,17 +124,17 @@ class DidiClassifier:
 
     def evaluate_indicators_results(self):
         self.didi_inversion.reset()
-        _len = self.result_length + self.extra_length
+        _len = self.result_length + self.extra_length + 1
         self.result = pd.DataFrame()
         self.result = self.result.append(self.data[-_len:], ignore_index=True)
 
-        for i in range(2, _len):
+        for i in range(2, _len + 1):
             result = self.result[i - 2 : i]
-            self._didi_analysis(result, i)
-            self._bollinger_analysis(result, i)
-            result_i = self.result.iloc[i]
-            self.result.loc[i, "Score"] = (
-                result_i.Didi_trend * result_i.Bollinger * result_i.Didi_score
+            self._didi_analysis(result, index=i - 1)
+            self._bollinger_analysis(result, index=i - 1)
+            result_ = self.result.iloc[i - 1]
+            self.result.loc[i - 1, "Score"] = (
+                result_.Didi_trend * result_.Bollinger * result_.Didi_score
             )
 
     def _proceed(self):
