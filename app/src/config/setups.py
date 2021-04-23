@@ -13,7 +13,6 @@ from ..lib.utils.schemas import (
     Classifier,
     DateTimeType,
     StopLoss,
-    Ticker,
     Wallet,
     possible_price_metrics,
 )
@@ -139,39 +138,6 @@ class StopTrailing3T(BaseModel):
 
     classifier_time_frame: str = "6h"
     price_metric: str = "oc2"
-
-
-class BinanceMonitoring:
-    """Binance monitored markets"""
-
-    bases: list = ["USDT", "BTC"]
-    quotes: list = [
-        "BTC",
-        "ETH",
-        "NEO",
-        #        "LINK",
-        #        "EOS",
-        #        "LTC",
-        #        "XRP",
-        #        "BNB",
-        #        "ADA",
-        #        "TRX",
-    ]
-
-    def tickers(self) -> List[Ticker]:
-        """Returns a list of binance market tickers to monitoring"""
-
-        return [
-            Ticker(
-                broker_name="binance",
-                quote_symbol=quote,
-                base_symbol=base,
-                ticker_symbol="{}{}".format(quote, base),
-            )
-            for base in self.bases
-            for quote in self.quotes
-            if quote != base
-        ]
 
 
 class Trading(BaseModel):
