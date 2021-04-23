@@ -4,11 +4,7 @@ import pandas as pd
 from pony.orm import Database, Json, Optional, Required, Set, commit, sql_debug
 
 from .....config.settings import system_settings
-from .....config.setups import (
-    initial_wallet,
-    OperationalSetup,
-    BinanceMonitoring,
-)
+from .....config.setups import initial_wallet
 from ....utils.schemas import OperationalModes, Ticker
 from ...tools.serializers import Deserialize
 from ..time_series_storage.models import StorageResults
@@ -25,14 +21,6 @@ class AttributeUpdater(object):
         for attribute, value in kwargs.items():
             setattr(self, attribute, value)
             commit()
-
-
-# class User(db.Entity, AttributeUpdater):
-#    raise NotImplementedError
-
-
-# class Settings(db.Entity, AttributeUpdater):
-#    raise NotImplementedError
 
 
 class Position(db.Entity, AttributeUpdater):
@@ -53,12 +41,11 @@ class LastCheck(db.Entity, AttributeUpdater):
 
 class Monitor(db.Entity, AttributeUpdater):
     operation = Optional(lambda: Operation)
+    position = Required(Position, cascade_delete=True)
+    last_check = Required(LastCheck, cascade_delete=True)
     is_active = Required(bool, default=True)
     is_master = Required(bool, default=False)
     ticker_ = Required(Json)
-    position = Required(Position, cascade_delete=True)
-    last_check = Required(LastCheck, cascade_delete=True)
-    orders = Set(lambda: Order, cascade_delete=True)
 
     def ticker(self):
         return Ticker(**json.loads(self.ticker_))
@@ -67,8 +54,8 @@ class Monitor(db.Entity, AttributeUpdater):
         ticker = self.ticker()
         table = "{}_{}_{}_{}".format(
             self.operation.name,
-            ticker.broker_name,
-            ticker.ticker_symbol,
+            self.operation.broker,
+            ticker.symbol,
             result_type,
         )
         storage = StorageResults(table)
@@ -77,29 +64,23 @@ class Monitor(db.Entity, AttributeUpdater):
     def get_last_result(self) -> pd.core.frame.DataFrame:
         raise NotImplementedError
 
-    def save_trading_log(self, payload: dict):
-        payload.update(
-            from_=json.dumps(payload["from_"]), to=json.dumps(payload["to"])
-        )
-        self.orders.create(**payload)
-        commit()
-
     def reset(self):
         self.last_check.update(by_classifier_at=0)
         self.position.update(side="zeroed", size=0.0)
-        self.orders.clear()
         commit()
 
 
 class Operation(db.Entity, AttributeUpdater):
     name = Required(str, unique=True)
+    broker = Required(str)
     monitors = Set(Monitor, cascade_delete=True)
     mode = Required(str, default=modes.backtesting)
-    # wallet = Optional(Json)  # Useful on backtesting scenarios
     setup_ = Required(Json)
+    orders = Set(lambda: Order, cascade_delete=True)
 
-    #    def setup(self):
-    #        return OperationalSetup(**json.loads(self.setup_))
+    @staticmethod
+    def create(name: str, tickers_list: list, setup: json):
+        raise NotImplementedError
 
     def setup(self):
         return Deserialize(name="setup").from_json(self.setup_)
@@ -126,46 +107,54 @@ class Operation(db.Entity, AttributeUpdater):
         monitors.sort()
         return monitors
 
-    def bases_symbols(self) -> list:
+    def quotes_list(self) -> list:
         return [
-            monitor.ticker().base_symbol
+            monitor.ticker().quote
             for monitor in self.list_of_active_monitors()
         ]
+
+    def save_order(self, order: dict):
+        order.update(
+            from_=json.dumps(order["from_"]), to=json.dumps(order["to"])
+        )
+        self.orders.create(**order)
+        commit()
 
 
 class RealTradingOperation(Operation):
     status = Optional(str)
+
+    @staticmethod
+    def create(name: str, tickers_list: list, setup: json):
+        raise NotImplementedError
 
 
 class BackTestingOperation(Operation):
     wallet = Optional(Json)
     fraction_complete = Optional(float)
 
+    @staticmethod
+    def create(name: str, broker:str, tickers_list: list, setup: json):
+        operation = BackTestingOperation(
+            name=name,
+            broker=broker,
+            setup_=setup,
+        )
+        commit()
+
+        operation.recreate_monitors(tickers_list)
+        operation.reset()
+
+        return BackTestingOperation[operation.id]
+
     def reset(self):
+        self.orders.clear()
         self.update(wallet=json.dumps(initial_wallet))
         self.reset_monitors()
 
 
-def create_backtesting_operation(
-    name: str,
-    tickers_list=BinanceMonitoring().tickers(),
-    setup: json = OperationalSetup().json(),
-) -> Operation:
-
-    operation = BackTestingOperation(
-        name=name,
-        setup_=setup,
-    )
-    commit()
-
-    operation.recreate_monitors(tickers_list)
-    operation.reset()
-
-    return BackTestingOperation[operation.id]
-
-
 class Order(db.Entity):
-    monitor = Optional(lambda: Monitor)
+    operation = Optional(Operation)
 
     test_order = Optional(bool)
     by_stop = Optional(bool, default=False)
