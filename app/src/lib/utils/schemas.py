@@ -41,12 +41,11 @@ class TimeRange(BaseModel):
 
 
 class Ticker(BaseModel):
-    """Market attributes"""
+    """Market ticker attributes"""
 
-    broker_name: str
-    quote_symbol: str
-    base_symbol: str
-    ticker_symbol: str
+    symbol: str
+    base: str = str()
+    quote: str = str()
 
 
 class MarketPartition(BaseModel):
