@@ -12,14 +12,14 @@ import time
 import pandas as pd
 import pendulum
 
-from ..brokers.engines import get_broker
-from ..tools.time_handlers import (
+from ..brokers import get_broker
+from ..utils.tools.time_handlers import (
     ParseDateTime,
     cooldown_time,
     datetime_as_integer_timestamp,
     time_frame_to_seconds,
 )
-from ..utils.databases.sql.schemas import DateTimeType, Market
+from ..utils.schemas import DateTimeType, Ticker
 from ..utils.databases.time_series_storage.models import StorageKlines
 from ..utils.exceptions import BrokerError, KlinesError, StorageError
 from .operators import indicators
@@ -62,7 +62,7 @@ class KlinesFrom:
     """Parent class of FromBroker and Fromstorage"""
 
     __slots__ = [
-        "market",
+        "ticker",
         "time_frame",
         "oldest_open_time",
         "storage",
@@ -70,13 +70,13 @@ class KlinesFrom:
         "ignore_unclosed_kline",
     ]
 
-    def __init__(self, market: Market, time_frame: str = str()):
-        self.market = market
+    def __init__(self, ticker: Ticker, time_frame: str = str()):
+        self.ticker = ticker
         self.time_frame = time_frame
         self.storage = StorageKlines(
             table="{}_{}".format(
-                market.broker_name.lower(),
-                market.ticker_symbol.lower(),
+                ticker.broker_name.lower(),
+                ticker.ticker_symbol.lower(),
             ),
             time_frame=time_frame,
         )
@@ -211,6 +211,7 @@ class FromBroker(KlinesFrom):
 
     __slots__ = [
         "_broker",
+        "ticker_symbol",
         "minimum_time_frame",
         "_time_frame",
         "store_klines_round_by_round",
@@ -218,11 +219,12 @@ class FromBroker(KlinesFrom):
         "_request_step",
     ]
 
-    def __init__(self, market: Market, time_frame: str = str()):
-        self._broker = get_broker(market)
+    def __init__(self, ticker: Ticker, time_frame: str = str()):
+        self._broker = get_broker(ticker.broker_name)
+        self.ticker_symbol = ticker.ticker_symbol
         self.minimum_time_frame = self._broker.settings.possible_time_frames[0]
         self._time_frame = self._validate_tf(time_frame)
-        super().__init__(market, self.time_frame)
+        super().__init__(ticker, self.time_frame)
         self.store_klines_round_by_round: bool = False
         self.infinite_attempts: bool = True
         self._request_step = self.__request_step()
@@ -246,7 +248,9 @@ class FromBroker(KlinesFrom):
         self._time_frame = self._validate_tf(time_frame_to_set)
 
     def _oldest_open_time(self) -> int:
-        return self._broker.oldest_kline(self.time_frame).Open_time.item()
+        return self._broker.oldest_kline(
+            ticker_symbol=self.ticker_symbol, time_frame=self.time_frame
+        ).Open_time.item()
 
     def newest_open_time(self) -> int:
         return (pendulum.now(tz="UTC")).int_timestamp
@@ -268,6 +272,7 @@ class FromBroker(KlinesFrom):
                     else:
                         attempt += 1
                         _klines = self._broker.get_klines(
+                            ticker_symbol=self.ticker_symbol,
                             time_frame=self._time_frame,
                             since=timestamp,
                         )
@@ -309,8 +314,8 @@ class ToStorage:
 
     __slots__ = ["klines"]
 
-    def __init__(self, market: Market):
-        self.klines = FromBroker(market)
+    def __init__(self, ticker: Ticker):
+        self.klines = FromBroker(ticker)
         self.klines.store_klines_round_by_round = True
 
     def create_backtesting(self, **kwargs) -> pd.core.frame.DataFrame:
@@ -319,7 +324,6 @@ class ToStorage:
         Args:
             since (DateTimeType): Start desired datetime
             until (DateTimeType): End desired datetime
-            time_frame (str): <amount><scale_unit> e.g. '1m', '2h'
 
         Returns:
             pd.core.frame.DataFrame: Raw timestamp formatted OHLCV
@@ -343,8 +347,8 @@ class PriceFromStorage:
     the interpolation, it is prudent to predict long missing masses of
     data."""
 
-    def __init__(self, market: Market, price_metrics="ohlc4"):
-        self.klines_getter = FromStorage(market, "1m")
+    def __init__(self, ticker: Ticker, price_metrics="ohlc4"):
+        self.klines_getter = FromStorage(ticker, "1m")
         self.price_metrics = price_metrics
 
     def _valid_timestamp(self, timestamp: int) -> bool:
@@ -394,11 +398,11 @@ class PriceFromStorage:
             )
 
 
-def klines_getter(market: Market, time_frame: str = str(), backtesting=False):
+def klines_getter(ticker: Ticker, time_frame: str = str(), backtesting=False):
     """Instantiates a 'KlinesFrom' object, in order to handler klines.
 
     Args:
-        market (Market): Broker name and assets information
+        ticker (Ticker): Broker name and assets information
 
         time_frame (str, optional): <amount><scale_unit> e.g. '1m',
         '2h'. Defaults to '' (empty string).
@@ -410,5 +414,5 @@ def klines_getter(market: Market, time_frame: str = str(), backtesting=False):
         [KlinesFrom]: 'FromBroker' or 'FromStorage' klines getter
     """
     if backtesting:
-        return FromStorage(market, time_frame)
-    return FromBroker(market, time_frame)
+        return FromStorage(ticker, time_frame)
+    return FromBroker(ticker, time_frame)

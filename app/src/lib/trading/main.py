@@ -1,88 +1,147 @@
 import pandas as pd
+from tabulate import tabulate
 
-# from ...log import Notifier
 from ..marketdata.operators.classifiers import get_classifier
-from ..tools.time_handlers import time_frame_to_seconds
 from ..utils.databases.sql.models import Monitor, Operation
-from ..utils.databases.sql.schemas import (
-    ClassifierPayLoad,
-    DateTimeType,
-    OperationalModes,
-    Order,
-)
-from .order_handler import OrderHandler
+from ..utils.schemas import DateTimeType, OperationalModes, Order, Sides
+from ..utils.tools.time_handlers import (datetime_as_integer_timestamp,
+                                         time_frame_to_seconds)
+from .orderflow import OrderHandler
 
 modes = OperationalModes()
+sides = Sides()
 
 
 class Analyzer:
     def __init__(self, monitor: Monitor):
         self.monitor = monitor
         self.setup = monitor.operation.setup()
-        payload = ClassifierPayLoad(
-            market=monitor.market(),
-            classifier=self.setup.classifier,
+        self.classifier = get_classifier(
+            name=self.setup.classifier.name,
+            ticker=monitor.ticker(),
+            setup=self.setup.classifier.setup,
             backtesting=bool(monitor.operation.mode == modes.backtesting),
         )
-        self.classifier = get_classifier(payload)
         self.was_updated = False
-        self.now: int = None
+        self.current_timestamp: int = None
         self.order = Order()
+        self.result = pd.DataFrame()
 
     def _is_a_new_analysis_needed(self) -> bool:
         last_check = self.monitor.last_check.by_classifier_at
         step = time_frame_to_seconds(self.setup.classifier.setup.time_frame)
-        return bool(self.now >= last_check + step)
+        return bool(self.current_timestamp >= last_check + step)
 
-    def populate_order(self, result: pd.core.frame.DataFrame):
-        side = (
-            "Long"
-            if result.score > 0.3
-            else "Short"
-            if result.score < -0.3 and self.setup.allow_naked_sells
-            else "Zeroed"
-        )
+    def _evaluate_side(self) -> str:
+        score = self.order.to.score
+        if score > self.setup.trading.score_that_triggers_long_side:
+            return sides.long
+
+        if score < self.setup.trading.score_that_triggers_short_side:
+            return sides.short
+        return sides.zeroed
+
+    def _reset(self):
+        self.was_updated = False
         self.order.test_order = bool(
             self.monitor.operation.mode == modes.test_trading
         )
-        self.order.timestamp = self.now
-        self.order.order_type = self.setup.default_order_type
-        self.order.from_side = self.monitor.position.side
-        self.order.to_side = side
-        self.order.score = result.score
+        self.order.order_type = self.setup.trading.default_order_type
+        self.order.leverage = self.setup.trading.leverage
+        self.order.signal = 'reset'
+        self.order.fulfilled = False
+        self.order.warnings = str()
+
+    def _refresh_result(self):
+        self.result = self.classifier.get_restult_at(self.current_timestamp)
+        self.monitor.save_result("classifier", self.result)
+
+    def _fill_the_order(self):        
+        self.order.timestamp = self.current_timestamp
+
+        self.order.from_.score = self.monitor.position.by_score
+        self.order.from_.side = self.monitor.position.side
+
+        self.order.to.score = self.result.Score.tail(1).item()
+        self.order.to.side = self._evaluate_side()
+
+    def _update(self):
+        self.monitor.last_check.update(by_classifier_at=self.current_timestamp)
+        self.was_updated = True
 
     def check_at(self, desired_datetime: DateTimeType):
-        self.was_updated = False
-        self.now = desired_datetime
+        self._reset()
+        self.current_timestamp = datetime_as_integer_timestamp(
+            desired_datetime
+        )
         if self._is_a_new_analysis_needed():
-            self.was_updated = True
-            result = self.classifier.get_restult_at(desired_datetime)
-            self.monitor.save_result("classifier", result)
-            self.monitor.last_check.update(by_classifier_at=self.now)
-            self.populate_order(result)
+            self._refresh_result()
+            self._fill_the_order()
+            self._update()
 
-    def finish(self):
-        pass
+# Migrate to a specific class
 
+    def _update_position(self):
+        order = self.order
+        self.monitor.position.update(
+            side = order.to.side,
+            by_score = order.to.score,
+            size = order.quantity,
+            enter_price = order.price,
+            timestamp = order.timestamp,
+            exit_reference_price = order.price,
+        )
+
+    def _report_and_notify(self):
+        self.monitor.save_trading_log(payload=self.order.dict())
+        print(self.order.dict())
+        print(" ")
+
+    def report_and_notify(self):
+        if self.order.fulfilled:
+            self._update_position()
+            self._report_and_notify()
+
+        if self.monitor.operation.mode == modes.backtesting:
+            self._report_and_notify()
+
+    def debug_message_items(self) -> list:
+        return [
+            self.monitor.ticker().ticker_symbol,
+            self.order.to.score,
+            self.monitor.position.side
+        ]
 
 class Trader:
     def __init__(self, operation: Operation):
         monitors = operation.list_of_active_monitors()
         self.analyzers = [Analyzer(monitor) for monitor in monitors]
         self.order_handler = OrderHandler(
-            bases_symbols=operation.setup().bases_symbols
+            bases_symbols=operation.bases_symbols()
         )
         # self.stop_loss = [StopLoss(monitor) for monitor in monitors]
+
+    def report_and_notify(self):
+        table = list()
+        for analyzer in self.analyzers:
+            if analyzer.was_updated:
+                analyzer.report_and_notify()
+
+            table.append(analyzer.debug_message_items())
+
+        debbug_msg_ = tabulate(table, tablefmt="plain",floatfmt=".2f")
+        print(debbug_msg_)
 
     def check_at(self, desired_datetime: DateTimeType):
         # for stop in self.stop_loss:
         #    stop.check_at(desired_datetime)
 
+        updated_analyzers = list()
         for analyzer in self.analyzers:
             analyzer.check_at(desired_datetime)
+            if analyzer.was_updated:
+                updated_analyzers.append(analyzer)
 
-        self.order_handler.process(
-            analyzers=[
-                analyzer for analyzer in self.analyzers if analyzer.was_updated
-            ]
-        )
+        if updated_analyzers:
+            self.order_handler.process(analyzers=updated_analyzers)
+            self.report_and_notify()

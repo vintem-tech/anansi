@@ -1,7 +1,7 @@
-""" All market indicators are coded here; some indicators are based on 
+""" All market indicators are coded here; some indicators are based on
 prices only, so the price are calculated from klines by 'price_from_kline'
-method on 'Trend' indicators. For that, the desired 'price_metrics' must 
-be passed, which, by default, is 'ohlc4'. Below, the possible values ​​for 
+method on 'Trend' indicators. For that, the desired 'price_metrics' must
+be passed, which, by default, is 'ohlc4'. Below, the possible values ​​for
 this parameter, as well as the associated calculation.
 
 "o"     = "Open"
@@ -61,7 +61,7 @@ class Trend:
 
         for n in setup.number_samples:
             sma_series.append(price_column.rolling(window=n).mean())
-            
+
         self._klines.loc[:, "Didi_fast"] = sma_series[0]/sma_series[1] - 1
         self._klines.loc[:, "Didi_middle"] = self._klines.apply(lambda row: 0.0, axis=1)
         self._klines.loc[:, "Didi_slow"] = sma_series[2]/sma_series[1] - 1
@@ -90,11 +90,11 @@ class Volatility:
         deviation = price_column.rolling(window=n).std()
 
         upper_band = sma + k * deviation
-        lower_band = sma - k * deviation
+        bottom_band = sma - k * deviation
 
         self._klines.loc[:, "Bollinger_SMA"] = sma
         self._klines.loc[:, "BB_upper"] = upper_band
-        self._klines.loc[:, "BB_lower"] = lower_band
+        self._klines.loc[:, "BB_bottom"] = bottom_band
 
 
 class Volume:
