@@ -1,4 +1,4 @@
-# ppylint: disable=too-few-public-methods
+# pylint: disable=too-few-public-methods
 
 """Deals specifically with klines, delivering them formatted as pandas
 dataframes, with some extra methods, such as market indicators. This
