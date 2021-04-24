@@ -8,6 +8,10 @@ class BackTestingBroker(Broker):
         super().__init__()
         self.operation = operation
         self.real_broker = real_broker
+        self._create_cache()
+
+    def _create_cache(self):
+        pass
 
     @DocInherit
     def server_time(self) -> int:
