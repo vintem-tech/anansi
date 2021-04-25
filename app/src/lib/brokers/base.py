@@ -33,18 +33,7 @@ class Broker:
 
     def __init__(self, settings=None):
         self.settings = settings
-        self._ticker_symbol = str()
-
-    @property
-    def ticker_symbol(self):
-        """String that uniquely identifies the traded asset;
-        e.g. 'BTCUSDT', 'PETR4BRL'"""
-
-        return self._ticker_symbol
-
-    @ticker_symbol.setter
-    def ticker_symbol(self, ticker_symbol_to_set: str):
-        self._ticker_symbol = ticker_symbol_to_set
+        self.ticker_symbol = str()
 
     def server_time(self) -> int:
         """Date time of broker server.
@@ -93,7 +82,7 @@ class Broker:
 
         return self.get_klines(
             ticker_symbol, time_frame, since=1, number_samples=1
-        ).iloc[0]
+        )[:1]
 
     def get_price(self, ticker_symbol: str, **kwargs) -> float:
         """Instant average trading price"""
