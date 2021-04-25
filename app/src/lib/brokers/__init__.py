@@ -8,7 +8,16 @@ thismodule = sys.modules[__name__]
 
 
 def get_broker(broker_name: str) -> base.Broker:
-    """Given a market ticker, returns an instantiated broker"""
+    """Returns a instatiate broker, if 'broker_name' matches an
+    implemented broker
+
+    :param broker_name: The name of desired broker
+    :type broker_name: str
+    :raises NotImplementedError: If broker name is not recognized
+    as an implemented broker
+    :return: A broker
+    :rtype: base.Broker
+    """
 
     try:
         module = getattr(thismodule, broker_name.lower())
