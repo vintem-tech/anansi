@@ -1,14 +1,17 @@
 """All needed functions, wrapping the communication with binance"""
 
+# pylint: disable=too-few-public-methods
+
 from decimal import Decimal
 
 from binance.client import Client as BinanceClient
 from binance.exceptions import BinanceOrderException
 
-from ...config.settings import BinanceSettings
+# from ...config.settings import BinanceSettings
 from .base import (
     DF,
     Broker,
+    BrokerSettings,
     Order,
     Quantity,
     DocInherit,
@@ -17,14 +20,35 @@ from .base import (
 )
 
 
+class BinanceSettings(BrokerSettings):
+    """
+    https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md
+    """
+
+    datetime_unit = "milliseconds"
+    base_endpoint = "https://api.binance.com/api/v3/"
+    ping_endpoint = base_endpoint + "ping"
+    time_endpoint = base_endpoint + "time"
+    klines_endpoint = base_endpoint + "klines?symbol={}&interval={}"
+    request_weight_per_minute = 1100  # Default: 1200/min/IP
+    records_per_request = 500  # Default: 500 | Limit: 1000 samples/response))
+
+    # Which information (IN ORDER!), about each candle, is returned by Binance
+    kline_information = BrokerSettings().kline_information + [
+        "Quote_asset_volume",
+        "Number_of_trades",
+        "Taker_buy_base_asset_volume",
+        "Taker_buy_quote_asset_volume",
+        "Ignore",
+    ]
+
+
 class Binance(Broker):
     """All needed functions, wrapping the communication with binance"""
 
     def __init__(self, settings=BinanceSettings()):
         super().__init__(settings)
-        self.client = BinanceClient(
-            api_key=self.settings.api_key, api_secret=self.settings.api_secret
-        )
+        self.client = None
 
     @DocInherit
     def server_time(self) -> int:
@@ -81,6 +105,9 @@ class Binance(Broker):
     @DocInherit
     def ticker_info(self, ticker_symbol: str) -> dict:
         return self.client.get_symbol_info(symbol=ticker_symbol)
+
+    def create_client(self, api_key: str, api_secret: str):
+        self.client = BinanceClient(api_key=api_key, api_secret=api_secret)
 
     @DocInherit
     def free_quantity_asset(self, asset_symbol: str) -> float:
