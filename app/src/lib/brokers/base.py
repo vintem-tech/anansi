@@ -13,11 +13,10 @@ import requests
 from pydantic import BaseModel
 
 from ..utils.schemas import Order, Quantity
-from ..utils.tools import documentation, formatting
+from ..utils.tools.documentation import DocInherit
+from ..utils.tools.formatting import FormatKlines
 
-DocInherit = documentation.DocInherit
 DF = pd.core.frame.DataFrame
-
 
 
 def get_response(endpoint: str) -> Union[requests.models.Response, None]:
@@ -38,7 +37,6 @@ class Broker:
 
     def __init__(self, settings=None):
         self.settings = settings
-        self.ticker_symbol = str()
 
     def server_time(self) -> int:
         """Date time of broker server.
