@@ -1,3 +1,5 @@
+#!TODO: self.ticker_symbol -> order.ticker_symbol
+
 """All needed functions, wrapping the communication with binance"""
 
 # pylint: disable=too-few-public-methods
@@ -7,20 +9,19 @@ from decimal import Decimal
 from binance.client import Client as BinanceClient
 from binance.exceptions import BinanceOrderException
 
-# from ...config.settings import BinanceSettings
 from .base import (
     DF,
     Broker,
     BrokerSettings,
+    DocInherit,
+    FormatKlines,
     Order,
     Quantity,
-    DocInherit,
-    formatting,
     get_response,
 )
 
 
-class BinanceSettings(BrokerSettings):
+class Settings(BrokerSettings):
     """
     https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md
     """
@@ -46,7 +47,7 @@ class BinanceSettings(BrokerSettings):
 class Binance(Broker):
     """All needed functions, wrapping the communication with binance"""
 
-    def __init__(self, settings=BinanceSettings()):
+    def __init__(self, settings=Settings()):
         super().__init__(settings)
         self.client = None
 
@@ -63,9 +64,7 @@ class Binance(Broker):
         requests_on_current_minute = int(
             (get_response(ping_endpoint)).headers["x-mbx-used-weight-1m"]
         )
-        if requests_on_current_minute >= request_weight_per_minute:
-            return True
-        return False
+        return requests_on_current_minute >= request_weight_per_minute
 
     @DocInherit
     def get_klines(self, ticker_symbol: str, time_frame: str, **kwargs) -> DF:
@@ -86,13 +85,7 @@ class Binance(Broker):
 
         raw_klines = (get_response(endpoint)).json()
 
-        klines = formatting.FormatKlines(
-            time_frame,
-            raw_klines,
-            datetime_format=self.settings.datetime_format,
-            datetime_unit=self.settings.datetime_unit,
-            columns=self.settings.kline_information,
-        ).to_dataframe()
+        klines = FormatKlines(raw_klines, self.settings).to_dataframe()
 
         if self.settings.show_only_desired_info:
             return klines[self.settings.klines_desired_informations]
