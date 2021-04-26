@@ -47,7 +47,7 @@ class FormatKlines:
         "formatted_klines",
     ]
 
-    def __init__(self, settings: BaseModel, klines: list):
+    def __init__(self, klines: list, settings: BaseModel):
         self.datetime_format = settings.datetime_format
         self.datetime_unit = settings.datetime_unit
         self.columns = settings.kline_information
@@ -107,7 +107,7 @@ def remove_last_kline_if_unclosed(klines: DF, time_frame: str) -> DF:
 
     last_open_time = klines[-1:].Open_time.item()
     delta_time = (pendulum.now(tz="UTC")).int_timestamp - last_open_time
-    unclosed = (delta_time < time_frame_to_seconds(time_frame))
+    unclosed = delta_time < time_frame_to_seconds(time_frame)
 
     if unclosed:
         return klines[:-1]
