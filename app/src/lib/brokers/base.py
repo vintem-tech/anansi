@@ -2,17 +2,22 @@
 brokers' implementation"""
 
 # pylint: disable=unused-import
+# pylint: disable=no-name-in-module
+# pylint: disable=too-few-public-methods
+
 
 from typing import Union
 
 import pandas as pd
 import requests
+from pydantic import BaseModel
 
 from ..utils.schemas import Order, Quantity
 from ..utils.tools import documentation, formatting
 
 DocInherit = documentation.DocInherit
 DF = pd.core.frame.DataFrame
+
 
 
 def get_response(endpoint: str) -> Union[requests.models.Response, None]:
@@ -115,3 +120,46 @@ class Broker:
     def execute_test_order(self, order: Order):
         """Proceed test trading orders """
         raise NotImplementedError
+
+
+class BrokerSettings(BaseModel):
+    """Broker parent class """
+
+    datetime_format: str = "timestamp"
+    datetime_unit: str = "seconds"
+    base_endpoint: str = str()
+    ping_endpoint: str = str()
+    time_endpoint: str = str()
+    klines_endpoint: str = str()
+    request_weight_per_minute: int = None
+    records_per_request: int = None
+    possible_time_frames: list = [
+        "1m",
+        "3m",
+        "5m",
+        "15m",
+        "30m",
+        "1h",
+        "2h",
+        "4h",
+        "6h",
+        "8h",
+        "12h",
+        "1d",
+        "3d",
+        "1w",
+        "1M",
+    ]
+    kline_information: list = [
+        "Open_time",
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "Volume",
+        "Close_time",
+    ]
+    klines_desired_informations: list = kline_information[:-1]
+    ignore_opened_candle: bool = True
+    show_only_desired_info: bool = True
+    fee_rate_decimal: float = 0.001
