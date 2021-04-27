@@ -7,12 +7,13 @@ import pandas as pd
 import pendulum
 from pendulum.exceptions import PendulumException
 
-from ..schemas import DateTimeType
+from ....config.settings import Timesettings
 from ..exceptions import TimeFormatError
+from ..schemas import DateTimeType
 
+settings = Timesettings()
 
 pd.options.mode.chained_assignment = None
-HUMAN_READABLE_FORMAT = "YYYY-MM-DD HH:mm:ss"
 
 
 class ParseDateTime:
@@ -28,28 +29,57 @@ class ParseDateTime:
 
         try:
             return pendulum.from_format(
-                self.date_time_in, HUMAN_READABLE_FORMAT, "UTC"
+                string=self.date_time_in,
+                fmt=settings.human_readable_format,
+                tz=settings.system_timezone,
             ).int_timestamp
-        except PendulumException as err:
-            raise ValueError.with_traceback(err)(
-                "Input datetime must be {} formatted.".format(
-                    HUMAN_READABLE_FORMAT
-                )
-            ) from err
+
+        except (PendulumException, ValueError, TypeError) as error:
+            msg = "Input datetime must be a str type and formatted like {}."
+
+            raise Exception(
+                msg.format(settings.human_readable_format)
+            ) from error
 
     def from_timestamp_to_human_readable(self) -> str:
         """Returns a string {} formatted representation of input
         timestamp""".format(
-            HUMAN_READABLE_FORMAT
+            settings.human_readable_format
         )
         try:
             return pendulum.from_timestamp(
                 self.date_time_in
             ).to_datetime_string()
-        except PendulumException as err:
-            raise ValueError.with_traceback(err)(
-                "Invalid input. It must be a timestamp, integer or string type."
-            ) from err
+
+        except (PendulumException, ValueError, TypeError) as error:
+            msg = "Input must be a timestamp, integer or string type."
+            raise Exception(msg) from error
+
+
+class Now:
+
+    @staticmethod
+    def _now_human_readable_for(time_zone: str) -> str:
+        now = pendulum.now(tz=time_zone).isoformat().split(sep="T")
+        date = now[0]
+        time = now[1].split(sep=".")[0]
+        return "{} {}".format(date, time)
+
+    def utc_human_readable(self) -> str:
+        return self._now_human_readable_for(time_zone="UTC")
+
+    def utc_timestamp(self) -> int:
+        return ParseDateTime(
+            self.utc_human_readable()
+        ).from_human_readable_to_timestamp()
+
+    def local_human_readable(self) -> str:
+        return self._now_human_readable_for(time_zone=settings.local_timezone)
+
+    def local_timestamp(self) -> int:
+        return ParseDateTime(
+            self.local_human_readable()
+        ).from_human_readable_to_timestamp()
 
 
 @pd.api.extensions.register_dataframe_accessor("apply_datetime_conversion")
