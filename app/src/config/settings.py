@@ -4,11 +4,19 @@
 
 """All brokers configuration must to be placed here"""
 
+import pendulum
 from environs import Env
 from pydantic import BaseModel
 
 env = Env()
+avaliable_timezones = pendulum.timezones
 
+class Timesettings(BaseModel):
+    local_timezone = env.str("LOCAL_TIMEZONE", default='America/Bahia')
+    system_timezone = env.str("SYSTEM_TIMEZONE", default='UTC')
+    default_timestamp_unit = 's'
+    human_readable_format = "YYYY-MM-DD HH:mm:ss"
+    presented_in_human_readable_format = True
 
 class RelationalDatabase(BaseModel):
     provider: str
