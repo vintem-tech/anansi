@@ -111,7 +111,7 @@ class DataFrameDateTimeconversion:
             self._convert(column, "from_timestamp_to_human_readable")
 
 
-def datetime_as_integer_timestamp(datetime: DateTimeType) -> int:
+def int_timestamp(datetime: DateTimeType) -> int:
     """Try to return an integer timestamp given a datetime."""
 
     try:  # Already int or str timestamp (SECONDS), or ...
@@ -168,7 +168,7 @@ def next_closed_candle_seconds_delay(
 
     now = kwargs.get("now", pendulum.now("UTC").int_timestamp)
 
-    timestamp_open_time = datetime_as_integer_timestamp(open_time)
+    timestamp_open_time = int_timestamp(open_time)
     step = time_frame_to_seconds(time_frame)
     next_close_time = timestamp_open_time + (2 * step)
     _time_until_next_closed_candle = next_close_time - now
