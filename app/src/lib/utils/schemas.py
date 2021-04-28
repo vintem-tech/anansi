@@ -1,7 +1,7 @@
 # pylint: disable=no-name-in-module
 # pylint: disable=no-self-argument
 # pylint: disable=too-few-public-methods
-# pylint: disable=E1136
+# pylint: disable=unsubscriptable-object
 
 """Shared pydantic model classes."""
 
@@ -36,6 +36,7 @@ possible_price_metrics = ["o", "h", "l", "c", "oc2", "hl2", "hlc3", "ohlc4"]
 
 
 class TimeRange(BaseModel):
+    """A simple since-until time range object"""
     since: DateTimeType
     until: DateTimeType
 
@@ -142,14 +143,10 @@ class Signals(BaseModel):
         return [signal[1] for signal in list(self)]
 
 
-class PositionInfo(BaseModel):
-    side: str = Sides().zeroed
-    score: float = 0.0
-
-
 class Order(BaseModel):
     """Order parameters collection"""
 
+    ticker_symbol: str
     test_order: bool = False
     by_stop: bool = False
     order_type: Optional[str]
@@ -158,8 +155,8 @@ class Order(BaseModel):
     timestamp: Optional[int]
     id_by_broker: Optional[str] = str()
 
-    from_ = PositionInfo()
-    to = PositionInfo()
+    #from_ = PositionInfo()
+    #to = PositionInfo()
 
     signal: str = Signals().hold
     price: Optional[float]
@@ -185,3 +182,8 @@ class Trigger(BaseModel):
 
     rate: float
     treshold: Treshold
+
+### WTF???
+class PositionInfo(BaseModel):
+    side: str = Sides().zeroed
+    score: float = 0.0
