@@ -24,7 +24,7 @@ class ParseDateTime:
     def __init__(self, date_time_in: DateTimeType):
         self.date_time_in = date_time_in
 
-    def from_human_readable_to_timestamp(self) -> int:
+    def to_timestamp(self) -> int:
         """Returns an integer timestamp representation of input datetime."""
 
         try:
@@ -41,7 +41,7 @@ class ParseDateTime:
                 msg.format(settings.human_readable_format)
             ) from error
 
-    def from_timestamp_to_human_readable(self) -> str:
+    def to_human_readable(self) -> str:
         """Returns a string {} formatted representation of input
         timestamp""".format(
             settings.human_readable_format
@@ -57,7 +57,6 @@ class ParseDateTime:
 
 
 class Now:
-
     @staticmethod
     def _now_human_readable_for(time_zone: str) -> str:
         now = pendulum.now(tz=time_zone).isoformat().split(sep="T")
@@ -69,20 +68,16 @@ class Now:
         return self._now_human_readable_for(time_zone="UTC")
 
     def utc_timestamp(self) -> int:
-        return ParseDateTime(
-            self.utc_human_readable()
-        ).from_human_readable_to_timestamp()
+        return ParseDateTime(self.utc_human_readable()).to_timestamp()
 
     def local_human_readable(self) -> str:
         return self._now_human_readable_for(time_zone=settings.local_timezone)
 
     def local_timestamp(self) -> int:
-        return ParseDateTime(
-            self.local_human_readable()
-        ).from_human_readable_to_timestamp()
+        return ParseDateTime(self.local_human_readable()).to_timestamp()
 
 
-@pd.api.extensions.register_dataframe_accessor("apply_datetime_conversion")
+@pd.api.extensions.register_dataframe_accessor("parse_datetime")
 class DataFrameDateTimeconversion:
     """Apply timestamp/human readable datetime conversion over
     dataframe columns items."""
@@ -98,17 +93,17 @@ class DataFrameDateTimeconversion:
             axis=1,
         )
 
-    def from_human_readable_to_timestamp(self, target_columns: List[str]):
+    def to_timestamp(self, columns: List[str]):
         """If human readable str, returns associated int timestamp."""
 
-        for column in target_columns:
-            self._convert(column, "from_human_readable_to_timestamp")
+        for column in columns:
+            self._convert(column, "to_timestamp")
 
-    def from_timestamp_to_human_readable(self, target_columns: List[str]):
+    def to_human_readable(self, columns: List[str]):
         """If int timestamp, returns associated human readable str."""
 
-        for column in target_columns:
-            self._convert(column, "from_timestamp_to_human_readable")
+        for column in columns:
+            self._convert(column, "to_human_readable")
 
 
 def int_timestamp(datetime: DateTimeType) -> int:
@@ -118,7 +113,7 @@ def int_timestamp(datetime: DateTimeType) -> int:
         return int(datetime)
     except ValueError:
         try:  # ... maybe a human readable datetime, or ...
-            return ParseDateTime(datetime).from_human_readable_to_timestamp()
+            return ParseDateTime(datetime).to_timestamp()
         except ValueError as err:  # ... an invalid input.
             raise TimeFormatError.with_traceback(err)
 
