@@ -16,6 +16,7 @@ DF = pd.core.frame.DataFrame
 class GetterSettings(BaseModel):
     return_as_human_readable = True
     ignore_unclosed_kline = True
+    infinite_request_attempts = True
 
 
 class GetInputSanitizer(BaseModel):
@@ -66,10 +67,17 @@ class GetInputSanitizer(BaseModel):
 
 
 class Getter:
-    def __init__(
-        self, broker_name: str, ticker: Ticker, time_frame: str = str()
-    ):
-        self.broker_name: broker_name
+
+    __slots__ = [
+        "broker_name",
+        "ticker",
+        "time_frame",
+        "settings",
+        "sanitizer",
+    ]
+
+    def __init__(self, broker: str, ticker: Ticker, time_frame: str = str()):
+        self.broker_name: broker
         self.ticker = ticker
         self.time_frame = time_frame
         self.settings = GetterSettings()
@@ -104,9 +112,9 @@ class Getter:
         if self.settings.return_as_human_readable:
             try:
                 klines.parse_datetime.to_human_readable(
-                    columns=["Open_time", "close_time"]
+                    columns=["Open_time", "Close_time"]
                 )
-            except TimeFormatError:
+            except (KeyError, TimeFormatError):
                 pass
         return klines
 
@@ -143,13 +151,13 @@ class Getter:
         return klines[-_len:]
 
 
-@pd.api.extensions.register_dataframe_accessor("apply_indicator")
-class ApplyIndicator:
-    """Klines based market indicators, grouped by common scope."""
+#@pd.api.extensions.register_dataframe_accessor("apply_indicator")
+#class ApplyIndicator:
+#    """Klines based market indicators, grouped by common scope."""
 
-    def __init__(self, klines):
-        self._klines = klines
-        self.trend = indicators.Trend(self._klines)
-        self.momentum = indicators.Momentum(self._klines)
-        self.volatility = indicators.Volatility(self._klines)
-        self.volume = indicators.Volume(self._klines)
+#    def __init__(self, klines):
+#        self._klines = klines
+#        self.trend = indicators.Trend(self._klines)
+#        self.momentum = indicators.Momentum(self._klines)
+#        self.volatility = indicators.Volatility(self._klines)
+#        self.volume = indicators.Volume(self._klines)
