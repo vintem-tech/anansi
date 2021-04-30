@@ -13,7 +13,11 @@ from ....lib.utils.tools.time_handlers import (
     int_timestamp,
     time_frame_to_seconds,
 )
-from ..operators.indicators import price, simple_moving_average as sma
+from ..operators.indicators import (
+    price,
+    simple_moving_average as sma,
+    didi_index,
+)
 
 DF = pd.core.frame.DataFrame
 
@@ -166,8 +170,10 @@ class Indicator:
     __slots__ = [
         "price",
         "simple_moving_average",
+        "didi_index",
     ]
 
     def __init__(self, klines):
         self.price = price.PriceFromKline(klines)
         self.simple_moving_average = sma.SimpleMovingAverage(klines)
+        self.didi_index = didi_index.DidiIndex(klines)
