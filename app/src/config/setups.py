@@ -23,13 +23,6 @@ initial_wallet: Wallet = dict(USDT=1000.00) # Backtesting scenarios
 broadcasters = Broadcasters()
 
 
-class SimpleMovingAverage(BaseModel):
-    """Setup of 'simple_moving_average' trend indicator"""
-
-    price_metrics: str = "ohlc4"
-    number_samples: int = 7
-
-
 class BollingerBands(BaseModel):
     """Setup of Bollinger bands volatility indicator"""
 
