@@ -1,5 +1,4 @@
-"""Collection of libraries, modules or classes important for the
-brokers' implementation"""
+"""All the basic objects important for the implementation of the brokers"""
 
 # pylint: disable=unused-import
 # pylint: disable=no-name-in-module
@@ -131,7 +130,7 @@ class BrokerSettings(BaseModel):
     klines_endpoint: str = str()
     request_weight_per_minute: int = None
     records_per_request: int = None
-    possible_time_frames: list = [
+    time_frames: list = [
         "1m",
         "3m",
         "5m",
