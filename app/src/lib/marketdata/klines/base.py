@@ -13,7 +13,7 @@ from ....lib.utils.tools.time_handlers import (
     int_timestamp,
     time_frame_to_seconds,
 )
-from ..operators.indicators import price, sma
+from ..operators.indicators import price, simple_moving_average as sma
 
 DF = pd.core.frame.DataFrame
 
