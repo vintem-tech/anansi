@@ -10,6 +10,8 @@ from ....lib.utils.tools.time_handlers import (
     time_frame_to_seconds,
 )
 
+from ..operators.indicators import price
+
 DF = pd.core.frame.DataFrame
 
 
@@ -151,13 +153,12 @@ class Getter:
         return klines[-_len:]
 
 
-#@pd.api.extensions.register_dataframe_accessor("apply_indicator")
-#class ApplyIndicator:
-#    """Klines based market indicators, grouped by common scope."""
+@pd.api.extensions.register_dataframe_accessor("indicator")
+class Indicator:
 
-#    def __init__(self, klines):
-#        self._klines = klines
-#        self.trend = indicators.Trend(self._klines)
-#        self.momentum = indicators.Momentum(self._klines)
-#        self.volatility = indicators.Volatility(self._klines)
-#        self.volume = indicators.Volume(self._klines)
+    __slots__ = [
+        "price",
+    ]
+
+    def __init__(self, klines):
+        self.price = price.PriceFromKline(klines)
