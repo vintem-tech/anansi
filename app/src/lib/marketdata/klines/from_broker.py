@@ -11,10 +11,16 @@ import time
 
 import pandas as pd
 
+from ....lib.utils.exceptions import BrokerError, StorageError
 from ....lib.utils.schemas import Ticker
-from ....lib.utils.tools.time_handlers import Now, time_frame_to_seconds
-from ...brokers import get_broker
-from .base import Getter
+from ....lib.utils.tools.formatting import remove_last_kline_if_unclosed
+from ....lib.utils.tools.time_handlers import (
+    Now,
+    cooldown_time,
+    time_frame_to_seconds,
+)
+from ...brokers import fabric
+from .base import DF, Getter
 
 
 class GetterFromBroker(Getter):
@@ -26,32 +32,26 @@ class GetterFromBroker(Getter):
 
     __slots__ = [
         "_broker",
-        "ticker_symbol",
-        "minimum_time_frame",
         "_time_frame",
-        "store_klines_round_by_round",
-        "infinite_attempts",
         "_request_step",
     ]
 
-    def __init__(self, ticker: Ticker, time_frame: str = str()):
-        self._broker = get_broker(ticker.broker_name)
-        self.ticker_symbol = ticker.ticker_symbol
-        self.minimum_time_frame = self._broker.settings.possible_time_frames[0]
+    def __init__(self, broker: str, ticker: Ticker, time_frame: str = str()):
+        self._broker = fabric(broker)
         self._time_frame = self._validate_tf(time_frame)
-        super().__init__(ticker, self.time_frame)
-        self.store_klines_round_by_round: bool = False
-        self.infinite_attempts: bool = True
+        super().__init__(broker, ticker, time_frame=self.time_frame)
         self._request_step = self.__request_step()
 
-    def _validate_tf(self, timeframe: str):
-        tf_list = self._broker.settings.possible_time_frames
-        if timeframe:
-            if timeframe not in tf_list:
-                raise ValueError("Time frame must be in {}".format(tf_list))
-        else:
-            timeframe = self.minimum_time_frame
-        return timeframe
+    def _validate_tf(self, time_frame: str) -> str:
+        time_frames = self._broker.settings.time_frames
+        error_msg = "time_frame should be in {}".format(time_frames)
+        if time_frame:
+            if time_frame not in time_frames:
+                raise ValueError(error_msg)
+            return time_frame
+
+        time_frame = min(time_frames)
+        return time_frame
 
     @property
     def time_frame(self) -> str:
@@ -63,20 +63,18 @@ class GetterFromBroker(Getter):
         self._time_frame = self._validate_tf(time_frame_to_set)
 
     def oldest_open_time(self) -> int:
-        return self._broker.oldest_kline(
-            ticker_symbol=self.ticker_symbol, time_frame=self.time_frame
-        ).Open_time.item()
+        kline = self._broker.oldest_kline(self.ticker.symbol, self.time_frame)
+        return kline.Open_time.item()
 
     def newest_open_time(self) -> int:
         return Now().utc_timestamp()
 
     def __request_step(self) -> int:
-        return (
-            self._broker.settings.records_per_request
-            * time_frame_to_seconds(self.time_frame)
-        )
+        records_per_request = self._broker.settings.records_per_request
+        seconds_time_frame = time_frame_to_seconds(self.time_frame)
+        return records_per_request * seconds_time_frame
 
-    def _get_core(self, since: int, until: int) -> pd.core.frame.DataFrame:
+    def _get_core(self, since: int, until: int) -> DF:
         klines = pd.DataFrame()
         for timestamp in range(since, until + 1, self._request_step):
             attempt = 0
@@ -84,25 +82,25 @@ class GetterFromBroker(Getter):
                 try:
                     if self._broker.max_requests_limit_hit():
                         time.sleep(10)
-                    else:
-                        attempt += 1
-                        _klines = self._broker.get_klines(
-                            ticker_symbol=self.ticker_symbol,
-                            time_frame=self._time_frame,
-                            since=timestamp,
-                        )
-                        klines = klines.append(_klines, ignore_index=True)
-                        if self.store_klines_round_by_round:
-                            self.storage.append(_klines)
-                        break
 
-                except (BrokerError, StorageError) as err:
-                    if self.infinite_attempts:
-                        print("Fail, due the error: ", err)
-                        time.sleep(cooldown_time(attempt))
-                    else:
-                        raise Exception.with_traceback(err) from err
+                    attempt += 1
+                    _klines = self._broker.get_klines(
+                        ticker_symbol=self.ticker.symbol,
+                        time_frame=self._time_frame,
+                        since=timestamp,
+                    )
+                    klines = klines.append(_klines, ignore_index=True)
+                    # if self.store_klines_round_by_round:
+                    #    self.storage.append(_klines)
+                    break
 
-        if self.ignore_unclosed_kline:
+                except (BrokerError, StorageError) as error:
+                    if not self.settings.infinite_request_attempts:
+                        raise Exception from error
+
+                    print("Fail, due the error: ", error)
+                    time.sleep(cooldown_time(attempt))
+
+        if self.settings.ignore_unclosed_kline:
             klines = remove_last_kline_if_unclosed(klines, self.time_frame)
         return klines
