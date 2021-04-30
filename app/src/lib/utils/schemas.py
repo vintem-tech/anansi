@@ -110,8 +110,8 @@ class Broadcasters(BaseModel):
 class OperationalModes(BaseModel):
     """Stores the possible operation modes"""
 
-    real_trading: str = "real_trading"
-    test_trading: str = "test_trading"
+    real: str = "real"
+    test: str = "test"
     backtesting: str = "backtesting"
 
 
