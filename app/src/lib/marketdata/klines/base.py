@@ -1,4 +1,8 @@
+"""Basic classes and functions for processing klines"""
+
 # pylint: disable=no-name-in-module
+# pylint: disable=too-few-public-methods
+# pylint: disable=too-many-return-statements
 
 import pandas as pd
 from pydantic import BaseModel
@@ -9,8 +13,7 @@ from ....lib.utils.tools.time_handlers import (
     int_timestamp,
     time_frame_to_seconds,
 )
-
-from ..operators.indicators import price
+from ..operators.indicators import price, sma
 
 DF = pd.core.frame.DataFrame
 
@@ -69,6 +72,9 @@ class GetInputSanitizer(BaseModel):
 
 
 class Getter:
+    """Methods and attributes common to the classes 'GetterFromBroker'
+    (module 'from_broker') and 'GetterFromStorage' (module 'storage')
+    """
 
     __slots__ = [
         "broker_name",
@@ -155,10 +161,13 @@ class Getter:
 
 @pd.api.extensions.register_dataframe_accessor("indicator")
 class Indicator:
+    """Market indicators; obtained exclusively from klines (OHLCV) only"""
 
     __slots__ = [
         "price",
+        "simple_moving_average",
     ]
 
     def __init__(self, klines):
         self.price = price.PriceFromKline(klines)
+        self.simple_moving_average = sma.SimpleMovingAverage(klines)
