@@ -23,14 +23,6 @@ initial_wallet: Wallet = dict(USDT=1000.00) # Backtesting scenarios
 broadcasters = Broadcasters()
 
 
-class BollingerBands(BaseModel):
-    """Setup of Bollinger bands volatility indicator"""
-
-    price_metrics: str = "ohlc4"
-    number_samples: int = 20
-    number_STDs: float = 2.0
-
-
 class DidiClassifier(BaseModel):
     """Setup of DidiClassifier operator, which uses didi index and
     bollinger bands indicators to generate a classification score"""
