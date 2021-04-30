@@ -1,52 +1,65 @@
 """Entrypoint for instantiating a broker"""
 
 import sys
-from typing import List
+from typing import List, Union
 from . import base, binance, backtesting
+from ...lib.utils.schemas import OperationalModes
+
+modes = OperationalModes()
 
 thismodule = sys.modules[__name__]
 
 
-def fabric(broker: str) -> base.Broker:
+class Fabric:
     """Returns an instatiate broker, if 'broker' matches an
     implemented broker
 
     :param broker: The name of desired broker
     :type broker: str
-    :raises NotImplementedError: If broker name is not recognized
-    as an implemented broker
-    :return: A broker
-    :rtype: base.Broker
+    :raises NotImplementedError: If broker name is not implemented yet
     """
 
-    try:
-        module = getattr(thismodule, broker.lower())
-        class_ = broker.capitalize()
+    __slots__ = ["real_broker"]
 
-        return getattr(module, class_)()
+    def __init__(self, broker: str):
+        self.real_broker = None
+        try:
+            method = "_{}".format(broker.lower())
+            _broker = getattr(Fabric, method)
+            self.real_broker = _broker()
 
-    except AttributeError as err:
-        err_msg = "Not implented '{}' broker.".format(broker)
-        raise NotImplementedError(err_msg) from err
+        except AttributeError as error:
+            err_msg = "Not implented '{}' broker.".format(broker)
+            raise NotImplementedError(err_msg) from error
 
+    @staticmethod
+    def _binance() -> binance.Binance:
+        return binance.Binance()
 
-def backtesting_fabric(broker:str, assets:List[str]) -> base.Broker:
-    """[summary]
+    def real(self) -> base.Broker:
+        """Returns a 'real' 'Broker' instance, capable of communicating
+        directly with the broker, in order to query market data, or even
+        access validated endpoints to send trading orders and checking
+        balance.
 
-    :param broker: [description]
-    :type broker: str
-    :param assets: [description]
-    :type assets: List[str]
-    :raises NotImplementedError: [description]
-    :return: [description]
-    :rtype: base.Broker
-    """
+        :return: A 'real' broker
+        :rtype: base.Broker
+        """
 
-    try:
-        real_broker = fabric(broker)
-        backtesting_broker = getattr(backtesting, "BackTestingBroker")
-        return backtesting_broker(real_broker, assets)
+        return self.real_broker
 
-    except AttributeError as err:
-        err_msg = "Not implented '{}' broker.".format(broker)
-        raise NotImplementedError(err_msg) from err
+    def backtesting(self, assets: List[str]) -> backtesting.BackTestingBroker:
+        """A 'Broker' backtesting, with  very similar methods to the
+        'real' 'Broker' but specifically designed to play a role in the
+        'artificial orders' triggering flow ('trading' package). For
+        while, the subpackage 'marketdata' keeping doing the market data
+        query, on backtesting mode scenario
+
+        :param assets: A list of assets whose pertinent information must
+                       be consulted and 'saved' in memory
+        :type assets: List[str]
+        :return: A backtesting Broker
+        :rtype: backtesting.BackTestingBroker
+        """
+
+        return backtesting.BackTestingBroker(self.real_broker, assets)
