@@ -14,9 +14,10 @@ from ....lib.utils.tools.time_handlers import (
     time_frame_to_seconds,
 )
 from ..operators.indicators import (
+    bollinger_bands,
+    didi_index,
     price,
     simple_moving_average as sma,
-    didi_index,
 )
 
 DF = pd.core.frame.DataFrame
@@ -171,9 +172,11 @@ class Indicator:
         "price",
         "simple_moving_average",
         "didi_index",
+        "bollinger_bands",
     ]
 
     def __init__(self, klines):
         self.price = price.PriceFromKline(klines)
         self.simple_moving_average = sma.SimpleMovingAverage(klines)
         self.didi_index = didi_index.DidiIndex(klines)
+        self.bollinger_bands = bollinger_bands.BollingerBands(klines)
