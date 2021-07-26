@@ -166,7 +166,7 @@ class Getter:
 
 @pd.api.extensions.register_dataframe_accessor("indicator")
 class Indicator:
-    """Market indicators; obtained exclusively from klines (OHLCV) only"""
+    """Market indicators; obtained exclusively from klines (OHLCV)"""
 
     __slots__ = [
         "price",
@@ -175,7 +175,7 @@ class Indicator:
         "bollinger_bands",
     ]
 
-    def __init__(self, klines):
+    def __init__(self, klines: DF):
         self.price = price.PriceFromKline(klines)
         self.simple_moving_average = sma.SimpleMovingAverage(klines)
         self.didi_index = didi_index.DidiIndex(klines)
