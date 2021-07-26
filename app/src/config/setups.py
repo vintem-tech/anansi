@@ -4,18 +4,12 @@ stoploss or even entire operations setups"""
 # pylint: disable=no-name-in-module
 # pylint: disable=too-few-public-methods
 import sys
-from typing import List, Optional, Sequence
+from typing import List, Optional
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
 
-from ..lib.utils.schemas import (
-    Broadcasters,
-    Classifier,
-    DateTimeType,
-    StopLoss,
-    Wallet,
-    possible_price_metrics,
-)
+from ..lib.utils.schemas import (Broadcasters, Classifier, DateTimeType,
+                                 StopLoss, Wallet)
 
 thismodule = sys.modules[__name__]
 
@@ -23,17 +17,17 @@ initial_wallet: Wallet = dict(USDT=1000.00) # Backtesting scenarios
 broadcasters = Broadcasters()
 
 
-class DidiClassifier(BaseModel):
-    """Setup of DidiClassifier operator, which uses didi index and
-    bollinger bands indicators to generate a classification score"""
+#class DidiClassifier(BaseModel):
+#    """Setup of DidiClassifier operator, which uses didi index and
+#    bollinger bands indicators to generate a classification score"""
 
-    time_frame: str = "6h"
-    didi_index = DidiIndex()
-    bollinger_bands = BollingerBands()
+#    time_frame: str = "6h"
+#    didi_index = DidiIndex()
+#    bollinger_bands = BollingerBands()
 
     # Below values must be in range(0.0, 1.0) | 'bb' = 'Bollinger bands'
-    weight_if_only_upper_bb_opened: float = 1.0
-    weight_if_only_bottom_bb_opened: float = 1.0
+#    weight_if_only_upper_bb_opened: float = 1.0
+#    weight_if_only_bottom_bb_opened: float = 1.0
 
 
 class BackTesting(BaseModel):
@@ -70,17 +64,17 @@ class Trading(BaseModel):
     leverage = 1.0
 
 
-class OperationalSetup(BaseModel):
-    """Operation setup schema, with default values."""
+#class OperationalSetup(BaseModel):
+#    """Operation setup schema, with default values."""
 
-    classifier =  Classifier(
-        name = "DidiClassifier",
-        setup = DidiClassifier()
-    )
-    stoploss: StopLoss = StopTrailing3T()
-    trading: Trading = Trading()
-    notifier = Notifier()
-    backtesting: Optional[BackTesting] = BackTesting()
+#    classifier =  Classifier(
+#        name = "DidiClassifier",
+#        setup = DidiClassifier()
+#    )
+#    stoploss: StopLoss = StopTrailing3T()
+#    trading: Trading = Trading()
+#    notifier = Notifier()
+#    backtesting: Optional[BackTesting] = BackTesting()
 
 
 def get_setup(name: str):
