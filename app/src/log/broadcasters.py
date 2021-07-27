@@ -4,7 +4,7 @@ import sys
 import telegram
 
 from ..config.settings import system_settings
-from ..lib.tools.formatting import ConvertString
+from ..lib.utils.tools.formatting import ConvertString
 
 thismodule = sys.modules[__name__]
 settings = system_settings()

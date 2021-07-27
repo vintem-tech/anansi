@@ -21,17 +21,17 @@ class BollingerBands:
 
     def apply(self, setup:Setup=Setup()):
         self._klines.indicator.price.apply(price_metrics=setup.price_metrics)
-        n = setup.number_samples
-        k = setup.number_STDs
+        n_parameter = setup.number_samples
+        k_parameter = setup.number_STDs
 
         price_column = getattr(
             self._klines, "Price_{}".format(setup.price_metrics)
         )
-        sma = price_column.rolling(window=n).mean()
-        deviation = price_column.rolling(window=n).std()
+        sma = price_column.rolling(window=n_parameter).mean()
+        deviation = price_column.rolling(window=n_parameter).std()
 
-        upper_band = sma + k * deviation
-        bottom_band = sma - k * deviation
+        upper_band = sma + k_parameter * deviation
+        bottom_band = sma - k_parameter * deviation
 
         self._klines.loc[:, "Bollinger_SMA"] = sma
         self._klines.loc[:, "BB_upper"] = upper_band

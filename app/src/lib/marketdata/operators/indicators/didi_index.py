@@ -76,7 +76,10 @@ class Setup(BaseModel):
 
 
 class DidiIndex:
-    """Didi index (3 simple moving average with sauce)"""
+    """An adaptation of 'Didi index'. See more:
+    https://www.mql5.com/en/code/1725
+    https://anny-trade.zendesk.com/hc/en-us/articles/1500001543662-Didi-index
+    """
 
     __slots__ = ["_klines"]
 

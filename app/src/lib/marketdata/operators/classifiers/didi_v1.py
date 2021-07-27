@@ -3,13 +3,10 @@ import sys
 
 import pandas as pd
 
-from ...utils.schemas import (
-    BaseModel,
-    DateTimeType,
-    Ticker,
-)
+from .....lib.utils.schemas import BaseModel, DateTimeType, Ticker
+from ...klines import klines_getter
 
-#from ..klines import klines_getter
+thismodule = sys.modules[__name__]
 
 
 class DidiClassifier:
