@@ -1,17 +1,19 @@
+# pylint:disable=missing-module-docstring
+
 from functools import wraps
 from time import time
 
 
-def timing(f):
+def timing(target_function):
     """Time to process some function f"""
 
-    @wraps(f)
+    @wraps(target_function)
     def wrapper(*args, **kwargs):
         _start = time()
-        _result = f(*args, **kwargs)
+        _result = target_function(*args, **kwargs)
         print(
             "Time spent on {} method: {:6.4}s".format(
-                f.__name__, time() - _start
+                target_function.__name__, time() - _start
             )
         )
         return _result
