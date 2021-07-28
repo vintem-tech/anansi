@@ -19,7 +19,7 @@ def table_from_dict(my_dict: dict) -> str:
     return tabulate([list(my_dict.values())], headers=list(my_dict.keys()))
 
 
-def text_in_lines_from_dict(dict_in: dict):
+def lines_text_from_dict(dict_in: dict):
     """Quis anim est incididunt anim non ullamco mollit pariatur """
 
     return format_dict(dict_in)
@@ -47,13 +47,17 @@ class FormatKlines:
         "formatted_klines",
     ]
 
-    def __init__(self, klines: list, settings: BaseModel):
+    def __init__(self, klines_in: list, settings: BaseModel):
         self.datetime_format = settings.datetime_format
         self.datetime_unit = settings.datetime_unit
         self.columns = settings.kline_information
-        self.formatted_klines = [self.format_each(kline) for kline in klines]
+        self.formatted_klines = [
+            self.format_each(kline) for kline in klines_in
+        ]
 
-    def format_datetime(self, datetime_in, zero_truncate_seconds=False) -> int:
+    def format_datetime(
+        self, datetime_in, reset_the_seconds_to_zero=False
+    ) -> int:
         """Quis anim est incididunt anim non ullamco mollit pariatur """
 
         if self.datetime_format == "timestamp":
@@ -63,7 +67,7 @@ class FormatKlines:
             elif self.datetime_unit == "milliseconds":
                 datetime_out = int(float(datetime_in) / 1000)
 
-            if zero_truncate_seconds:
+            if reset_the_seconds_to_zero:
                 _date_time = pendulum.from_timestamp(int(datetime_out))
 
                 if _date_time.second != 0:
@@ -77,7 +81,7 @@ class FormatKlines:
         """Quis anim est incididunt anim non ullamco mollit pariatur """
 
         return [
-            self.format_datetime(_item, zero_truncate_seconds=True)
+            self.format_datetime(_item, reset_the_seconds_to_zero=True)
             if kline.index(_item) == self.columns.index("Open_time")
             else self.format_datetime(_item)
             if kline.index(_item) == self.columns.index("Close_time")
