@@ -7,7 +7,7 @@ import pandas as pd
 import pendulum
 from pendulum.exceptions import PendulumException
 
-from ....config.settings import Timesettings
+from ...config.settings import Timesettings
 from ..exceptions import TimeFormatError
 from ..schemas import DateTimeType
 
@@ -127,7 +127,7 @@ def time_frame_to_seconds(time_frame: str) -> int:
     return time_amount * conversor[scale_unit]
 
 
-def cooldown_time(attempt: int, max_cooldown_time="1h"):
+def cooldown_time(attempt: int, max_cooldown_time="1h") -> int:
     """Returns a cooldown time which is exponentially depending to
     the number of attempts and rises asymptotically to the defined
     max_cooldown_time.
@@ -138,9 +138,9 @@ def cooldown_time(attempt: int, max_cooldown_time="1h"):
         <amount><scale_unit> e.g. '1m', '2h'. Defaults to "1h".
 
     Returns:
-        [type]: [description]
+        [int]: Cooldown time in seconds.
     """
-    time_0 = 2  # To seconds minimum cooldown time
+    time_0 = 2  # Minimum cooldown time (seconds)
     max_time = time_frame_to_seconds(max_cooldown_time)
     ref = 1000  # attempt index that implies t = ~0.63*max_cooldown_time
     power = -((attempt - 1) / ref)
@@ -148,22 +148,23 @@ def cooldown_time(attempt: int, max_cooldown_time="1h"):
 
 
 def next_closed_candle_seconds_delay(
-    time_frame: str, open_time: DateTimeType, **kwargs
+    time_frame: str, open_time_of_last_closed_candle: DateTimeType, **kwargs
 ) -> int:
-    """Given a current open time and a time_frame, returns the amount
-    of seconds delay between now and the next closed candle.
+    """Calculates the time difference between the 'now' and the next
+    closed candle. In case of backtesting, the 'now' can be passed as
+    an optional argument.
 
-    Args:
-        time_frame (str): <amount><scale_unit> e.g. '1m', '2h'
-        open_time (DateTimeType): Current candle Open_time
-
-    Returns:
-        int: seconds delay between now and the next closed candle
+    :param time_frame:  <amount><scale_unit> e.g. '1m', '2h'
+    :type time_frame: str
+    :param open_time_of_last_closed_candle: Last closed candle 'Open_time'
+    :type open_time_of_last_closed_candle: DateTimeType
+    :return: seconds delay between now and the next closed candle
+    :rtype: int
     """
 
     now = kwargs.get("now", pendulum.now("UTC").int_timestamp)
 
-    timestamp_open_time = int_timestamp(open_time)
+    timestamp_open_time = int_timestamp(open_time_of_last_closed_candle)
     step = time_frame_to_seconds(time_frame)
     next_close_time = timestamp_open_time + (2 * step)
     _time_until_next_closed_candle = next_close_time - now
