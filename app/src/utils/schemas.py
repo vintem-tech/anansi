@@ -25,14 +25,13 @@ possible_price_metrics = ["o", "h", "l", "c", "oc2", "hl2", "hlc3", "ohlc4"]
 # "hlc3"  = ("High" + "Low" + "Close")/3
 # "ohlc4" = ("Open" + "High" + "Low" + "Close")/4
 
-# DateTimeType below could be:
+# DateTimeType could be:
 #  - integer or string timestamp, measured in seconds or
 #  - human readable datetime, 'YYYY-MM-DD HH:mm:ss' formated;
 #    e.g. '2017-11-08 10:00:00'.
 
-# For any of above cases, the value of timestamp - whose unit of
-# measure is 'DateTimeType' - MUST be converted or originally measured
-# in UTC time zone.
+# For any of above cases, the value of timestamp (measure in
+# 'DateTimeType') - MUST be in UTC time zone.
 
 
 class TimeRange(BaseModel):
