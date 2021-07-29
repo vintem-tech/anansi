@@ -4,7 +4,7 @@
 # pylint: disable=too-few-public-methods
 
 from src.lib.marketdata.klines.base import GetInputSanitizer
-from src.lib.utils.tools.time_handlers import ParseDateTime
+from src.utils.tools.time_handlers import ParseDateTime
 
 
 class TestGetInputSanitizer:
