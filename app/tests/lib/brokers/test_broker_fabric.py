@@ -9,7 +9,7 @@ from src.lib.brokers import Fabric
 
 @pytest.mark.parametrize("name", ["binance"])
 def test_for_a_implemented_broker(name:str):
-    broker = Fabric(broker=name).real()
+    broker = Fabric(broker_name=name).real()
     assert broker.__class__.__name__ == name.capitalize()
 
 @pytest.mark.parametrize("name", ["monte_carlo"])
@@ -19,7 +19,7 @@ def test_for_a_not_implemented_broker(name:str):
 
 @pytest.mark.parametrize("name, assets", [("binance", ["BTC", "NEO"])])
 def test_for_implemented_backtesting_broker(name:str, assets:list):
-    broker = Fabric(broker=name).backtesting(assets=assets)
+    broker = Fabric(broker_name=name).backtesting(assets=assets)
 
     assert broker.__class__.__name__ == 'BackTestingBroker'
     assert broker.real_broker.__class__.__name__ == name.capitalize()
