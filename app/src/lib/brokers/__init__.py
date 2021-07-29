@@ -3,7 +3,7 @@
 import sys
 from typing import List, Union
 from . import base, binance, backtesting
-from ...lib.utils.schemas import OperationalModes
+from ...utils.schemas import OperationalModes
 
 modes = OperationalModes()
 
@@ -21,15 +21,14 @@ class Fabric:
 
     __slots__ = ["real_broker"]
 
-    def __init__(self, broker: str):
+    def __init__(self, broker_name: str):
         self.real_broker = None
         try:
-            method = "_{}".format(broker.lower())
-            _broker = getattr(Fabric, method)
-            self.real_broker = _broker()
+            broker_name_ = "_{}".format(broker_name.lower())
+            self.real_broker = getattr(self, broker_name_)()
 
         except AttributeError as error:
-            err_msg = "Not implented '{}' broker.".format(broker)
+            err_msg = "Not implented '{}' broker.".format(broker_name)
             raise NotImplementedError(err_msg) from error
 
     @staticmethod
