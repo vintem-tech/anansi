@@ -1,20 +1,21 @@
 # pylint: disable=too-few-public-methods
+# pylint: disable=fixme
 
-"""Deals specifically with klines, delivering them formatted as pandas
-dataframes, with some extra methods, such as market indicators. This
-module also acts as a queue for requesting klines from the brokers, in
-order to do not exceed the their APIs limits. Finally, it also deals
-with saving and reading klines to/from the 'time_series_storage'.
+"""This module should acts as a queue for requesting klines from the
+brokers, in order to do not exceed the their APIs limits, delivering
+them formatted as pandas dataframes, with some extra methods, such as
+market indicators Finally, it also deals with saving klines in the
+'time_series_storage'.
 """
 
 import time
 
 import pandas as pd
 
-from ....lib.utils.exceptions import BrokerError, StorageError
-from ....lib.utils.schemas import Ticker
-from ....lib.utils.tools.formatting import remove_last_kline_if_unclosed
-from ....lib.utils.tools.time_handlers import (
+from ....utils.exceptions import BrokerError, StorageError
+from ....utils.schemas import Ticker
+from ....utils.tools.formatting import remove_last_kline_if_unclosed
+from ....utils.tools.time_handlers import (
     Now,
     cooldown_time,
     time_frame_to_seconds,
@@ -28,7 +29,7 @@ class GetterFromBroker(Getter):
     brokers endpoints, spliting the requests, in order to respect broker
     established limits. If a request limit is close to being reached,
     will pause the queue, until cooldown time pass. Returns sanitized
-    klines to the client, formatted as pandas DataFrame."""
+    klines, formatted as pandas DataFrame."""
 
     __slots__ = [
         "_broker",
@@ -36,10 +37,10 @@ class GetterFromBroker(Getter):
         "_request_step",
     ]
 
-    def __init__(self, broker: str, ticker: Ticker, time_frame: str = str()):
-        self._broker = Fabric(broker).real()
+    def __init__(self, broker_name: str, ticker: Ticker, time_frame: str = str()):
+        self._broker = Fabric(broker_name).real()
         self._time_frame = self._validate_tf(time_frame)
-        super().__init__(broker, ticker, time_frame=self.time_frame)
+        super().__init__(broker_name, ticker, time_frame=self.time_frame)
         self._request_step = self.__request_step()
 
     def _validate_tf(self, time_frame: str) -> str:
@@ -59,7 +60,7 @@ class GetterFromBroker(Getter):
         return self._time_frame
 
     @time_frame.setter
-    def time_frame(self, time_frame_to_set):
+    def time_frame(self, time_frame_to_set:str):
         self._time_frame = self._validate_tf(time_frame_to_set)
 
     def oldest_open_time(self) -> int:
@@ -98,7 +99,9 @@ class GetterFromBroker(Getter):
                     if not self.settings.infinite_request_attempts:
                         raise Exception from error
 
+                    #TODO: Log instead print
                     print("Fail, due the error: ", error)
+
                     time.sleep(cooldown_time(attempt))
 
         if self.settings.ignore_unclosed_kline:
