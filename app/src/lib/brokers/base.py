@@ -11,9 +11,9 @@ import pandas as pd
 import requests
 from pydantic import BaseModel
 
-from ..utils.schemas import Order, Quantity
-from ..utils.tools.documentation import DocInherit
-from ..utils.tools.formatting import FormatKlines
+from ...utils.schemas import Order, Quantity
+from ...utils.tools.documentation import DocInherit
+from ...utils.tools.formatting import FormatKlines
 
 DF = pd.core.frame.DataFrame
 
