@@ -3,8 +3,8 @@ import sys
 
 import pandas as pd
 
-from .....lib.utils.schemas import BaseModel, DateTimeType, Ticker
-from ...klines import klines_getter
+from ......utils.schemas import BaseModel, DateTimeType, Ticker
+from ....klines import klines_getter
 
 thismodule = sys.modules[__name__]
 

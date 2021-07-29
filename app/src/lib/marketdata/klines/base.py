@@ -13,7 +13,7 @@ from ....utils.tools.time_handlers import (
     int_timestamp,
     time_frame_to_seconds,
 )
-from ..operators.indicators import (
+from .operators.indicators import (
     bollinger_bands,
     didi_index,
     price,
