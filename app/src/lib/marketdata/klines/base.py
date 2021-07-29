@@ -7,9 +7,9 @@
 import pandas as pd
 from pydantic import BaseModel
 
-from ....lib.utils.exceptions import TimeFormatError
-from ....lib.utils.schemas import Ticker
-from ....lib.utils.tools.time_handlers import (
+from ....utils.exceptions import TimeFormatError
+from ....utils.schemas import Ticker
+from ....utils.tools.time_handlers import (
     int_timestamp,
     time_frame_to_seconds,
 )
@@ -21,7 +21,7 @@ from ..operators.indicators import (
 )
 
 DF = pd.core.frame.DataFrame
-
+pd.options.mode.chained_assignment = None
 
 class GetterSettings(BaseModel):
     return_as_human_readable = True
