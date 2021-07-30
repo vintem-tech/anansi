@@ -1,70 +1,79 @@
 # pylint: disable=E1136
-import sys
+# pylint: disable=no-name-in-module
+# pylint: disable=too-few-public-methods
 
 import pandas as pd
+from pydantic import BaseModel
 
-from ......utils.schemas import BaseModel, DateTimeType, Ticker
-from ....klines import klines_getter
+from ....klines.operators.indicators.bollinger_bands import (
+    Setup as BollingerBandsSetup,
+)
+from ....klines.operators.indicators.didi_index import Setup as DidiIndexSetup
 
-thismodule = sys.modules[__name__]
+
+class Setup(BaseModel):
+    """Setup of DidiClassifier operator, which uses didi index and
+    bollinger bands indicators to generate a classification score"""
+
+    time_frame: str = "6h"
+    didi_index = DidiIndexSetup()
+    bollinger_bands = BollingerBandsSetup()
+    # The values below must be in range(0.0, 1.0) | 'bb' = 'Bollinger bands'
+    weight_if_only_upper_bb_opened: float = 0.7
+    weight_if_only_bottom_bb_opened: float = 0.4
+
+
+class MovingAverageInversionScore(BaseModel):
+    index_of_slow: int = 0
+    index_of_fast: int = 0
+    number_of_observation_periods: int
+
+    def reset_indexes(self):
+        self.index_of_slow = 0
+        self.index_of_fast = 0
+
+    def calculate(self) -> float:
+        """'delta_inversion' means the difference between the indexes
+        (at the time of signal reversion) of each moving average. The
+        lower 'delta_inversion', the higher score ( 0 <= score <=1 ).
+        """
+
+        window_len = self.number_of_observation_periods
+        delta_inversion = abs(self.index_of_fast - self.index_of_slow)
+        if delta_inversion > window_len:
+            return 0.0
+        return (window_len - delta_inversion) / window_len
 
 
 class DidiClassifier:
-    class DidiInversion:
-        index_of_slow: int = 0
-        index_of_fast: int = 0
 
-        def reset(self):
-            self.index_of_slow = 0
-            self.index_of_fast = 0
+    __slots__ = [
+        "_klines",
+        "setup",
+        "_len_rolling_window",
+        "_ma_inversion_score",
+    ]
 
-    def __init__(
-        self,
-        ticker: Ticker,
-        setup: BaseModel,
-        backtesting: bool = False,
-        result_length: int = 1,
-    ):
-        self.setup = setup
-        self.klines_getter = klines_getter(
-            ticker=ticker,
-            time_frame=setup.time_frame,
-            backtesting=backtesting,
+    def __init__(self, klines):
+        self._klines = klines
+        self.setup = None
+        self._len_rolling_window = 20
+        self._ma_inversion_score = MovingAverageInversionScore(
+            number_of_observation_periods=self._len_rolling_window
         )
-        self.result = pd.DataFrame()
-        self.data = pd.DataFrame()
-        self.didi_inversion = self.DidiInversion()
-        self.result_length = result_length
-        self.extra_length = 10
 
-    def number_of_samples(self):
+    def _minimum_number_samples(self):
         n_didi = max(self.setup.didi_index.number_samples)
-        n_minimal = max(self.setup.bollinger_bands.number_samples, n_didi)
-        return n_minimal + self.result_length + self.extra_length
+        n_minimum = max(self.setup.bollinger_bands.number_samples, n_didi)
+        return n_minimum + self._len_rolling_window
 
-    def get_data_until(self, desired_datetime: DateTimeType) -> None:
-        self.data = self.klines_getter.get(
-            until=desired_datetime, number_samples=self.number_of_samples()
-        )
-
-    def apply_indicators_pipeline(self):
-        self.data.apply_indicator.trend.didi_index(setup=self.setup.didi_index)
-        self.data.apply_indicator.volatility.bollinger_bands(
+    def _apply_indicators_pipeline(self):
+        self._klines.indicator.didi_index.apply(setup=self.setup.didi_index)
+        self._klines.indicator.bollinger_bands.apply(
             setup=self.setup.bollinger_bands
         )
 
-    def _didi_score(self):
-        _len = self.result_length + self.extra_length
-        delta_inversion = abs(
-            self.didi_inversion.index_of_fast
-            - self.didi_inversion.index_of_slow
-        )
-        return (_len - delta_inversion) / _len
-
     def _didi_analysis(self, result: pd.core.frame.DataFrame, index: int):
-        didi_trend = 0
-        self.result.loc[index, "Didi_score"] = 0.0
-
         previous_slow = float(result.iloc[0].Didi_slow.item())
         slow = float(result.iloc[1].Didi_slow.item())
         slow_inversion = (slow / previous_slow) < 0
@@ -74,105 +83,80 @@ class DidiClassifier:
         fast_inversion = (fast / previous_fast) < 0
 
         if slow_inversion:
-            self.didi_inversion.index_of_slow = index
+            self._ma_inversion_score.index_of_slow = index
         if fast_inversion:
-            self.didi_inversion.index_of_fast = index
+            self._ma_inversion_score.index_of_fast = index
 
         didi_trend = 1 if slow < 0 < fast else -1 if fast < 0 < slow else 0
-        if didi_trend != 0:
-            self.result.loc[index, "Didi_score"] = self._didi_score()
 
-        self.result.loc[index, "Didi_trend"] = didi_trend
+        self._klines.loc[
+            index, "Didi_score"
+        ] = self._ma_inversion_score.calculate()
+
+        self._klines.loc[index, "Didi_trend"] = didi_trend
 
     def _bollinger_analysis(self, result: pd.core.frame.DataFrame, index: int):
+        self._klines.loc[index, "Bollinger"] = 0
+
         previous_bb_upper = result.iloc[0].BB_upper
         current_bb_upper = result.iloc[1].BB_upper
 
         previous_bb_bottom = result.iloc[0].BB_bottom
         current_bb_bottom = result.iloc[1].BB_bottom
 
-        total_opened_bands = bool(
-            (current_bb_upper > previous_bb_upper)
-            and (current_bb_bottom < previous_bb_bottom)
-        )
-        only_upper_bb_opened = bool(
-            (current_bb_upper > previous_bb_upper)
-            and (current_bb_bottom >= previous_bb_bottom)
-        )
-        only_bottom_bb_opened = bool(
-            (current_bb_upper <= previous_bb_upper)
-            and (current_bb_bottom < previous_bb_bottom)
-        )
+        # total_opened_bands
+        if (current_bb_upper > previous_bb_upper) and (
+            current_bb_bottom < previous_bb_bottom
+        ):
+            self._klines.loc[index, "Bollinger"] = 1
+            return
 
-        self.result.loc[index, "Bollinger"] = (
-            1.0
-            if total_opened_bands
-            else self.setup.weight_if_only_upper_bb_opened
-            if only_upper_bb_opened
-            else self.setup.weight_if_only_bottom_bb_opened
-            if only_bottom_bb_opened
-            else 0  # Both bands are closed.
-        )
+        # only_upper_bb_opened
+        if (current_bb_upper > previous_bb_upper) and (
+            current_bb_bottom >= previous_bb_bottom
+        ):
+            self._klines.loc[
+                index, "Bollinger"
+            ] = self.setup.weight_if_only_upper_bb_opened
+            return
 
-    def evaluate_indicators_results(self):
-        self.didi_inversion.reset()
-        _len = self.result_length + self.extra_length + 1
-        self.result = pd.DataFrame()
-        self.result = self.result.append(self.data[-_len:], ignore_index=True)
+        # only_bottom_bb_opened
+        if (current_bb_upper <= previous_bb_upper) and (
+            current_bb_bottom < previous_bb_bottom
+        ):
+            self._klines.loc[
+                index, "Bollinger"
+            ] = self.setup.weight_if_only_bottom_bb_opened
+            return
 
-        for i in range(2, _len + 1):
-            result = self.result[i - 2 : i]
-            self._didi_analysis(result, index=i - 1)
-            self._bollinger_analysis(result, index=i - 1)
-            result_ = self.result.iloc[i - 1]
-            self.result.loc[i - 1, "Score"] = (
-                result_.Didi_trend * result_.Bollinger * result_.Didi_score
+    def _evaluate_indicators_results(self):
+        self._ma_inversion_score.reset_indexes()
+
+        for i in range(2, len(self._klines) + 1):
+            desired_index = i - 1
+            two_rows_rolling_window = self._klines[i - 2 : i]
+
+            self._didi_analysis(
+                result=two_rows_rolling_window, index=desired_index
+            )
+            self._bollinger_analysis(
+                result=two_rows_rolling_window, index=desired_index
             )
 
-    def _proceed(self):
-        result = pd.DataFrame()
-        self.apply_indicators_pipeline()
-        self.evaluate_indicators_results()
-        result = result.append(
-            self.result[-self.result_length :], ignore_index=True
-        )
-        return result
+            result = self._klines.iloc[desired_index]
 
-    def apply_on(
-        self, klines: pd.core.frame.DataFrame
-    ) -> pd.core.frame.DataFrame:
+            self._klines.loc[desired_index, "Score"] = (
+                result.Didi_trend * result.Bollinger * result.Didi_score
+            )
 
-        reference_len = self.number_of_samples()
-        if len(klines) < reference_len:
+    def apply(self, setup: Setup = Setup()):
+        self.setup = setup
+        n_samples_min = self._minimum_number_samples()
+
+        if len(self._klines) < n_samples_min:
             raise IndexError(
-                "Klines must have at least {} rows.".format(reference_len)
+                "Klines must have at least {} rows.".format(n_samples_min)
             )
-        self.data = klines
-        return self._proceed()
 
-    def get_restult_at(
-        self, desired_datetime: DateTimeType
-    ) -> pd.core.frame.DataFrame:
-
-        self.get_data_until(desired_datetime)
-        return self._proceed()
-
-
-class PayLoad(BaseModel):
-    name: str
-    ticker: Ticker
-    setup: BaseModel
-    backtesting: bool = False
-    result_length: int = 1
-
-
-def get_classifier(name, ticker, setup, backtesting, result_length=1):
-    """Given a market ticker, returns an instance of the named
-    setup.classifier_name classifier.
-
-    Args: operation (Operation): An instance of an Operation
-
-    Returns: Union[DidiClassifier]: The classifier
-    """
-
-    return getattr(thismodule, name)(ticker, setup, backtesting, result_length)
+        self._apply_indicators_pipeline()
+        self._evaluate_indicators_results()
