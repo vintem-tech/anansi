@@ -20,8 +20,11 @@ from .operators.indicators import (
     simple_moving_average as sma,
 )
 
+from .operators.classifiers import didi_v1 as didi
+
 DF = pd.core.frame.DataFrame
 pd.options.mode.chained_assignment = None
+
 
 class GetterSettings(BaseModel):
     return_as_human_readable = True
@@ -180,3 +183,15 @@ class Indicator:
         self.simple_moving_average = sma.SimpleMovingAverage(klines)
         self.didi_index = didi_index.DidiIndex(klines)
         self.bollinger_bands = bollinger_bands.BollingerBands(klines)
+
+
+@pd.api.extensions.register_dataframe_accessor("classifier")
+class Classifier:
+    """Market classifiers; obtained exclusively from klines (OHLCV)"""
+
+    __slots__ = [
+        "didi",
+    ]
+
+    def __init__(self, klines: DF):
+        self.didi = didi.DidiClassifier(klines)
