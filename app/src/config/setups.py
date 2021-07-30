@@ -8,7 +8,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
-from ..lib.utils.schemas import (Broadcasters, Classifier, DateTimeType,
+from ..utils.schemas import (Broadcasters, Classifier, DateTimeType,
                                  StopLoss, Wallet)
 
 thismodule = sys.modules[__name__]
