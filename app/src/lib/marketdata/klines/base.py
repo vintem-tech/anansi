@@ -7,20 +7,17 @@
 import pandas as pd
 from pydantic import BaseModel
 
+from ....utils.databases.time_series_storage.models import StorageKlines
 from ....utils.exceptions import TimeFormatError
 from ....utils.schemas import Ticker
-from ....utils.tools.time_handlers import (
-    int_timestamp,
-    time_frame_to_seconds,
-)
+from ....utils.tools.time_handlers import int_timestamp, time_frame_to_seconds
+from .operators.classifiers import didi_v1 as didi
 from .operators.indicators import (
     bollinger_bands,
     didi_index,
     price,
     simple_moving_average as sma,
 )
-
-from .operators.classifiers import didi_v1 as didi
 
 DF = pd.core.frame.DataFrame
 pd.options.mode.chained_assignment = None
@@ -89,6 +86,7 @@ class Getter:
         "ticker",
         "time_frame",
         "settings",
+        "storage",
         "sanitizer",
     ]
 
@@ -97,6 +95,10 @@ class Getter:
         self.ticker = ticker
         self.time_frame = time_frame
         self.settings = GetterSettings()
+        self.storage = StorageKlines(
+            table="{}_{}".format(broker.lower(), ticker.symbol.lower()),
+            time_frame=self.time_frame,
+        )
         self.sanitizer = GetInputSanitizer(
             sec_time_frame=time_frame_to_seconds(time_frame),
             min_timestamp=self.oldest_open_time(),
