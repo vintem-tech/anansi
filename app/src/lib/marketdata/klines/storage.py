@@ -1,16 +1,25 @@
-from .base import DF, Getter
-from ....utils.exceptions import BrokerError, StorageError
+# pylint: disable=too-few-public-methods
 
-class FromStorage(Getter):
+from ....utils.exceptions import KlinesError, StorageError
+from ....utils.schemas import Ticker, DateTimeType
+from ....utils.tools.time_handlers import ParseDateTime, int_timestamp
+from .base import DF, Getter
+from .from_broker import GetterFromBroker
+
+
+class GetterFromStorage(Getter):
     """Entrypoint for requests to the stored klines"""
 
-    def _oldest_open_time(self) -> int:
+    def __init__(self, broker_name: str, ticker: Ticker, time_frame: str):
+        super().__init__(broker_name, ticker, time_frame)
+
+    def oldest_open_time(self) -> int:
         return self.storage.oldest_open_time()
 
     def newest_open_time(self) -> int:
         return self.storage.newest_open_time()
 
-    def _get_core(self, since: int, until: int) -> pd.core.frame.DataFrame:
+    def _get_core(self, since: int, until: int) -> DF:
         try:
             return self.storage.get_by_time_range(since, until)
         except StorageError as err:
@@ -20,14 +29,17 @@ class FromStorage(Getter):
 class ToStorage:
     """Entrypoint to append klines to StorageKlines"""
 
-    __slots__ = ["klines"]
+    __slots__ = ["klines_getter"]
 
-    def __init__(self, ticker: Ticker):
-        self.klines = FromBroker(ticker)
-        self.klines.store_klines_round_by_round = True
+    def __init__(self, broker_name: str, ticker: Ticker, time_frame: str):
+        self.klines_getter = GetterFromBroker(broker_name, ticker, time_frame)
+        self.klines_getter.store_klines_round_by_round = True
 
-    def create_backtesting(self, **kwargs) -> pd.core.frame.DataFrame:
-        """Any (valid!) timeframe klines, on interval [since, until].
+    def create_backtesting(
+        self, since: DateTimeType, until: DateTimeType
+    ) -> DF:
+        """Requests the intended mass of data from the broker, saving
+        them in each cycle.
 
         Args:
             since (DateTimeType): Start desired datetime
@@ -38,13 +50,7 @@ class ToStorage:
             (klines) dataframe
         """
 
-        self.klines.time_frame = kwargs.get(
-            "time_frame", self.klines.minimum_time_frame
-        )
-        return self.klines.get(
-            since=kwargs.get("since", self.klines.oldest_open_time),
-            until=kwargs.get("until", self.klines.newest_open_time()),
-        )
+        return self.klines_getter.get(since=since, until=until)
 
 
 class PriceFromStorage:
@@ -55,8 +61,12 @@ class PriceFromStorage:
     the interpolation, it is prudent to predict long missing masses of
     data."""
 
-    def __init__(self, ticker: Ticker, price_metrics="ohlc4"):
-        self.klines_getter = FromStorage(ticker, "1m")
+    def __init__(
+        self, broker_name: str, ticker: Ticker, price_metrics="ohlc4"
+    ):
+        self.klines_getter = GetterFromBroker(
+            broker_name, ticker, time_frame="1m"
+        )
         self.price_metrics = price_metrics
 
     def _valid_timestamp(self, timestamp: int) -> bool:
@@ -65,7 +75,7 @@ class PriceFromStorage:
     def get_price_at(self, desired_datetime: DateTimeType) -> float:
         """A 'fake' past ticker price"""
 
-        desired_datetime = datetime_as_integer_timestamp(desired_datetime)
+        desired_datetime = int_timestamp(desired_datetime)
 
         if self._valid_timestamp(desired_datetime):
             _until = desired_datetime + 60000
@@ -101,6 +111,6 @@ class PriceFromStorage:
                 "desired_datetime > newest stored datetime ({})!".format(
                     ParseDateTime(
                         self.klines_getter.newest_open_time()
-                    ).from_timestamp_to_human_readable()
+                    ).to_human_readable()
                 )
             )
