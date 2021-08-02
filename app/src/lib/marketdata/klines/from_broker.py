@@ -35,13 +35,17 @@ class GetterFromBroker(Getter):
         "_broker",
         "_time_frame",
         "_request_step",
+        "store_klines_round_by_round",
     ]
 
-    def __init__(self, broker_name: str, ticker: Ticker, time_frame: str = str()):
+    def __init__(
+        self, broker_name: str, ticker: Ticker, time_frame: str = str()
+    ):
         self._broker = Fabric(broker_name).real()
         self._time_frame = self._validate_tf(time_frame)
         super().__init__(broker_name, ticker, time_frame=self.time_frame)
         self._request_step = self.__request_step()
+        self.store_klines_round_by_round = False
 
     def _validate_tf(self, time_frame: str) -> str:
         time_frames = self._broker.settings.time_frames
@@ -60,7 +64,7 @@ class GetterFromBroker(Getter):
         return self._time_frame
 
     @time_frame.setter
-    def time_frame(self, time_frame_to_set:str):
+    def time_frame(self, time_frame_to_set: str):
         self._time_frame = self._validate_tf(time_frame_to_set)
 
     def oldest_open_time(self) -> int:
@@ -91,15 +95,15 @@ class GetterFromBroker(Getter):
                         since=timestamp,
                     )
                     klines = klines.append(_klines, ignore_index=True)
-                    # if self.store_klines_round_by_round:
-                    #    self.storage.append(_klines)
+                    if self.store_klines_round_by_round:
+                        self.storage.append(_klines)
                     break
 
                 except (BrokerError, StorageError) as error:
                     if not self.settings.infinite_request_attempts:
                         raise Exception from error
 
-                    #TODO: Log instead print
+                    # TODO: Log instead print
                     print("Fail, due the error: ", error)
 
                     time.sleep(cooldown_time(attempt))
