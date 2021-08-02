@@ -162,7 +162,7 @@ def next_closed_candle_seconds_delay(
     :rtype: int
     """
 
-    now = kwargs.get("now", pendulum.now("UTC").int_timestamp)
+    now = kwargs.get("now", Now().utc_timestamp())
 
     timestamp_open_time = int_timestamp(open_time_of_last_closed_candle)
     step = time_frame_to_seconds(time_frame)
