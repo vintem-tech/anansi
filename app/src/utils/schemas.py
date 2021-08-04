@@ -48,6 +48,53 @@ class Ticker(BaseModel):
     quote: str = str()
 
 
+class OperationalModes(BaseModel):
+    """Stores the possible operation modes"""
+
+    real: str = "real"
+    test: str = "test"
+    backtesting: str = "backtesting"
+
+
+class Sides(BaseModel):
+    """Stores the possible sides"""
+
+    zeroed: str = "zeroed"
+    long: str = "long"
+    short: str = "short"
+
+
+class Position(BaseModel):
+    side: str = Sides().zeroed
+    score: float = 0.0
+
+
+class Classifier(BaseModel):
+    """Classifier handler attributes"""
+
+    name: str
+    setup: BaseModel
+    last_check: int = 0 # integer seconds timestamp
+
+
+class StopLoss(BaseModel):
+    """Stoploss handler attributes"""
+
+    is_on: bool = False
+    name: Optional[str]
+    setup: Optional[BaseModel]
+    last_check: int = 0 # integer seconds timestamp
+
+
+class SingleTickerMonitoring(BaseModel):
+    mode: str
+    classifier: Classifier
+    stop_loss: StopLoss
+    position: Position
+    is_active: bool = True
+    ticker: Ticker
+
+
 class MarketPartition(BaseModel):
     """Market are formed by trading between 'quote' and 'base' assets,
     this class shows the quantity of each asset, given a certain
@@ -78,21 +125,6 @@ class Quantity(BaseModel):
     value: Optional[Union[str, float]]
 
 
-class Classifier(BaseModel):
-    """Classifier handler attributes"""
-
-    name: str
-    setup: BaseModel
-
-
-class StopLoss(BaseModel):
-    """Stoploss handler attributes"""
-
-    is_on: bool = False
-    name: Optional[str]
-    setup: Optional[BaseModel]
-
-
 # Name collections
 
 
@@ -104,22 +136,6 @@ class Broadcasters(BaseModel):
     whatsapp: str = "whatsapp"
     email: str = "email"
     push: str = "push"
-
-
-class OperationalModes(BaseModel):
-    """Stores the possible operation modes"""
-
-    real: str = "real"
-    test: str = "test"
-    backtesting: str = "backtesting"
-
-
-class Sides(BaseModel):
-    """Stores the possible sides"""
-
-    zeroed: str = "zeroed"
-    long: str = "long"
-    short: str = "short"
 
 
 class Signals(BaseModel):
@@ -181,8 +197,3 @@ class Trigger(BaseModel):
 
     rate: float
     treshold: Treshold
-
-### WTF???
-class PositionInfo(BaseModel):
-    side: str = Sides().zeroed
-    score: float = 0.0
