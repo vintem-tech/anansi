@@ -23,8 +23,16 @@ class AttributeUpdater(object):
             commit()
 
 
+class User(db.Entity, AttributeUpdater):
+    pass
+
+class Settings(db.Entity, AttributeUpdater):
+    pass
+
 class SingleTickerMonitoring(db.Entity, AttributeUpdater):
     position = Required(Position, cascade_delete=True)
     last_check = Required(LastCheck, cascade_delete=True)
     is_active = Required(bool, default=True)
     ticker = Required(Json)
+
+db.generate_mapping(create_tables=True)
