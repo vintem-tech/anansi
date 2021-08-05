@@ -7,12 +7,14 @@
 
 from typing import Dict, Optional, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, List
 
 DateTimeType = Union[str, int]
 Wallet = Dict[str, float]
 
+FAKE_TELEGRAM_TOKEN = "0123456789:ABCd_F67pwokcpwjpjJKJPJoj98709IJOIp"
 possible_price_metrics = ["o", "h", "l", "c", "oc2", "hl2", "hlc3", "ohlc4"]
+
 
 # possible_price_metrics means:
 
@@ -38,6 +40,30 @@ class TimeRange(BaseModel):
     """A simple since-until time range object"""
     since: DateTimeType
     until: DateTimeType
+
+
+class ApiCredentials(BaseModel):
+    key: str = str()
+    secret: str = str()
+
+
+class AllApisCredentials(BaseModel):
+    binane = ApiCredentials()
+
+
+class TelegramSettings(BaseModel):
+    token: str = FAKE_TELEGRAM_TOKEN
+    debug_id: int = 0
+    error_id: int = 0
+    trade_id: int = 0
+
+
+class User(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
+    apis_credentials = ApiCredentials()
+    telegram_settings = TelegramSettings()
 
 
 class Ticker(BaseModel):
@@ -66,6 +92,7 @@ class Sides(BaseModel):
 
 class Position(BaseModel):
     side: str = Sides().zeroed
+    size:float = 0.0
     score: float = 0.0
 
 
@@ -86,13 +113,18 @@ class StopLoss(BaseModel):
     last_check: int = 0 # integer seconds timestamp
 
 
+class TradingSettings(BaseModel):
+    pass
+
 class SingleTickerMonitoring(BaseModel):
-    mode: str
+    mode: str = OperationalModes().backtesting
+    broker:str = 'binance'
+    ticker: Ticker = Ticker(symbol="BTCUSDT", base="BTC", quote="USDT")
     classifier: Classifier
     stop_loss: StopLoss
+    trading_settings: TradingSettings
     position: Position
     is_active: bool = True
-    ticker: Ticker
 
 
 class MarketPartition(BaseModel):
