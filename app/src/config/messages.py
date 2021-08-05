@@ -5,8 +5,8 @@ from typing import Union  # , Sequence, Optional, List
 
 from pydantic import BaseModel  # , validator
 
-from ..lib.tools.formatting import text_in_lines_from_dict
-from ..lib.tools.time_handlers import ParseDateTime
+from ..utils.tools.formatting import text_in_lines_from_dict
+from ..utils.tools.time_handlers import ParseDateTime
 
 
 class NotifierHeader:
@@ -45,7 +45,7 @@ class TradingMonitor:
             str: Periodically time monitoring message
         """
         return "Time now (UTC) = {}\nSleeping {} s.".format(
-            ParseDateTime(now).from_timestamp_to_human_readable(), str(step)
+            ParseDateTime(now).to_human_readable(), str(step)
         )
 
     @staticmethod
