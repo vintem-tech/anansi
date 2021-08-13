@@ -5,36 +5,41 @@ from typing import Union  # , Sequence, Optional, List
 
 from pydantic import BaseModel  # , validator
 
-from ..utils.tools.formatting import text_in_lines_from_dict
+from ..utils.tools.formatting import lines_text_from_dict
 from ..utils.tools.time_handlers import ParseDateTime
 
 
-class NotifierHeader:
-    debug = """This is a debbug message. If you see this, debbug=True\n\n"""
-    error = """An error occur. Details: \n\n"""
-    trade = """Trade alert! Order details: \n\n"""
+class NotifierHeaders(BaseModel):
+    debug: str = (
+        """This is a debbug message. If you see this, debbug=True\n\n"""
+    )
+    error: str = """An error occur. Details: \n\n"""
+    trade: str = """Trade alert! Order details: \n\n"""
 
-class TradingMonitor:
+
+class TradingMonitor(BaseModel):
     """A collection of formated commom messages that should be useful
     to monitoring trading routines."""
 
-    @staticmethod
-    def initial(the_id: Union[str, int], setup: BaseModel) -> str:
+    start: str = "Starting monitor {}\n\n. Setup:\n{}"
+    time: str = "Time now (UTC) = {}\nSleeping {} s."
+    stop: str = "Monitor {} finalized!"
+
+    def starting(self, id_: Union[str, int], setup: BaseModel) -> str:
         """The startup message fires when an operation starts.
 
         Args:
-            the_id (Union[str, int]): Operations' Id
+            id_ (Union[str, int]): Operations' Id
             setup (BaseModel): The operational setup
 
         Returns:
             str: A unique controller message
         """
-        return "Starting Anansi. Your operation id is {}\n\n{}".format(
-            the_id, text_in_lines_from_dict(setup.as_dict())
-        )
 
-    @staticmethod
-    def time_monitoring(now: int, step: int) -> str:
+        monitor_setup = lines_text_from_dict(setup.as_dict())
+        return self.start.format(id_, monitor_setup)
+
+    def time_monitoring(self, now: int, step: int) -> str:
         """Human readable formatted message about cycle time.
 
         Args:
@@ -44,19 +49,25 @@ class TradingMonitor:
         Returns:
             str: Periodically time monitoring message
         """
-        return "Time now (UTC) = {}\nSleeping {} s.".format(
+
+        return self.time.format(
             ParseDateTime(now).to_human_readable(), str(step)
         )
 
-    @staticmethod
-    def final(the_id: Union[str, int]) -> str:
+    def stopping(self, id_: Union[str, int]) -> str:
         """If an operation stops, the attribute 'operation.is_running'
         assumes 'False', then this message is send to notifier.
 
         Args:
-            the_id (Union[str, int]): Operations' Id
+            id_ (Union[str, int]): Operations' Id
 
         Returns:
             str: Final monitoring message
         """
-        return "Op. {} finalized!".format(the_id)
+
+        return self.stop.format(id_)
+
+
+class Messages(BaseModel):
+    notifier_headers: NotifierHeaders = NotifierHeaders()
+    trading_monitor: TradingMonitor = TradingMonitor()
