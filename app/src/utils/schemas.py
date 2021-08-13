@@ -5,9 +5,9 @@
 
 """Shared pydantic model classes."""
 
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union #, List
 
-from pydantic import BaseModel, EmailStr, List
+from pydantic import BaseModel, EmailStr
 
 DateTimeType = Union[str, int]
 Wallet = Dict[str, float]
