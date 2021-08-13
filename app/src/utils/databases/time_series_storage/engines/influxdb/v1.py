@@ -5,7 +5,7 @@ import pandas as pd
 
 from influxdb import DataFrameClient
 
-from ......config.settings import InfluxDbSettings
+from ......config.databases import InfluxDbSettings
 from .base import Engine
 
 

@@ -3,7 +3,7 @@ from influxdb_client import InfluxDBClient
 from influxdb_client.client.exceptions import InfluxDBError
 from influxdb_client.client.write_api import ASYNCHRONOUS
 
-from ......config.settings import InfluxDbSettings
+from ......config.databases import InfluxDbSettings
 from .base import Engine
 
 
