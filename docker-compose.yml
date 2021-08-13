@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
   postgres:
-    image: 'postgres'
+    image: postgres:13.2-alpine
     restart: unless-stopped
     env_file:
       - '.env'
@@ -12,7 +12,7 @@ services:
       - postgres:/var/lib/postgresql/data
 
   pgadmin:
-    image: dpage/pgadmin4
+    image: dpage/pgadmin4:5.0
     restart: unless-stopped
     env_file:
       - '.env'
@@ -24,9 +24,7 @@ services:
       - postgres
 
   influxdb:    
-    image: influxdb:latest # 1.8 version. For the 2.x version: 
-                           # quay.io/influxdb/influxdb:v2.0.2
-    # command: influxdb --reporting-disabled
+    image: influxdb:1.7.4
     restart: unless-stopped
     env_file:
       - '.env'
@@ -37,21 +35,21 @@ services:
       - influxdb-config:/etc/influxdb/
 
   chronograf: # Some influxdb controllers
-    image: chronograf:latest
+    image: chronograf:1.8.8-alpine
     environment:
     - BASE_PATH=/chronograf
     restart: unless-stopped
     volumes:
       - chronograf-storage:/var/lib/chronograf
-    ports:
-      - '$CHRONOGRAF_PORT:8888'
+#    ports:
+#      - '$CHRONOGRAF_PORT:8888'
     depends_on:
       - influxdb
     env_file:
       - '.env'
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:7.4.3
     restart: unless-stopped
     container_name: grafana
     env_file:
@@ -63,8 +61,8 @@ services:
       - ./grafana/grafana.ini:/etc/grafana/grafana.ini
       - ./grafana:/etc/grafana/provisioning/datasources
       - ./grafana:/var/lib/grafana
-    ports: 
-      - '$GRAFANA_PORT:3000'
+#    ports: 
+#      - '$GRAFANA_PORT:3000'
 
 #  app:
 #    build: app/
@@ -73,6 +71,7 @@ services:
 #      - '.env'
 #    depends_on:
 #    - influxdb
+#    - postgres
 
   nginx:
     build: nginx/
@@ -82,13 +81,13 @@ services:
       - '80:80'
     restart: unless-stopped
     volumes:
-      - ./content:/var/www/html
+      - ./nginx/content:/var/www/html
       - ./nginx/sites/:/etc/nginx/conf.d
     
     depends_on:
-    - influxdb
-    - grafana
-    - chronograf
+      - influxdb
+      - grafana
+      - chronograf
 #    - app
 
 volumes:
