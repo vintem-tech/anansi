@@ -10,6 +10,7 @@ dev*
 .idea/
 productivity.md
 BKP
+*.sqlite
 
 # Byte-compiled / optimized / DLL files
 
@@ -126,4 +127,3 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-docker_resistry_token.txt
