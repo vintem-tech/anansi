@@ -7,11 +7,11 @@ import pandas as pd
 import pendulum
 from pendulum.exceptions import PendulumException
 
-from ...config.settings import Timesettings
+from ...config import SystemSettings
 from ..exceptions import TimeFormatError
 from ..schemas import DateTimeType
 
-settings = Timesettings()
+settings = SystemSettings().date_time
 
 pd.options.mode.chained_assignment = None
 
