@@ -7,7 +7,7 @@
 
 from typing import List
 
-from environs import Env
+
 from pydantic import BaseModel
 
 from ..utils.schemas import (
@@ -19,15 +19,10 @@ from ..utils.schemas import (
 initial_wallet: Wallet = dict(USDT=1000.00)  # Backtesting scenarios
 broadcasters = Broadcasters()
 
-env = Env()
 
-
-class DefaultTimesettings(BaseModel):
-    local_timezone = env.str("LOCAL_TIMEZONE", default="America/Bahia")
-    system_timezone = env.str("SYSTEM_TIMEZONE", default="UTC")
-    default_timestamp_unit = "s"
-    human_readable_format = "YYYY-MM-DD HH:mm:ss"
-    presented_in_human_readable_format = True
+class DateTimesettings(BaseModel):
+    local_timezone = "America/Bahia"
+    presented_as_human_readable = True
 
 
 class BackTesting(BaseModel):
@@ -56,5 +51,8 @@ class Trading(BaseModel):
     leverage = 1.0
 
 
-class Default(BaseModel):
-    pass
+class Preferences(BaseModel):
+    date_time: DateTimesettings = DateTimesettings()
+    back_testing: BackTesting = BackTesting()
+    notifier: Notifier = Notifier()
+    trading: Trading = Trading()
