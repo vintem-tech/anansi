@@ -14,7 +14,7 @@ thismodule = sys.modules[__name__]
 env = Env()
 
 
-class PostgresDatabase(BaseModel):
+class PostgresRelationalDb(BaseModel):
     provider: str = "postgres"
     host: str = env.str("DB_HOST", default="localhost")
     port: int = env.int("POSTGRES_PORT", default=5432)
@@ -25,13 +25,13 @@ class PostgresDatabase(BaseModel):
     )
 
 
-class SqliteDatabase(BaseModel):
+class SqliteRelationalDb(BaseModel):
     provider: str = "sqlite"
     filename: str = "database.sqlite"
     create_db: bool = True
 
 
-class MemorySqliteDatabase(BaseModel):
+class MemorySqliteRelationalDb(BaseModel):
     provider: str = "sqlite"
     filename: str = ":memory:"
 
@@ -67,8 +67,9 @@ class InfluxDbSettings(BaseModel):
         system_columns = ["result", "table", "_start", "_stop", "_measurement"]
 
 
-def get_relational_database(
+def get_relational_database_settings(
     provider: str,
-) -> Union[PostgresDatabase, SqliteDatabase]:
+) -> Union[PostgresRelationalDb, SqliteRelationalDb]:
 
-    return getattr(thismodule, "{}Database".format(provider.capitalize()))()
+    provider_ = "{}RelationalDb".format(provider.capitalize())
+    return getattr(thismodule, provider_)()
