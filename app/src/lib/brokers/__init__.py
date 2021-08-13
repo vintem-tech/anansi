@@ -9,6 +9,10 @@ modes = OperationalModes()
 
 thismodule = sys.modules[__name__]
 
+implemented_brokers = [
+    "b3",
+    "binance",
+]
 
 class Fabric:
     """Returns an instatiate broker, if 'broker' matches an
