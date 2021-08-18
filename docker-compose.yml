@@ -1,21 +1,19 @@
-version: '3.8'
-services:
+version: '3.9'
 
+services:
   postgres:
-    image: 'postgres'
+    image: postgres:13.2-alpine
+    restart: unless-stopped
     env_file:
       - '.env'
     ports:
       - '$POSTGRES_PORT:5432'
     volumes:
       - postgres:/var/lib/postgresql/data
-    networks:
-      backend_dev:
-        aliases:
-          - postgres
 
   pgadmin:
-    image: dpage/pgadmin4    
+    image: dpage/pgadmin4:5.0
+    restart: unless-stopped
     env_file:
       - '.env'
     ports:
@@ -24,15 +22,74 @@ services:
       - pgadmin:/var/lib/pgadmin
     depends_on:
       - postgres
-    networks:
-      backend_dev:
-        aliases:
-          - pgadmin
 
-networks:
-  backend_dev:
-    driver: bridge
-  
+  influxdb:    
+    image: influxdb:1.7.4
+    restart: unless-stopped
+    env_file:
+      - '.env'
+    ports:
+      - '$INFLUXDB_PORT:8086' 
+    volumes:
+      - influxdb-data:/var/lib/influxdb
+      - influxdb-config:/etc/influxdb/
+
+  chronograf: # Some influxdb controllers
+    image: chronograf:1.8.8-alpine
+    environment:
+    - BASE_PATH=/chronograf
+    restart: unless-stopped
+    volumes:
+      - chronograf-storage:/var/lib/chronograf
+#    ports:
+#      - '$CHRONOGRAF_PORT:8888'
+    depends_on:
+      - influxdb
+    env_file:
+      - '.env'
+
+  grafana:
+    image: grafana/grafana:7.4.3
+    restart: unless-stopped
+    container_name: grafana
+    env_file:
+      - '.env'
+    user: "0"
+    links:
+      - influxdb
+    volumes:
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini
+      - ./grafana:/etc/grafana/provisioning/datasources
+      - ./grafana:/var/lib/grafana
+#    ports: 
+#      - '$GRAFANA_PORT:3000'
+
+#  app:
+#    build: app/
+#    restart: unless-stopped
+#    env_file:
+#      - '.env'
+#    depends_on:
+#    - influxdb
+#    - postgres
+
+  nginx:
+    build: nginx/
+    env_file:
+      - '.env'
+    ports: 
+      - '80:80'
+    restart: unless-stopped
+    volumes:
+      - ./nginx/content:/var/www/html
+      - ./nginx/sites/:/etc/nginx/conf.d
+    
+    depends_on:
+      - influxdb
+      - grafana
+      - chronograf
+#    - app
+
 volumes:
   postgres:
     driver: local
@@ -41,3 +98,15 @@ volumes:
   pgadmin:
     driver: local
     name: pgadmin
+
+  influxdb-data:
+    driver: local
+    name: influxdb-data
+  
+  influxdb-config:
+    driver: local
+    name: influxdb-config
+  
+  chronograf-storage:
+    driver: local
+    name: chronograf-storage
