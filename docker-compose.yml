@@ -64,30 +64,31 @@ services:
 #    ports: 
 #      - '$GRAFANA_PORT:3000'
 
-#  app:
-#    build: app/
-#    restart: unless-stopped
-#    env_file:
-#      - '.env'
-#    depends_on:
-#    - influxdb
-#    - postgres
-
-  nginx:
-    build: nginx/
+  backend:
+    build: backend/
+    restart: unless-stopped
     env_file:
       - '.env'
-    ports: 
-      - '80:80'
-    restart: unless-stopped
-    volumes:
-      - ./nginx/content:/var/www/html
-      - ./nginx/sites/:/etc/nginx/conf.d
-    
     depends_on:
-      - influxdb
-      - grafana
-      - chronograf
+    - influxdb
+    - postgres
+    ports:
+      - "5000:80"
+  #nginx:
+  #  build: nginx/
+  #  env_file:
+  #    - '.env'
+  #  ports: 
+  #    - '80:80'
+  #  restart: unless-stopped
+  #  volumes:
+#      - ./nginx/content:/var/www/html
+#      - ./nginx/sites/:/etc/nginx/conf.d
+    
+#    depends_on:
+#      - influxdb
+#      - grafana
+#      - chronograf
 #    - app
 
 volumes:

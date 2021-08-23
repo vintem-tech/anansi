@@ -11,6 +11,8 @@ dev*
 productivity.md
 BKP
 *.sqlite
+dprecated-*
+bkp-*
 
 # Byte-compiled / optimized / DLL files
 
