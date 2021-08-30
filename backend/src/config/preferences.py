@@ -10,7 +10,7 @@ from typing import List
 
 from pydantic import BaseModel
 
-from ..utils.schemas import (
+from ..utils.schemas.legacy import (
     Broadcasters,
     DateTimeType,
     Wallet,

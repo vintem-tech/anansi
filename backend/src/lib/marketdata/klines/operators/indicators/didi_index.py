@@ -7,7 +7,7 @@ from typing import Sequence  # List, Optional,
 
 from pydantic import BaseModel, validator
 
-from ......utils.schemas import possible_price_metrics
+from ......utils.schemas.legacy import possible_price_metrics
 
 
 class Setup(BaseModel):
