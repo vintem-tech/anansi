@@ -5,8 +5,9 @@ description = "A bootstrap webview, manage and serve by fastapi"
 authors = ["marcusmello <mandealista@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.8"
 fastapi = "^0.68.0"
+
 
 [tool.poetry.dev-dependencies]
 

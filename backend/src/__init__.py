@@ -1,3 +1,8 @@
-"""Anansi, market analysis and trading."""
+from .utils.databases.sql.models import SessionLocal
 
-__version__ = "0.1.0"
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
