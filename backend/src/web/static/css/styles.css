@@ -3349,12 +3349,12 @@ input[type="button"].btn-block {
   padding: 0.5rem 0;
   margin: 0.125rem 0 0;
   font-size: 1rem;
-  color: #212529;
+  color: var(--dark-more-opaque);
   text-align: left;
   list-style: none;
-  background-color: #fff;
+  background-color: var(--primary-shade-1);
   background-clip: padding-box;
-  border: 0.125rem solid rgba(0, 0, 0, 0.15);
+  border: 0.125rem solid var(--dark-more-transparent);
   border-radius: 0.5rem;
 }
 
