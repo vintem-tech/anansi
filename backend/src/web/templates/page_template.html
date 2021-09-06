@@ -4,7 +4,7 @@
 <nav class="navbar navbar-expand-lg bg-secondary text-uppercase fixed-top" id="mainNav">
     <div class="container">
         <a class="navbar-brand js-scroll-trigger" href="/home">
-            
+
             <!-- stylized logo-->
             Anansi
         </a>
@@ -16,10 +16,17 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarResponsive">
             <ul class="navbar-nav ml-auto">
+
                 <li class="nav-item mx-0 mx-lg-1">
-                    <a class="nav-link py-3 px-0 px-lg-3 rounded js-scroll-trigger" href="/backtesting">
-                        Backtesting
-                    </a>
+                <li class="nav-item dropdown">
+                    <a class="nav-link py-3 px-0 px-lg-3 rounded js-scroll-trigger" href="#" data-toggle="dropdown"
+                        role="button" aria-haspopup="true" aria-expanded="true"> <span class="nav-label">Backtesting</span>
+                        <span class="caret"></span></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="/backtesting-brokers">Brokers</a></li>
+                        <li><a href="/user-backtestings">Backtesting</a></li>
+                    </ul>
+                </li>
                 </li>
 
                 <li class="nav-item mx-0 mx-lg-1">
@@ -29,7 +36,7 @@
                 </li>
 
                 <li class="nav-item mx-0 mx-lg-1">
-                    <a class="nav-link py-3 px-0 px-lg-3 rounded js-scroll-trigger" href="/setups">
+                    <a class="nav-link py-3 px-0 px-lg-3 rounded js-scroll-trigger" href="/user-setups">
                         Setups
                     </a>
                 </li>
