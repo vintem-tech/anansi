@@ -2,12 +2,13 @@ from fastapi import FastAPI
 
 from .API.router import api
 from .utils.databases.sql.models import Base, engine
+from .web.pages import router
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 app.include_router(api, prefix="/api/v1")
-# app.mount("/dash", router.app)
+app.mount("", router.app)
 
 # @api.on_event("startup")
 # async def load_configs():
