@@ -13,7 +13,7 @@ import time
 import pandas as pd
 
 from ....utils.exceptions import BrokerError, StorageError
-from ....utils.schemas.legacy import Ticker
+from ....utils.schemas.generics import Ticker
 from ....utils.tools.formatting import remove_last_kline_if_unclosed
 from ....utils.tools.time_handlers import (
     Now,

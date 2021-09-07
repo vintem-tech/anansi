@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from ....utils.databases.time_series_storage.models import StorageKlines
 from ....utils.exceptions import TimeFormatError
-from ....utils.schemas.legacy import Ticker
+from ....utils.schemas.generics import Ticker
 from ....utils.tools.time_handlers import int_timestamp, time_frame_to_seconds
 from .operators.classifiers import didi_v1 as didi
 from .operators.indicators import (

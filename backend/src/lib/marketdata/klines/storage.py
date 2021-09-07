@@ -1,7 +1,7 @@
 # pylint: disable=too-few-public-methods
 
 from ....utils.exceptions import KlinesError, StorageError
-from ....utils.schemas.legacy import Ticker, DateTimeType
+from ....utils.schemas.generics import Ticker, DateTimeType
 from ....utils.tools.time_handlers import ParseDateTime, int_timestamp
 from .base import DF, Getter
 from .from_broker import GetterFromBroker

@@ -1,5 +1,5 @@
 from .from_broker import GetterFromBroker
-from ....utils.schemas.legacy import Ticker
+from ....utils.schemas.generics import Ticker
 #from .storage import 
 
 def klines_getter(ticker: Ticker, time_frame: str = str(), backtesting=False):

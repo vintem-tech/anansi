@@ -3,7 +3,7 @@
 import sys
 from typing import List, Union
 from . import base, binance, backtesting
-from ...utils.schemas.legacy import OperationalModes
+from ...utils.schemas.generics import OperationalModes
 
 modes = OperationalModes()
 
