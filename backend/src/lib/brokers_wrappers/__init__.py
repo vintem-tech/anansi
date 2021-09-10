@@ -14,7 +14,7 @@ implemented_brokers = [
     "binance",
 ]
 
-class Fabric:
+class BrokerFabric:
     """Returns an instatiate broker, if 'broker' matches an
     implemented broker
 
