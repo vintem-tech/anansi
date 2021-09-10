@@ -20,7 +20,7 @@ from ....utils.tools.time_handlers import (
     cooldown_time,
     time_frame_to_seconds,
 )
-from ...brokers import Fabric
+from ...brokers_wrappers import BrokerFabric
 from .base import DF, Getter
 
 
@@ -41,7 +41,7 @@ class GetterFromBroker(Getter):
     def __init__(
         self, broker_name: str, ticker: Ticker, time_frame: str = str()
     ):
-        self._broker = Fabric(broker_name).real()
+        self._broker = BrokerFabric(broker_name).real()
         self._time_frame = self._validate_tf(time_frame)
         super().__init__(broker_name, ticker, time_frame=self.time_frame)
         self._request_step = self.__request_step()
