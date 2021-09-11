@@ -9,7 +9,7 @@ from pendulum.exceptions import PendulumException
 
 from ...config import SystemSettings
 from ..exceptions import TimeFormatError
-from ..schemas.legacy import DateTimeType
+from ..schemas.generics import DateTimeType
 
 settings = SystemSettings().date_time
 

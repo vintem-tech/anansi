@@ -13,14 +13,14 @@ import time
 import pandas as pd
 
 from ....utils.exceptions import BrokerError, StorageError
-from ....utils.schemas.legacy import Ticker
+from ....utils.schemas.generics import Ticker
 from ....utils.tools.formatting import remove_last_kline_if_unclosed
 from ....utils.tools.time_handlers import (
     Now,
     cooldown_time,
     time_frame_to_seconds,
 )
-from ...brokers import Fabric
+from ...brokers_wrappers import BrokerFabric
 from .base import DF, Getter
 
 
@@ -41,7 +41,7 @@ class GetterFromBroker(Getter):
     def __init__(
         self, broker_name: str, ticker: Ticker, time_frame: str = str()
     ):
-        self._broker = Fabric(broker_name).real()
+        self._broker = BrokerFabric(broker_name).real()
         self._time_frame = self._validate_tf(time_frame)
         super().__init__(broker_name, ticker, time_frame=self.time_frame)
         self._request_step = self.__request_step()

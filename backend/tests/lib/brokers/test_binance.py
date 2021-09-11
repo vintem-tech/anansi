@@ -4,7 +4,7 @@
 # pylint: disable=too-few-public-methods
 
 import requests_mock
-from src.lib.brokers.binance import Binance
+from src.lib.brokers_wrappers.binance import Binance
 
 broker = Binance()
 
