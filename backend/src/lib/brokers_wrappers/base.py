@@ -30,6 +30,47 @@ def get_response(endpoint: str) -> Union[requests.models.Response, None]:
     except ConnectionError as error:
         raise Exception from error
 
+class BrokerSettings(BaseModel):
+    """Broker parent class """
+
+    datetime_format: str = "timestamp"
+    datetime_unit: str = "seconds"
+    base_endpoint: str = str()
+    ping_endpoint: str = str()
+    time_endpoint: str = str()
+    klines_endpoint: str = str()
+    request_weight_per_minute: int = None
+    records_per_request: int = None
+    time_frames: list = [
+        "1m",
+        "3m",
+        "5m",
+        "15m",
+        "30m",
+        "1h",
+        "2h",
+        "4h",
+        "6h",
+        "8h",
+        "12h",
+        "1d",
+        "3d",
+        "1w",
+        "1M",
+    ]
+    kline_information: list = [
+        "Open_time",
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "Volume",
+        "Close_time",
+    ]
+    klines_desired_informations: list = kline_information[:-1]
+    ignore_opened_candle: bool = True
+    show_only_desired_info: bool = True
+    fee_rate_decimal: float = 0.001
 
 class Broker:
     """Broker low level functions"""
@@ -117,46 +158,3 @@ class Broker:
     def execute_test_order(self, order: Order):
         """Proceed test trading orders """
         raise NotImplementedError
-
-
-class BrokerSettings(BaseModel):
-    """Broker parent class """
-
-    datetime_format: str = "timestamp"
-    datetime_unit: str = "seconds"
-    base_endpoint: str = str()
-    ping_endpoint: str = str()
-    time_endpoint: str = str()
-    klines_endpoint: str = str()
-    request_weight_per_minute: int = None
-    records_per_request: int = None
-    time_frames: list = [
-        "1m",
-        "3m",
-        "5m",
-        "15m",
-        "30m",
-        "1h",
-        "2h",
-        "4h",
-        "6h",
-        "8h",
-        "12h",
-        "1d",
-        "3d",
-        "1w",
-        "1M",
-    ]
-    kline_information: list = [
-        "Open_time",
-        "Open",
-        "High",
-        "Low",
-        "Close",
-        "Volume",
-        "Close_time",
-    ]
-    klines_desired_informations: list = kline_information[:-1]
-    ignore_opened_candle: bool = True
-    show_only_desired_info: bool = True
-    fee_rate_decimal: float = 0.001

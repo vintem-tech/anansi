@@ -1,5 +1,3 @@
-#from pony.orm import commit
-
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -13,9 +11,3 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
-
-#class UpdateAttributesDict(object):
-#    def update_attributes_dict(self, **kwargs):
-#        for attribute, value in kwargs.items():
-#            setattr(self, attribute, value)
-#            commit()
