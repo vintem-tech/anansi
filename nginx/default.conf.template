@@ -17,15 +17,22 @@ server {
         deny all;
     }
 
+    location / {
+        proxy_pass http://backend;
+    }
+
+    location /pgadmin/ {
+        proxy_set_header X-Script-Name /pgadmin;
+        proxy_set_header Host ${HOSTNAME};
+        proxy_pass http://pgadmin;
+        proxy_redirect off;
+    }
+
     location /grafana {
         proxy_pass http://grafana:3000;
     }
 
     location /chronograf {
         proxy_pass http://chronograf:8888;
-    }
-
-    location /backend {
-        proxy_pass http://backend:5050;
     }
 }

@@ -15,7 +15,7 @@ implemented_brokers = [
 ]
 
 class BrokerFabric:
-    """Returns an instatiate broker, if 'broker' matches an
+    """Returns an instantiate broker, if 'broker' matches an
     implemented broker
 
     :param broker: The name of desired broker
