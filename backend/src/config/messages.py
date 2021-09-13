@@ -1,6 +1,8 @@
+"""An abstraction for outgoing messages"""
+
 # pylint: disable=no-name-in-module
 # pylint: disable=E1136
-"""An abstraction for outgoing messages"""
+
 from typing import Union  # , Sequence, Optional, List
 
 from pydantic import BaseModel  # , validator
