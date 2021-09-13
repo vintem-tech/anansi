@@ -6,6 +6,7 @@
 
 import sys
 from typing import Union
+from urllib.parse import urlparse
 
 from environs import Env
 from pydantic import BaseModel
@@ -15,7 +16,6 @@ env = Env()
 
 
 class PostgresRelationalDb(BaseModel):
-    provider: str = "postgres"
     host: str = env.str("DB_HOST", default="localhost")
     port: int = env.int("POSTGRES_PORT", default=5432)
     database: str = env.str("POSTGRES_DB", default="postgres_db")
@@ -24,16 +24,50 @@ class PostgresRelationalDb(BaseModel):
         "POSTGRES_PASSWORD", default="123_postgres_password"
     )
 
+    SQLALCHEMY_DATABASE_URL: str = "postgresql://{}:{}@{}:{}/{}"
+
+    def connection_args(self):
+        return dict(
+            url=urlparse(
+                self.SQLALCHEMY_DATABASE_URL.format(
+                    self.user,
+                    self.password,
+                    self.host,
+                    self.port,
+                    self.database,
+                )
+            ),
+        )
+
+
+#    def connection_args(self):
+#        return dict(
+#            url=urlparse(
+#                self.SQLALCHEMY_DATABASE_URL.format(
+#                    "anansi_user", "!@*_anansi_pass_123", "postgres" "5432", "anansi_postgres"
+#                )
+#            ),
+#        )
+
 
 class SqliteRelationalDb(BaseModel):
-    provider: str = "sqlite"
-    filename: str = "database.sqlite"
-    create_db: bool = True
+    SQLALCHEMY_DATABASE_URL: str = "sqlite:///./anansi.db"
+
+    def connection_args(self):
+        return dict(
+            url=self.SQLALCHEMY_DATABASE_URL,
+            connect_args={"check_same_thread": False},
+        )
 
 
 class MemorySqliteRelationalDb(BaseModel):
-    provider: str = "sqlite"
-    filename: str = ":memory:"
+    SQLALCHEMY_DATABASE_URL: str = "sqlite+pysqlite:///:memory:"
+
+    def connection_args(self):
+        return dict(
+            url=self.SQLALCHEMY_DATABASE_URL,
+            connect_args={"check_same_thread": False},
+        )
 
 
 class InfluxDbSettings(BaseModel):
@@ -71,5 +105,5 @@ def get_relational_database_settings(
     provider: str,
 ) -> Union[PostgresRelationalDb, SqliteRelationalDb]:
 
-    provider_ = "{}RelationalDb".format(provider.capitalize())
-    return getattr(thismodule, provider_)()
+    sql_provider = "{}RelationalDb".format(provider.capitalize())
+    return getattr(thismodule, sql_provider)()
