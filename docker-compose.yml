@@ -41,15 +41,11 @@ services:
       - chronograf-storage:/var/lib/chronograf
     depends_on:
       - influxdb
-#    env_file:
-#      - '.env'
 
   grafana:
     image: grafana/grafana:7.4.3
     restart: unless-stopped
     container_name: grafana
-#    env_file:
-#      - '.env'
     user: "0"
     links:
       - influxdb
@@ -65,8 +61,6 @@ services:
       - 'environment/host.env'
       - 'environment/backend.env'
       - 'environment/postgres.env'
-#    environment:
-#      - APP_MODULE=src.main:app
     depends_on:
     - influxdb
     - postgres
