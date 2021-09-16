@@ -1,0 +1,106 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:13.2-alpine
+    restart: unless-stopped
+    env_file:
+      - 'environment/postgres.env'
+#    ports:
+#      - '$POSTGRES_PORT:5432'
+    volumes:
+      - postgres:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4:5.7
+    restart: unless-stopped
+    env_file:
+      - 'environment/pgadmin.env'
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+    depends_on:
+      - postgres
+
+  influxdb:    
+    image: influxdb:1.7.4
+    restart: unless-stopped
+    env_file:
+      - 'environment/influxdb.env'
+#    ports:
+#      - '$INFLUXDB_PORT:8086' 
+    volumes:
+      - influxdb-data:/var/lib/influxdb
+      - influxdb-config:/etc/influxdb/
+
+  chronograf: # Some influxdb controllers
+    image: chronograf:1.8.8-alpine
+    environment:
+    - BASE_PATH=/chronograf
+    restart: unless-stopped
+    volumes:
+      - chronograf-storage:/var/lib/chronograf
+    depends_on:
+      - influxdb
+
+  grafana:
+    image: grafana/grafana:7.4.3
+    restart: unless-stopped
+    container_name: grafana
+    user: "0"
+    links:
+      - influxdb
+    volumes:
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini
+      - ./grafana:/etc/grafana/provisioning/datasources
+      - ./grafana:/var/lib/grafana
+
+  backend:
+    build: ./backend/
+    restart: unless-stopped
+    env_file:
+      - 'environment/host.env'
+      - 'environment/backend.env'
+      - 'environment/postgres.env'
+    depends_on:
+    - influxdb
+    - postgres
+
+  nginx:
+    build: nginx/
+    environment:
+      - ARCHITECTURE_TYPE=microservices
+    env_file:
+      - 'environment/host.env'
+    ports: 
+      - '80:80'
+    restart: unless-stopped
+    volumes:
+      - ./nginx/content:/var/www/html
+    
+    depends_on:
+      - influxdb
+      - grafana
+      - chronograf
+      - backend
+      - pgadmin
+
+volumes:
+  postgres:
+    driver: local
+    name: postgres
+  
+  pgadmin:
+    driver: local
+    name: pgadmin
+
+  influxdb-data:
+    driver: local
+    name: influxdb-data
+  
+  influxdb-config:
+    driver: local
+    name: influxdb-config
+  
+  chronograf-storage:
+    driver: local
+    name: chronograf-storage
