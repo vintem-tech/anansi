@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "anansi-fastboot-webwiew"
+version = "0.1.0"
+description = "A bootstrap webview, manage and serve by fastapi"
+authors = ["marcusmello <mandealista@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+fastapi = "^0.68.0"
+
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

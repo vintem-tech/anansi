@@ -1,6 +1,9 @@
 #Dev stuff
 BKP_*
+bkp-*
 DEPRECATED_*
+deprecated-*
+deprecate-*
 *.csv
 *.db*
 .vscode
@@ -11,6 +14,7 @@ dev*
 productivity.md
 BKP
 *.sqlite
+manage.py
 
 # Byte-compiled / optimized / DLL files
 
