@@ -6,7 +6,6 @@
 
 import sys
 from typing import Union
-from urllib.parse import urlparse
 
 from environs import Env
 from pydantic import BaseModel
@@ -24,30 +23,18 @@ class PostgresRelationalDb(BaseModel):
         "POSTGRES_PASSWORD", default="123_postgres_password"
     )
 
-    SQLALCHEMY_DATABASE_URL: str = "postgresql://{}:{}@{}:{}/{}"
+    SQLALCHEMY_DATABASE_URL = "postgresql+psycopg2://{}:{}@{}:{}/{}"
 
     def connection_args(self):
         return dict(
-            url=urlparse(
-                self.SQLALCHEMY_DATABASE_URL.format(
-                    self.user,
-                    self.password,
-                    self.host,
-                    self.port,
-                    self.database,
-                )
-            ),
+            url=self.SQLALCHEMY_DATABASE_URL.format(
+                self.user,
+                self.password,
+                self.host,
+                self.port,
+                self.database,
+            )
         )
-
-
-#    def connection_args(self):
-#        return dict(
-#            url=urlparse(
-#                self.SQLALCHEMY_DATABASE_URL.format(
-#                    "anansi_user", "!@*_anansi_pass_123", "postgres" "5432", "anansi_postgres"
-#                )
-#            ),
-#        )
 
 
 class SqliteRelationalDb(BaseModel):
