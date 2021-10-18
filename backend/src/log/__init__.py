@@ -1,9 +1,10 @@
-from ..config.messages import NotifierHeader
-from ..config.settings import system_settings
+from src.core.config import settings
+from src.core.config.messages import NotifierHeader
+
 from .broadcasters import get
 
-settings = system_settings()
 header = NotifierHeader()
+
 
 class Notifier:
     def __init__(self, operation):

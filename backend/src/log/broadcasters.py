@@ -2,12 +2,11 @@
 import sys
 
 import telegram
-
-from ..config.settings import system_settings
-from ..lib.utils.tools.formatting import ConvertString
+from src.core.config import settings
+from src.utils.tools.formatting import ConvertString
 
 thismodule = sys.modules[__name__]
-settings = system_settings()
+
 
 
 class Base:
