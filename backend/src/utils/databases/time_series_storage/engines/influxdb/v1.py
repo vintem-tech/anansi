@@ -2,10 +2,10 @@
 # pylint: disable=no-value-for-parameter
 
 import pandas as pd
+from src.core.config.databases import InfluxDbSettings
 
 from influxdb import DataFrameClient
 
-from ......config.databases import InfluxDbSettings
 from .base import Engine
 
 
