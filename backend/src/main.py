@@ -1,19 +1,15 @@
 from fastapi import FastAPI
 
-from .API.router import api
-from .utils.databases.sql.models import Base, engine
-from .web.routes import router
+from src.API.router import api
+from src.utils.databases.sql.core.init_db import init_db
+from src.web.routes import router
+from src.utils.databases.sql.core.session import SessionLocal
 
-Base.metadata.create_all(bind=engine)
+init_db(db=SessionLocal())
 
 app = FastAPI()
 app.include_router(api, prefix="/api/v1")
 app.mount("", router.web_app)
-
-# @api.on_event("startup")
-# async def load_configs():
-#    Config().create_if_do_not_exist()
-
 
 @app.get("/")
 def read_root():
