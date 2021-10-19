@@ -1,5 +1,5 @@
-from ..config.messages import Messages
-from ..config.preferences import Preferences
+from src.core.config.messages import Messages
+from src.core.config.preferences import Preferences
 from ..utils.databases.sql.crud import config
 
 class Config:
