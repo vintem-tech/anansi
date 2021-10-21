@@ -30,9 +30,10 @@ class SystemSettings(BaseModel):
         default="ca809d720daa1acc6e63d8f58bfd4006bd8f6614c272543c17ec1598f90b2158",
     )
     FIRST_SUPERUSER:str = env.str("FIRST_SUPERUSER", default="anansi@email.com")
-    FIRST_SUPERUSER_PASSWORD:str = env.str("FIRST_SUPERUSER_PASSWORD", default="12345")
+    FIRST_SUPERUSER_PASSWORD:str = env.str("FIRST_SUPERUSER_PASSWORD", default="9cjf-034erhnfivdk")
+    USERS_OPEN_REGISTRATION:bool = False
     ACCESS_TOKEN_EXPIRE_MINUTES: int = env.int(
-        "ACCESS_TOKEN_EXPIRE_MINUTES", default=15
+        "ACCESS_TOKEN_EXPIRE_MINUTES", default=120
     )
     date_time = DateTimeSettings()
     sql_debug: bool = env.bool("SQL_DEBBUG", default=False)
