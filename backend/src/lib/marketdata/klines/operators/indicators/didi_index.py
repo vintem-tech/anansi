@@ -6,12 +6,11 @@
 from typing import Sequence  # List, Optional,
 
 from pydantic import BaseModel, validator
-
-from ......utils.schemas.generics import possible_price_metrics
+from src.utils.schemas.generics import possible_price_metrics
 
 
 class Setup(BaseModel):
-    """ Setup of Didi index indicator"""
+    """Setup of Didi index indicator"""
 
     price_metrics: str = "ohlc4"
     number_samples: Sequence[int] = (3, 8, 20)
