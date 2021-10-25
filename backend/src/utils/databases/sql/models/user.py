@@ -10,7 +10,7 @@ from sqlalchemy.orm import relationship
 from src.utils.databases.sql.core.base_class import Base
 
 if TYPE_CHECKING:
-    from .user import User  # noqa: F401
+    from .item import Item  # noqa: F401
 
 
 class User(Base):
