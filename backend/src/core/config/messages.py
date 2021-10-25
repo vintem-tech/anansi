@@ -7,8 +7,8 @@ from typing import Union  # , Sequence, Optional, List
 
 from pydantic import BaseModel  # , validator
 
-from ..utils.tools.formatting import lines_text_from_dict
-from ..utils.tools.time_handlers import ParseDateTime
+from src.utils.tools.formatting import lines_text_from_dict
+from src.utils.tools.time_handlers import ParseDateTime
 
 
 class NotifierHeaders(BaseModel):
