@@ -4,11 +4,12 @@
 
 import pandas as pd
 from pydantic import BaseModel
-
-from ....klines.operators.indicators.bollinger_bands import (
+from src.lib.marketdata.klines.operators.indicators.bollinger_bands import (
     Setup as BollingerBandsSetup,
 )
-from ....klines.operators.indicators.didi_index import Setup as DidiIndexSetup
+from src.lib.marketdata.klines.operators.indicators.didi_index import (
+    Setup as DidiIndexSetup,
+)
 
 
 class Setup(BaseModel):
