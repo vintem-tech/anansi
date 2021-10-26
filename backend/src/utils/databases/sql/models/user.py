@@ -11,6 +11,7 @@ from src.utils.databases.sql.core.base_class import Base
 
 if TYPE_CHECKING:
     from .item import Item  # noqa: F401
+    from .trading import Trader
 
 
 class User(Base):
@@ -21,3 +22,4 @@ class User(Base):
     is_active = Column(Boolean(), default=True)
     is_superuser = Column(Boolean(), default=False)
     items = relationship("Item", back_populates="owner")
+    traders = relationship("Trader", back_populates="owner")
