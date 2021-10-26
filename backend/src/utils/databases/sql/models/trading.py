@@ -5,7 +5,7 @@
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, ForeignKey, Integer, String, ARRAY, JSON
+from sqlalchemy import JSON, Column, ForeignKey, Integer, PickleType, String
 from sqlalchemy.orm import relationship
 from src.utils.databases.sql.core.base_class import Base
 
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 class Trader(Base):
     id = Column(Integer, primary_key=True, index=True)
     broker = Column(String, index=True)
-    tickers = Column(ARRAY)
+    tickers = Column(PickleType)
     mode = Column(String)
     classifier = Column(String)
     classifier_setup = Column(JSON)
