@@ -12,6 +12,13 @@ from pydantic import BaseModel, EmailStr
 
 from src.lib.marketdata.klines.operators.classifiers import didi_v1
 
+class Ticker(BaseModel):
+    """Market ticker attributes"""
+
+    symbol: str
+    base: str = str()
+    quote: str = str()
+
 class OperationalModes(BaseModel):
     """Stores the possible operation modes"""
 
@@ -31,7 +38,28 @@ class BacktestingStatus(BaseModel):
 # Shared properties
 class TraderBase(BaseModel):
     broker: str = "binance"
-    tickers: List[str] = ["BTCUSDT", "ETHUSDT", "NEOUSDT", "LINKUSDT"]
+    tickers: List[Ticker] = [
+        Ticker(
+            symbol="BTCUSDT",
+            base="BTC",
+            quote="USDT"
+        ),
+        Ticker(
+            symbol="ETHUSDT",
+            base="ETH",
+            quote="USDT"
+        ),
+        Ticker(
+            symbol="NEOUSDT",
+            base="NEO",
+            quote="USDT"
+        ),
+        Ticker(
+            symbol="LINKUSDT",
+            base="LINK",
+            quote="USDT"
+        )
+        ]
     mode: str = OperationalModes().backtesting
     classifier: str = "didi_v1"
     classifier_setup: BaseModel = didi_v1.Setup()
