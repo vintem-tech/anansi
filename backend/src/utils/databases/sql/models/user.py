@@ -5,7 +5,7 @@
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Column, Integer, String
+from sqlalchemy import Boolean, Column, Integer, String, PickleType
 from sqlalchemy.orm import relationship
 from src.utils.databases.sql.core.base_class import Base
 
@@ -23,3 +23,4 @@ class User(Base):
     is_superuser = Column(Boolean(), default=False)
     items = relationship("Item", back_populates="owner")
     traders = relationship("Trader", back_populates="owner")
+    telegram_chats_ids = Column(PickleType)
