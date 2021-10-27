@@ -6,7 +6,7 @@
 from typing import Optional
 
 from pydantic import BaseModel, EmailStr
-
+from .notifiers import TelegramChatsIds
 
 # Shared properties
 class UserBase(BaseModel):
@@ -14,6 +14,8 @@ class UserBase(BaseModel):
     is_active: Optional[bool] = True
     is_superuser: bool = False
     full_name: Optional[str] = None
+    telegram_chats_ids:TelegramChatsIds = TelegramChatsIds()
+
 
 
 # Properties to receive via API on creation
