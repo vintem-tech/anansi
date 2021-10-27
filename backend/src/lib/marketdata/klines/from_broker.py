@@ -11,6 +11,7 @@ market indicators Finally, it also deals with saving klines in the
 import time
 
 import pandas as pd
+from logzero import logger
 
 from ....utils.exceptions import BrokerError, StorageError
 from ....utils.schemas.generics import Ticker
@@ -103,9 +104,7 @@ class GetterFromBroker(Getter):
                     if not self.settings.infinite_request_attempts:
                         raise Exception from error
 
-                    # TODO: Log instead print
-                    print("Fail, due the error: ", error)
-
+                    logger.exception(error)
                     time.sleep(cooldown_time(attempt))
 
         if self.settings.ignore_unclosed_kline:
