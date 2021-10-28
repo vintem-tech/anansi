@@ -1047,6 +1047,14 @@ dev = ["pre-commit", "tox"]
 testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
+name = "pony"
+version = "0.7.14"
+description = "Pony Object-Relational Mapper"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "print-dict"
 version = "0.1.19"
 description = ""
@@ -1712,7 +1720,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9.7"
-content-hash = "cbffb3114fd90ec21a4d44d39dabe132951fb897ba5e06d54a5e2a94db831708"
+content-hash = "f3d57f390a47374f845b9962c7517dcabc749129cccdb7040b859fb45a4a3ee0"
 
 [metadata.files]
 aiofiles = [
@@ -2385,6 +2393,9 @@ platformdirs = [
 pluggy = [
     {file = "pluggy-1.0.0-py2.py3-none-any.whl", hash = "sha256:74134bbf457f031a36d68416e1509f34bd5ccc019f0bcc952c7b909d06b37bd3"},
     {file = "pluggy-1.0.0.tar.gz", hash = "sha256:4224373bacce55f955a878bf9cfa763c1e360858e330072059e10bad68531159"},
+]
+pony = [
+    {file = "pony-0.7.14.tar.gz", hash = "sha256:2f01e84e79ea7a14040225cb6c079bb266e7ba147346356c266490b18c77ce82"},
 ]
 print-dict = [
     {file = "print-dict-0.1.19.tar.gz", hash = "sha256:4dff9bcd6279fe526bb7b13b392a373d88ed9d7647c2985b2457c475d7730d1d"},
