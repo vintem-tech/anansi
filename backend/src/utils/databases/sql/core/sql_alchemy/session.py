@@ -1,9 +1,9 @@
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from src.core.config import settings
+from src.core.config import default_system_settings
 
-sql_adapter = settings.relational_database_adapter
+sql_adapter = default_system_settings.relational_database_adapter
 
 #engine = create_engine(settings.SQLALCHEMY_DATABASE_URI, pool_pre_ping=True)
 

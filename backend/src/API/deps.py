@@ -6,13 +6,13 @@ from jose import jwt
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 from src.core import security
-from src.core.config import settings
+from src.core.config import default_system_settings
 from src.utils.databases.sql.core.session import SessionLocal
 from src.utils import schemas
 from src.utils.databases.sql import crud, models
 
 reusable_oauth2 = OAuth2PasswordBearer(
-    tokenUrl=f"{settings.API_PREFIX_VERSION}/login/access-token"
+    tokenUrl=f"{default_system_settings.API_PREFIX_VERSION}/login/access-token"
 )
 
 
@@ -29,7 +29,7 @@ def get_current_user(
 ) -> models.User:
     try:
         payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
+            token, default_system_settings.SECRET_KEY, algorithms=[security.ALGORITHM]
         )
         token_data = schemas.TokenPayload(**payload)
     except (jwt.JWTError, ValidationError):
