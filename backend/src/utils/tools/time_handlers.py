@@ -6,11 +6,11 @@ from typing import List
 import pandas as pd
 import pendulum
 from pendulum.exceptions import PendulumException
-from src.core.config import SystemSettings
+from src.core.config import DefaultSystemSettings
 from src.utils.exceptions import TimeFormatError
 from src.utils.schemas.generics import DateTimeType
 
-settings = SystemSettings().date_time
+settings = DefaultSystemSettings().date_time
 
 pd.options.mode.chained_assignment = None
 
