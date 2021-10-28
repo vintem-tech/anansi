@@ -2,14 +2,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.API.router import api
-from src.utils.databases.sql.core.init_db import init_db
-from src.utils.databases.sql.core.session import SessionLocal
+#from src.utils.databases.sql.core.init_db import init_db
+#from src.utils.databases.sql.core.session import SessionLocal
 from src.web.routes import router
 
-init_db(db=SessionLocal())
+#init_db(db=SessionLocal())
 
 app = FastAPI()
-app.include_router(api, prefix="/api/v1")
+#app.include_router(api, prefix="/api/v1")
 app.mount("", router.web_app)
 
 
