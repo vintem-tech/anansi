@@ -11,8 +11,8 @@ market indicators Finally, it also deals with saving klines in the
 import time
 
 import pandas as pd
-from logzero import logger
 from src.lib.brokers_wrappers import BrokerFabric
+from src.log import logger
 from src.utils.exceptions import BrokerError, StorageError
 from src.utils.schemas.generics import Ticker
 from src.utils.tools.formatting import remove_last_kline_if_unclosed
