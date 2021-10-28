@@ -1,6 +1,7 @@
 #Dev stuff
 BKP_*
 bkp-*
+*/bkp/*
 DEPRECATED_*
 deprecated-*
 deprecate-*
@@ -131,3 +132,21 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+backend/src/API/api_v1/endpoints/bkp/items.py
+backend/src/API/api_v1/endpoints/bkp/login.py
+backend/src/API/api_v1/endpoints/bkp/trading.py
+backend/src/API/api_v1/endpoints/bkp/users.py
+backend/src/API/api_v1/endpoints/bkp/backtesting/__init__.py
+backend/src/API/api_v1/endpoints/bkp/backtesting/brokers.py
+backend/src/API/api_v1/endpoints/backtesting/__init__.py
+backend/src/API/api_v1/endpoints/backtesting/brokers.py
+backend/src/utils/databases/sql/crud/bkp/base.py
+backend/src/utils/databases/sql/crud/bkp/crud_item.py
+backend/src/utils/databases/sql/crud/bkp/crud_trading.py
+backend/src/utils/databases/sql/crud/bkp/crud_user.py
+backend/src/utils/databases/sql/models/bkp/backtesting.py
+backend/src/utils/databases/sql/models/bkp/generics.py
+backend/src/utils/databases/sql/models/bkp/item.py
+backend/src/utils/databases/sql/models/bkp/trading.py
+backend/src/utils/databases/sql/models/bkp/user.py
+backend/src/utils/schemas/bkp/backtesting.py
