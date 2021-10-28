@@ -1,16 +1,13 @@
-import logzero
-from logzero import logger
-from src.core.config import settings
+from src.core.config import default_system_settings
 from src.utils.schemas.notifiers import TelegramChatsIds
-
+from src.log import logger
 import telegram
 from telegram import TelegramError
 
-logzero.logfile("anansi.log", maxBytes=1e6, backupCount=3)
 
 class Telegram:
     def __init__(
-        self, chats_ids: TelegramChatsIds, token=settings.TELEGRAM_BOT_TOKEN
+        self, chats_ids: TelegramChatsIds, token=default_system_settings.TELEGRAM_BOT_TOKEN
     ):
         self.bot = telegram.Bot(token)
         self.debug_id = chats_ids.debug
