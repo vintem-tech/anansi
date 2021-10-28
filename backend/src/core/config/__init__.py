@@ -21,7 +21,7 @@ class DateTimeSettings(BaseModel):
     human_readable_format: str = "YYYY-MM-DD HH:mm:ss"
 
 
-class SystemSettings(BaseModel):
+class DefaultSystemSettings(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
@@ -52,4 +52,4 @@ class SystemSettings(BaseModel):
     API_PREFIX_VERSION: str = env.str("API_PREFIX_VERSION", default="/api/v1")
 
 
-settings = SystemSettings()
+default_system_settings = DefaultSystemSettings()
