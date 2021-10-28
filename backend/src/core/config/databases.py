@@ -22,10 +22,11 @@ class PostgresRelationalDb(BaseModel):
     password: str = env.str(
         "POSTGRES_PASSWORD", default="123_postgres_password"
     )
+    SQL_DEBUG:bool = False
+    SQLALCHEMY_DATABASE_URL: str = "postgresql+psycopg2://{}:{}@{}:{}/{}"
 
-    SQLALCHEMY_DATABASE_URL = "postgresql+psycopg2://{}:{}@{}:{}/{}"
+    def sql_alchemy_connection_args(self):
 
-    def connection_args(self):
         return dict(
             url=self.SQLALCHEMY_DATABASE_URL.format(
                 self.user,
@@ -36,25 +37,46 @@ class PostgresRelationalDb(BaseModel):
             )
         )
 
+    def pony_connection_args(self):
+        return dict(
+            provider="postgres",
+            user=self.user,
+            password=self.password,
+            host=self.host,
+            database=self.database,
+        )
+
 
 class SqliteRelationalDb(BaseModel):
-    SQLALCHEMY_DATABASE_URL: str = "sqlite:///./anansi.db"
+    SQL_DEBUG:bool = True  
+    SQLALCHEMY_DATABASE_URL: str = "sqlite:///./anansi_sql_alchemy.db"
 
-    def connection_args(self):
+    def sql_alchemy_connection_args(self):
         return dict(
             url=self.SQLALCHEMY_DATABASE_URL,
             connect_args={"check_same_thread": False},
+        )
+
+    def pony_connection_args(self):
+        return dict(
+            provider="sqlite",
+            filename="anansi_pony.sqlite",
+            create_db=True,
         )
 
 
 class MemorySqliteRelationalDb(BaseModel):
+    SQL_DEBUG:bool = True  
     SQLALCHEMY_DATABASE_URL: str = "sqlite+pysqlite:///:memory:"
 
-    def connection_args(self):
+    def sql_alchemy_connection_args(self):
         return dict(
             url=self.SQLALCHEMY_DATABASE_URL,
             connect_args={"check_same_thread": False},
         )
+
+    def pony_connection_args(self):
+        return dict(provider="sqlite", filename=":memory:")
 
 
 class InfluxDbSettings(BaseModel):
