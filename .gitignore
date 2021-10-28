@@ -150,3 +150,4 @@ backend/src/utils/databases/sql/models/bkp/item.py
 backend/src/utils/databases/sql/models/bkp/trading.py
 backend/src/utils/databases/sql/models/bkp/user.py
 backend/src/utils/schemas/bkp/backtesting.py
+backend/src/utils/schemas/bkp/user.py
