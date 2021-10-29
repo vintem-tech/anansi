@@ -8,6 +8,6 @@ class CrudUser:
         with db_session:
             user = users.User(**user_create.dict())
             safety_commit()
-        return user
+        return user_create
 
 user = CrudUser()
