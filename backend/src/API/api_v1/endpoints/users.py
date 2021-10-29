@@ -6,6 +6,6 @@ from src.utils.databases.sql.crud import user
 
 endpoint = APIRouter()
 
-@endpoint.post("/", response_model=schemas.UserBase)
+@endpoint.post("/", response_model=schemas.UserReturn)
 def create_user(user_in:schemas.UserCreate):
     return user.create(user_in)
