@@ -7,7 +7,7 @@ from pydantic import EmailStr
 class CrudTrader:
     def create_by_owner(self, trader_create: TraderCreate, owner: User):
         with db_session:
-            trader = Trader(**trader_create, owner=owner)
+            trader = Trader(**trader_create.dict(), owner=owner)
             safety_commit()
             trader_return = trader.to_dict()
 
