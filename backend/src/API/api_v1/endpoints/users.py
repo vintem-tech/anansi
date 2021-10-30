@@ -1,5 +1,3 @@
-from typing import Any, List
-
 from fastapi import APIRouter, HTTPException
 from src.utils import schemas
 from src.utils.databases.sql.crud import user
