@@ -1,6 +1,5 @@
 from typing import Optional
-from src.utils.databases.sql.core.pony import Base, Required, Set, Json, Optional
-from pony.orm import Required, Set
+from src.utils.databases.sql.core.pony import Base, Required, Json, Optional
 
 
 class User(Base):
