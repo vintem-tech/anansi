@@ -1,4 +1,3 @@
-from typing import Optional
 from src.utils.databases.sql.core.pony import Base, Required, Json, Optional
 
 
