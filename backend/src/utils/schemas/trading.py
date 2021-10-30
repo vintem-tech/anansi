@@ -5,12 +5,12 @@
 
 """Traders pydantic model classes."""
 
-from os import error
-from typing import Dict, Optional, Union, List
 
-from pydantic import BaseModel, EmailStr
+from typing import List
 
+from pydantic import BaseModel
 from src.lib.marketdata.klines.operators.classifiers import didi_v1
+
 
 class Ticker(BaseModel):
     """Market ticker attributes"""
@@ -19,6 +19,7 @@ class Ticker(BaseModel):
     base: str = str()
     quote: str = str()
 
+
 class OperationalModes(BaseModel):
     """Stores the possible operation modes"""
 
@@ -26,40 +27,24 @@ class OperationalModes(BaseModel):
     test: str = "test"
     backtesting: str = "backtesting"
 
+
 class BacktestingStatus(BaseModel):
-    starting:str = "starting"
-    collecting_data:str = "collecting_data"
-    running:str = "running"
-    finish:str = "finish"
-    error:str = "error"
-    
+    starting: str = "starting"
+    collecting_data: str = "collecting_data"
+    running: str = "running"
+    finish: str = "finish"
+    error: str = "error"
 
 
 # Shared properties
 class TraderBase(BaseModel):
     broker: str = "binance"
     tickers: List[Ticker] = [
-        Ticker(
-            symbol="BTCUSDT",
-            base="BTC",
-            quote="USDT"
-        ),
-        Ticker(
-            symbol="ETHUSDT",
-            base="ETH",
-            quote="USDT"
-        ),
-        Ticker(
-            symbol="NEOUSDT",
-            base="NEO",
-            quote="USDT"
-        ),
-        Ticker(
-            symbol="LINKUSDT",
-            base="LINK",
-            quote="USDT"
-        )
-        ]
+        Ticker(symbol="BTCUSDT", base="BTC", quote="USDT"),
+        Ticker(symbol="ETHUSDT", base="ETH", quote="USDT"),
+        Ticker(symbol="NEOUSDT", base="NEO", quote="USDT"),
+        Ticker(symbol="LINKUSDT", base="LINK", quote="USDT"),
+    ]
     mode: str = OperationalModes().backtesting
     classifier: str = "didi_v1"
     classifier_setup: BaseModel = didi_v1.Setup()
@@ -74,6 +59,11 @@ class TraderCreate(TraderBase):
 # Properties to receive on Trader update
 class TraderUpdate(TraderBase):
     pass
+
+
+# Properties to return via API
+class TraderReturn(TraderBase):
+    id: int
 
 
 # Properties shared by models stored in DB
