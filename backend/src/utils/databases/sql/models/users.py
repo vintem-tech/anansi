@@ -1,4 +1,4 @@
-from src.utils.databases.sql.core.pony import Base, Required, Json, Optional
+from src.utils.databases.sql.core.pony import Base, Required, Json, Optional, Set
 
 
 class User(Base):
@@ -8,3 +8,4 @@ class User(Base):
     is_superuser = Required(bool, default=False)
     full_name = Optional(str)
     telegram_chats_ids = Optional(Json)
+    traders = Set('Trader', cascade_delete=True)
