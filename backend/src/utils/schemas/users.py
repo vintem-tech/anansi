@@ -15,13 +15,14 @@ class UserBase(BaseModel):
     is_active: Optional[bool] = True
     is_superuser: bool = False
     full_name: Optional[str] = str()
-    telegram_chats_ids:TelegramChatsIds = TelegramChatsIds()
+    telegram_chats_ids: TelegramChatsIds = TelegramChatsIds()
 
 
 # Makes email and password required (receive via API on creation)
 class UserCreate(UserBase):
     email: EmailStr
     password: str
+
 
 # Properties to receive via API on update
 class UserUpdate(UserBase):
