@@ -1,7 +1,7 @@
 from src.core.security import get_password_hash
 from src.utils.databases.sql.core.pony import db_session, safety_commit
 from src.utils.databases.sql.models.users import User
-from src.utils.schemas.users import UserCreate, UserReturn
+from src.utils.schemas import UserCreate, UserReturn
 from pydantic import EmailStr
 
 
