@@ -14,8 +14,8 @@ class CrudUser:
         with db_session:
             user = User(**user_create.dict())
             safety_commit()
+            user_return = user.to_dict()
 
-        user_return = user.to_dict()
         user_return.pop("password")
         return UserReturn(**user_return)
 
@@ -23,7 +23,7 @@ class CrudUser:
         try:
             with db_session:
                 user_return = User.get(id=id)
-            return UserReturn(**user_return.to_dict())
+                return UserReturn(**user_return.to_dict())
         except (KeyError, AttributeError):
             return None
 
@@ -31,7 +31,7 @@ class CrudUser:
         try:
             with db_session:
                 user_return = User.get(email=email)
-            return UserReturn(**user_return.to_dict())
+                return UserReturn(**user_return.to_dict())
         except (KeyError, AttributeError):
             return None
 
