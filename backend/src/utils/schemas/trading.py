@@ -47,7 +47,7 @@ class TraderBase(BaseModel):
     ]
     mode: str = OperationalModes().backtesting
     classifier: str = "didi_v1"
-    classifier_setup: BaseModel = didi_v1.Setup()
+    classifier_setup = didi_v1.Setup()
     # stoploss:
 
 
@@ -83,3 +83,6 @@ class Trader(TraderInDBBase):
 # Properties properties stored in DB
 class TraderInDB(TraderInDBBase):
     pass
+
+modes = OperationalModes()
+back_testing_status = BacktestingStatus()
