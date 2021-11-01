@@ -1,4 +1,4 @@
-from src.utils.databases.sql.core.pony import Base, Required, Json, Optional
+from src.utils.databases.sql.core.pony import Base, Required, Json
 from .users import User
 
 class Trader(Base):
@@ -6,5 +6,5 @@ class Trader(Base):
     broker = Required(str)
     tickers = Required(Json)
     mode = Required(str)
-    classifier = Optional(str)
-    classifier_setup = Optional(Json)
+    classifier = Required(str)
+    classifier_setup = Required(Json)
