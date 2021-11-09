@@ -7,7 +7,6 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 from src.core import security
 from src.core.config import default_system_settings
-from src.utils.databases.sql.core.sql_alchemy.session import SessionLocal
 from src.utils import schemas
 from src.utils.databases.sql import crud, models
 
@@ -16,20 +15,12 @@ reusable_oauth2 = OAuth2PasswordBearer(
 )
 
 
-def get_db() -> Generator:
-    try:
-        db = SessionLocal()
-        yield db
-    finally:
-        db.close()
-
-
-def get_current_user(
-    db: Session = Depends(get_db), token: str = Depends(reusable_oauth2)
-) -> models.User:
+def get_current_user(token: str = Depends(reusable_oauth2)) -> models.User:
     try:
         payload = jwt.decode(
-            token, default_system_settings.SECRET_KEY, algorithms=[security.ALGORITHM]
+            token,
+            default_system_settings.SECRET_KEY,
+            algorithms=[security.ALGORITHM],
         )
         token_data = schemas.TokenPayload(**payload)
     except (jwt.JWTError, ValidationError):
@@ -37,7 +28,8 @@ def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Could not validate credentials",
         )
-    user = crud.user.get(db, id=token_data.sub)
+    user = crud.user.read_by_id(id=token_data.sub)
+
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
