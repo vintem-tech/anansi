@@ -38,12 +38,17 @@ class CrudUser:
             return None
 
     def authenticate(self, email: str, password: str) -> Optional[User]:
-        user = self.read_by_email(email=email)
-        if not user:
+        try:
+            with db_session:
+                user_return = User.get(email=email)
+        except (KeyError, AttributeError):
             return None
-        if not verify_password(password, user.hashed_password):
+
+        if not user_return:
             return None
-        return user
+        if not verify_password(password, user_return.password):
+            return None
+        return UserReturn(**user_return.to_dict())
 
     def is_active(self, user: User) -> bool:
         return user.is_active
