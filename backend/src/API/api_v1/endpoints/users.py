@@ -1,12 +1,19 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from src.utils import schemas
 from src.utils.databases.sql.crud import user
+from typing import Any
+from src.API import deps
 
 endpoint = APIRouter()
 
 
 @endpoint.post("/", response_model=schemas.UserReturn)
-def create_user(user_in: schemas.UserCreate):
+def create_user(
+    user_in: schemas.UserCreate,
+    current_user: schemas.UserReturn = Depends(
+        deps.get_current_active_superuser
+    ),
+) -> Any:
     user_in_db = user.read_by_email(email=user_in.email)
     if user_in_db:
         raise HTTPException(
