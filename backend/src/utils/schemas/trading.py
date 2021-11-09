@@ -84,5 +84,6 @@ class Trader(TraderInDBBase):
 class TraderInDB(TraderInDBBase):
     pass
 
+
 modes = OperationalModes()
 back_testing_status = BacktestingStatus()
