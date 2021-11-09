@@ -1,8 +1,10 @@
-from src.core.security import get_password_hash
+from typing import Optional
+
+from pydantic import EmailStr
+from src.core.security import get_password_hash, verify_password
 from src.utils.databases.sql.core.pony import db_session, safety_commit
 from src.utils.databases.sql.models.users import User
 from src.utils.schemas import UserCreate, UserReturn
-from pydantic import EmailStr
 
 
 class CrudUser:
@@ -34,5 +36,20 @@ class CrudUser:
                 return UserReturn(**user_return.to_dict())
         except (KeyError, AttributeError):
             return None
+
+    def authenticate(self, email: str, password: str) -> Optional[User]:
+        user = self.read_by_email(email=email)
+        if not user:
+            return None
+        if not verify_password(password, user.hashed_password):
+            return None
+        return user
+
+    def is_active(self, user: User) -> bool:
+        return user.is_active
+
+    def is_superuser(self, user: User) -> bool:
+        return user.is_superuser
+
 
 user = CrudUser()
